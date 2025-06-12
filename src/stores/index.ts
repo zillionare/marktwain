@@ -1,3 +1,4 @@
+import type { ThemeStyles } from '@/types'
 import type { ReadTimeResults } from 'reading-time'
 import DEFAULT_CONTENT from '@/assets/example/markdown.md?raw'
 import DEFAULT_CSS_CONTENT from '@/assets/example/theme-css.txt?raw'
@@ -8,6 +9,7 @@ import {
   themeMap,
   widthOptions,
 } from '@/config'
+
 import {
   addPrefix,
   downloadMD,
@@ -15,14 +17,15 @@ import {
   formatDoc,
   sanitizeTitle,
 } from '@/utils'
-
 import { css2json, customCssWithTemplate, customizeTheme, modifyHtmlContent } from '@/utils/'
 import { copyPlain } from '@/utils/clipboard'
+import { MarkdownProcessor } from '@/utils/markdownProcessor'
 import { initRenderer } from '@/utils/renderer'
 import CodeMirror from 'codemirror'
 import { toPng } from 'html-to-image'
-
 import { v4 as uuid } from 'uuid'
+
+import { toast } from 'vue-sonner'
 
 /**********************************
  * Post 结构接口
@@ -346,8 +349,58 @@ export const useStore = defineStore(`store`, () => {
     level: number
   }[]>([])
 
+  // Markdown处理器实例
+  const markdownProcessor = ref<MarkdownProcessor | null>(null)
+
+  // 是否启用特殊语法块渲染
+  const isBlockRenderingEnabled = useStorage(addPrefix(`block_rendering_enabled`), false)
+  const toggleBlockRendering = useToggle(isBlockRenderingEnabled)
+
+  // 初始化Markdown处理器
+  const initMarkdownProcessor = () => {
+    const currentTheme = customCssWithTemplate(
+      css2json(getCurrentTab().content),
+      primaryColor.value,
+      customizeTheme(themeMap[theme.value], {
+        fontSize: fontSizeNumber.value,
+        color: primaryColor.value,
+      }),
+    ) as unknown as ThemeStyles
+    markdownProcessor.value = new MarkdownProcessor(currentTheme, isDark.value)
+  }
+
+  // 处理特殊语法块
+  const processSpecialBlocks = async (content: string): Promise<string> => {
+    if (!isBlockRenderingEnabled.value || !markdownProcessor.value) {
+      return content
+    }
+
+    try {
+      return await markdownProcessor.value.processMarkdown(content)
+    }
+    catch (error) {
+      console.error(`Failed to process special blocks:`, error)
+      toast.error(`处理特殊语法块时出错`)
+      return content
+    }
+  }
+
+  // 检查内容是否包含特殊语法块
+  const hasSpecialBlocks = (content: string): boolean => {
+    if (!markdownProcessor.value)
+      return false
+    return markdownProcessor.value.hasSpecialBlocks(content)
+  }
+
+  // 预览将要处理的语法块
+  const previewSpecialBlocks = (content: string) => {
+    if (!markdownProcessor.value)
+      return []
+    return markdownProcessor.value.previewProcessing(content)
+  }
+
   // 更新编辑器
-  const editorRefresh = () => {
+  const editorRefresh = async () => {
     codeThemeChange()
     renderer.reset({
       citeStatus: isCiteStatus.value,
@@ -356,7 +409,16 @@ export const useStore = defineStore(`store`, () => {
       countStatus: isCountStatus.value,
       isMacCodeBlock: isMacCodeBlock.value,
     })
-    output.value = modifyHtmlContent(editor.value!.getValue(), renderer)
+
+    let content = editor.value!.getValue()
+
+    // 如果启用了特殊语法块渲染，先处理特殊语法块
+    if (isBlockRenderingEnabled.value) {
+      content = await processSpecialBlocks(content)
+    }
+
+    output.value = modifyHtmlContent(content, renderer)
+
     // 提取标题
     const div = document.createElement(`div`)
     div.innerHTML = output.value
@@ -391,7 +453,8 @@ export const useStore = defineStore(`store`, () => {
       theme: newTheme,
     })
 
-    editorRefresh()
+    // 异步调用editorRefresh，但不等待结果
+    editorRefresh().catch(console.error)
   }
   // 初始化 CSS 编辑器
   onMounted(() => {
@@ -434,11 +497,21 @@ export const useStore = defineStore(`store`, () => {
       updateCss()
       getCurrentTab().content = cssEditor.value!.getValue()
     })
+
+    // 初始化Markdown处理器
+    initMarkdownProcessor()
   })
 
   watch(isDark, () => {
     const theme = isDark.value ? `darcula` : `xq-light`
     toRaw(cssEditor.value)?.setOption?.(`theme`, theme)
+    // 重新初始化Markdown处理器以应用新的主题
+    initMarkdownProcessor()
+  })
+
+  // 监听主题变化，重新初始化处理器
+  watch([theme, primaryColor, fontSize], () => {
+    initMarkdownProcessor()
   })
 
   // 重置样式
@@ -469,7 +542,8 @@ export const useStore = defineStore(`store`, () => {
     cssEditor.value!.setValue(DEFAULT_CSS_CONTENT)
 
     updateCss()
-    editorRefresh()
+    // 异步调用editorRefresh，但不等待结果
+    editorRefresh().catch(console.error)
 
     toast.success(`样式已重置`)
   }
@@ -479,7 +553,8 @@ export const useStore = defineStore(`store`, () => {
     ...rest: any[]
   ) => {
     fn(...rest)
-    editorRefresh()
+    // 异步调用editorRefresh，但不等待结果
+    editorRefresh().catch(console.error)
   }
 
   const getTheme = (size: string, color: string) => {
@@ -731,6 +806,14 @@ export const useStore = defineStore(`store`, () => {
     updatePostParentId,
     collapseAllPosts,
     expandAllPosts,
+
+    // 特殊语法块渲染功能
+    isBlockRenderingEnabled,
+    toggleBlockRendering,
+    processSpecialBlocks,
+    hasSpecialBlocks,
+    previewSpecialBlocks,
+    initMarkdownProcessor,
   }
 })
 
