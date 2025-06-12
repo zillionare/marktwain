@@ -5,7 +5,8 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { useStore } from '@/stores'
-import { AlertCircle, Calculator, Code, Image, MessageSquare } from 'lucide-vue-next'
+import { getConfigInfo } from '@/utils/githubImageBed'
+import { AlertCircle, Calculator, Code, Image, MessageSquare, Settings } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { toast } from 'vue-sonner'
@@ -71,6 +72,9 @@ function getBlockTypeName(type: string, lang?: string) {
   }
 }
 
+// 获取GitHub图床配置信息
+const githubConfig = getConfigInfo()
+
 // 处理开关切换
 function handleToggle() {
   store.toggleBlockRendering()
@@ -105,6 +109,22 @@ function handleToggle() {
           :checked="isBlockRenderingEnabled"
           @update:checked="handleToggle"
         />
+      </div>
+
+      <Separator />
+
+      <!-- GitHub图床配置信息 -->
+      <div class="space-y-2">
+        <h4 class="flex items-center gap-2 text-sm font-medium">
+          <Settings class="h-4 w-4" />
+          GitHub图床配置
+        </h4>
+        <div class="space-y-1 bg-muted/30 rounded-lg p-3 text-xs">
+          <div><strong>仓库:</strong> {{ githubConfig.repo }}</div>
+          <div><strong>分支:</strong> {{ githubConfig.branch }}</div>
+          <div><strong>存储路径:</strong> {{ githubConfig.basePath }}</div>
+          <div><strong>访问地址:</strong> {{ githubConfig.baseUrl }}</div>
+        </div>
       </div>
 
       <Separator />
@@ -146,7 +166,7 @@ function handleToggle() {
       <!-- 功能说明 -->
       <div class="space-y-2 text-muted-foreground text-xs">
         <p><strong>支持的语法块类型：</strong></p>
-        <ul class="list-disc list-inside space-y-1 ml-2">
+        <ul class="space-y-1 list-disc list-inside ml-2">
           <li>代码块：```language 语法的代码块</li>
           <li>Mermaid图表：```mermaid 语法的图表</li>
           <li>数学公式：$$ 包围的块级数学公式</li>
