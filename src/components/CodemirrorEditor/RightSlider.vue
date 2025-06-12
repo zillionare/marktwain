@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BlockRenderingPanel from '@/components/BlockRenderingPanel.vue'
 import {
   codeBlockThemeOptions,
   colorOptions,
@@ -291,6 +292,9 @@ const formatOptions = ref<Format[]>([`rgb`, `hex`, `hsl`, `hsv`])
           重置
         </Button>
       </div>
+
+      <!-- 特殊语法块渲染面板 -->
+      <BlockRenderingPanel />
     </div>
   </div>
 </template>

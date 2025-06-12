@@ -176,8 +176,8 @@ function leftAndRightScroll() {
 }
 
 // 更新编辑器
-function onEditorRefresh() {
-  editorRefresh()
+async function onEditorRefresh() {
+  await editorRefresh()
 }
 
 const backLight = ref(false)
@@ -265,7 +265,7 @@ watch(isDark, () => {
 })
 
 // 初始化编辑器
-function initEditor() {
+async function initEditor() {
   const editorDom = document.querySelector<HTMLTextAreaElement>(`#editor`)!
 
   if (!editorDom.value) {
@@ -366,8 +366,8 @@ function initEditor() {
 
     editor.value.on(`change`, (e) => {
       clearTimeout(changeTimer.value)
-      changeTimer.value = setTimeout(() => {
-        onEditorRefresh()
+      changeTimer.value = setTimeout(async () => {
+        await onEditorRefresh()
         if (e.getValue() !== store.posts[store.currentPostIndex].content) {
           store.posts[store.currentPostIndex].updateDatetime = new Date()
         }
@@ -397,7 +397,7 @@ function initEditor() {
     })
 
     initPolishEvent(editor.value)
-    onEditorRefresh()
+    onEditorRefresh().catch(console.error)
     mdLocalToRemote()
   })
 
@@ -540,8 +540,8 @@ function mdLocalToRemote() {
   }
 }
 
-onMounted(() => {
-  initEditor()
+onMounted(async () => {
+  await initEditor()
 })
 
 const isOpenHeadingSlider = ref(false)
