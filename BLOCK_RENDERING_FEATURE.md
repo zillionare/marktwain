@@ -95,7 +95,38 @@ $$
 1. **检测阶段**: 使用正则表达式识别特殊语法块
 2. **渲染阶段**: 创建DOM元素并应用样式，然后转换为图片
 3. **上传阶段**: 将图片上传到GitHub仓库
-4. **替换阶段**: 用图片链接替换原始语法块
+4. **构建触发**: 自动触发GitHub Pages构建
+5. **验证阶段**: 等待并验证图片可访问性
+6. **替换阶段**: 用图片链接替换原始语法块
+
+### GitHub图床配置
+
+#### 环境变量配置
+
+可以通过以下环境变量配置GitHub图床：
+
+- `VITE_GITHUB_IMAGE_REPO`: GitHub仓库名（如：zillionare/images）
+- `VITE_GITHUB_IMAGE_BRANCH`: 分支名（如：main）
+- `VITE_GITHUB_IMAGE_TOKEN`: GitHub访问令牌
+- `VITE_GITHUB_IMAGE_BASE_PATH`: 存储路径模板（如：images/{year}/{month}/）
+- `VITE_GITHUB_IMAGE_BASE_URL`: 访问基础URL（如：https://images.jieyu.ai）
+
+#### 默认配置
+
+如果未设置环境变量，将使用以下默认配置：
+
+- 仓库：zillionare/images
+- 分支：main
+- Token：[从环境变量获取]
+- 存储路径：images/{year}/{month}/
+- 访问地址：https://images.jieyu.ai
+
+#### 路径变量
+
+存储路径支持以下变量：
+
+- `{year}`: 当前年份（如：2024）
+- `{month}`: 当前月份，两位数格式（如：06）
 
 ## 配置选项
 
@@ -106,9 +137,11 @@ $$
 ## 注意事项
 
 1. **网络依赖**: 需要网络连接来上传图片到GitHub
-2. **处理时间**: 首次渲染可能需要一些时间
+2. **处理时间**: 首次渲染可能需要一些时间，GitHub Pages构建需要1-2分钟
 3. **存储空间**: 图片会占用GitHub仓库空间
 4. **兼容性**: 生成的图片在所有Markdown渲染器中都能正确显示
+5. **访问延迟**: 图片上传后可能需要等待2分钟左右才能通过web访问
+6. **Token安全**: 请妥善保管GitHub访问令牌，避免泄露
 
 ## 故障排除
 

@@ -3,8 +3,7 @@ import hljs from 'highlight.js'
 import { toPng } from 'html-to-image'
 import mermaid from 'mermaid'
 import { getStyleString } from '.'
-import fileApi from './file'
-import { toBase64 } from './index'
+import { uploadImageToGitHub } from './githubImageBed'
 
 /**
  * 特殊语法块渲染器
@@ -59,13 +58,9 @@ export class BlockRenderer {
         },
       })
 
-      // 将dataUrl转换为blob并上传
-      const response = await fetch(dataUrl)
-      const blob = await response.blob()
-      const file = new File([blob], `code-${Date.now()}.png`, { type: `image/png` })
-      const base64Content = await toBase64(file)
-
-      return await fileApi.fileUpload(base64Content, file)
+      // 将dataUrl转换为base64并上传到GitHub
+      const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
+      return await uploadImageToGitHub(base64Content, `code-${Date.now()}.png`, `code`)
     }
     finally {
       document.body.removeChild(container)
@@ -110,12 +105,8 @@ export class BlockRenderer {
         },
       })
 
-      const response = await fetch(dataUrl)
-      const blob = await response.blob()
-      const file = new File([blob], `mermaid-${Date.now()}.png`, { type: `image/png` })
-      const base64Content = await toBase64(file)
-
-      return await fileApi.fileUpload(base64Content, file)
+      const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
+      return await uploadImageToGitHub(base64Content, `mermaid-${Date.now()}.png`, `mermaid`)
     }
     finally {
       document.body.removeChild(container)
@@ -177,12 +168,8 @@ export class BlockRenderer {
         },
       })
 
-      const response = await fetch(dataUrl)
-      const blob = await response.blob()
-      const file = new File([blob], `admonition-${type}-${Date.now()}.png`, { type: `image/png` })
-      const base64Content = await toBase64(file)
-
-      return await fileApi.fileUpload(base64Content, file)
+      const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
+      return await uploadImageToGitHub(base64Content, `admonition-${type}-${Date.now()}.png`, `admonition`)
     }
     finally {
       document.body.removeChild(container)
@@ -246,12 +233,8 @@ export class BlockRenderer {
         },
       })
 
-      const response = await fetch(dataUrl)
-      const blob = await response.blob()
-      const file = new File([blob], `math-${Date.now()}.png`, { type: `image/png` })
-      const base64Content = await toBase64(file)
-
-      return await fileApi.fileUpload(base64Content, file)
+      const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
+      return await uploadImageToGitHub(base64Content, `math-${Date.now()}.png`, `math`)
     }
     finally {
       document.body.removeChild(container)
