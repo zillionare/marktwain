@@ -13,10 +13,12 @@ import { imageCache } from './imageCache'
 export class BlockRenderer {
   private styles: ThemeStyles
   private isDark: boolean
+  private imageWidth: number
 
-  constructor(styles: ThemeStyles, isDark: boolean = false) {
+  constructor(styles: ThemeStyles, isDark: boolean = false, imageWidth: number = 800) {
     this.styles = styles
     this.isDark = isDark
+    this.imageWidth = imageWidth
   }
 
   // 内联语法高亮样式映射
@@ -136,7 +138,7 @@ export class BlockRenderer {
       position: fixed;
       top: -2000px;
       left: -2000px;
-      width: 800px;
+      width: ${this.imageWidth}px;
       padding: 20px;
       background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -149,7 +151,7 @@ export class BlockRenderer {
 
     const container = document.createElement(`div`)
     container.style.cssText = `
-      width: 800px;
+      width: ${this.imageWidth}px;
       padding: 20px;
       background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -185,60 +187,42 @@ export class BlockRenderer {
       display: block;
     `
 
-    // 先处理原始代码，保留缩进并限制行长度
+    // 先处理原始代码，保留缩进
     let processedCode = code
     processedCode = processedCode.replace(/\t/g, `    `) // 制表符转换为4个空格
 
-    // 限制每行字符数不超过88字符
+    console.log(`Original code:`, JSON.stringify(processedCode))
+
+    // 分析每行的缩进
     const lines = processedCode.split(`\n`)
-    const wrappedLines = lines.map((line) => {
-      if (line.length <= 88)
-        return line
-
-      // 如果行太长，进行智能换行
-      const chunks = []
-      let currentChunk = ``
-      const words = line.split(` `)
-
-      for (const word of words) {
-        if ((`${currentChunk} ${word}`).length <= 88) {
-          currentChunk = currentChunk ? `${currentChunk} ${word}` : word
-        }
-        else {
-          if (currentChunk)
-            chunks.push(currentChunk)
-          currentChunk = word
-        }
-      }
-      if (currentChunk)
-        chunks.push(currentChunk)
-
-      return chunks.join(`\n    `) // 续行增加4个空格缩进
+    const lineIndents = lines.map((line) => {
+      const match = line.match(/^( *)/)
+      return match ? match[1].length : 0
     })
-    processedCode = wrappedLines.join(`\n`)
+
+    console.log(`Line indents:`, lineIndents)
 
     // 使用highlight.js进行语法高亮
     const language = hljs.getLanguage(_lang) ? _lang : `plaintext`
     let highlighted = hljs.highlight(processedCode, { language }).value
 
-    // 更强力的缩进处理：直接在HTML中查找并替换空格
-    // 处理行首空格，包括第一行和换行后的空格
-    console.log(`Original code lines:`, processedCode.split(`\n`).map((line, i) => `${i}: "${line}"`))
-    console.log(`Highlighted before indent processing:`, highlighted.substring(0, 200))
+    console.log(`Highlighted HTML:`, highlighted.substring(0, 300))
 
-    highlighted = highlighted.split(`\n`).map((line, index) => {
-      // 匹配行首的空格
-      const match = line.match(/^( +)/)
-      if (match) {
-        const spaces = match[1]
-        const restOfLine = line.substring(spaces.length)
-        console.log(`Line ${index}: Found ${spaces.length} leading spaces`)
-        return `&nbsp;`.repeat(spaces.length) + restOfLine
+    // 重新应用缩进：将高亮后的每行与原始缩进匹配
+    const highlightedLines = highlighted.split(`\n`)
+    const finalLines = highlightedLines.map((line, index) => {
+      if (index < lineIndents.length && lineIndents[index] > 0) {
+        // 移除可能存在的前导空格，然后添加正确的缩进
+        const trimmedLine = line.replace(/^&nbsp;+|^ +/, ``)
+        const indentSpaces = `&nbsp;`.repeat(lineIndents[index])
+        console.log(`Line ${index}: Adding ${lineIndents[index]} spaces to "${trimmedLine.substring(0, 20)}..."`)
+        return indentSpaces + trimmedLine
       }
       return line
-    }).join(`\n`)
+    })
 
-    console.log(`Highlighted after indent processing:`, highlighted.substring(0, 200))
+    highlighted = finalLines.join(`\n`)
+    console.log(`Final highlighted with indents:`, highlighted.substring(0, 300))
 
     // 应用内联样式替换CSS类
     const styledHighlighted = this.applyInlineStyles(highlighted)
@@ -283,7 +267,7 @@ export class BlockRenderer {
       const dataUrl = await toPng(container, {
         backgroundColor: `#1e1e1e`, // 强制深色背景
         pixelRatio: 2,
-        width: Math.min(800, container.offsetWidth || 800), // 限制最大宽度800px
+        width: Math.min(this.imageWidth, container.offsetWidth || this.imageWidth), // 使用设置的图片宽度
         height: container.offsetHeight || 200,
         style: {
           transform: `scale(1)`,

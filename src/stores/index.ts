@@ -359,6 +359,7 @@ export const useStore = defineStore(`store`, () => {
   // 转图状态管理（持久化）
   const isImageMode = useStorage(addPrefix(`image_mode`), false) // 当前是否处于图片模式
   const isPreviewMode = ref(false) // 预览模式（使用dataURL，不上传GitHub）
+  const imageWidth = useStorage(addPrefix(`image_width`), 800) // 图片宽度设置（像素）
   const originalContent = useStorage(addPrefix(`original_content`), ``) // 原始内容缓存
   const imageContent = useStorage(addPrefix(`image_content`), ``) // 图片内容缓存（副本）
   const contentHash = useStorage(addPrefix(`content_hash`), ``) // 内容哈希，用于检测变化
@@ -374,7 +375,7 @@ export const useStore = defineStore(`store`, () => {
         color: primaryColor.value,
       }),
     ) as unknown as ThemeStyles
-    markdownProcessor.value = new MarkdownProcessor(currentTheme, isDark.value)
+    markdownProcessor.value = new MarkdownProcessor(currentTheme, isDark.value, imageWidth.value)
   }
 
   // 生成内容哈希
@@ -1033,6 +1034,7 @@ export const useStore = defineStore(`store`, () => {
     // 转图功能
     isImageMode,
     isPreviewMode,
+    imageWidth,
     toggleImageMode,
     togglePreviewMode,
     clearImageModeState,

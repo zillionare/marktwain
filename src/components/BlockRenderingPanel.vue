@@ -14,7 +14,7 @@ const githubConfig = getConfigInfo()
 const isTestingConnection = ref(false)
 
 // 获取store
-const { clearImageModeState } = useStore()
+const { clearImageModeState, imageWidth } = useStore()
 
 // 缓存统计信息（响应式）
 const cacheStats = ref(imageCache.getCacheStats())
@@ -189,46 +189,68 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="space-y-2">
-          <div class="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              class="flex-1"
-              @click="cleanExpiredCache"
-            >
-              <Database class="mr-2 h-4 w-4" />
-              清理过期
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              class="flex-1"
-              @click="clearAllCache"
-            >
-              <Trash2 class="mr-2 h-4 w-4" />
-              清空缓存
-            </Button>
+        <div class="space-y-3">
+          <!-- 图片宽度设置 -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium">图片宽度 (像素)</label>
+            <div class="flex items-center gap-2">
+              <input
+                v-model.number="imageWidth"
+                type="number"
+                min="400"
+                max="1200"
+                step="50"
+                class="flex-1 border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+              <span class="text-xs text-gray-500">px</span>
+            </div>
+            <p class="text-xs text-gray-500">
+              建议范围：400-1200像素，默认800像素
+            </p>
           </div>
-          <div class="flex gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              class="flex-1"
-              @click="forceRefreshCache"
-            >
-              <Database class="mr-2 h-4 w-4" />
-              刷新统计
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              class="flex-1"
-              @click="verifyCacheState"
-            >
-              <Database class="mr-2 h-4 w-4" />
-              验证状态
-            </Button>
+
+          <!-- 缓存管理按钮 -->
+          <div class="space-y-2">
+            <div class="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                class="flex-1"
+                @click="cleanExpiredCache"
+              >
+                <Database class="mr-2 h-4 w-4" />
+                清理过期
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                class="flex-1"
+                @click="clearAllCache"
+              >
+                <Trash2 class="mr-2 h-4 w-4" />
+                清空缓存
+              </Button>
+            </div>
+            <div class="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                class="flex-1"
+                @click="forceRefreshCache"
+              >
+                <Database class="mr-2 h-4 w-4" />
+                刷新统计
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                class="flex-1"
+                @click="verifyCacheState"
+              >
+                <Database class="mr-2 h-4 w-4" />
+                验证状态
+              </Button>
+            </div>
           </div>
         </div>
       </div>
