@@ -23,21 +23,31 @@ export class BlockRenderer {
    * 渲染代码块为图片
    */
   async renderCodeBlock(code: string, lang: string): Promise<string> {
-    const container = document.createElement(`div`)
-    container.style.cssText = `
+    // 创建一个临时的渲染容器
+    const renderContainer = document.createElement(`div`)
+    renderContainer.style.cssText = `
       position: fixed;
-      top: 50px;
-      left: 50px;
+      top: -2000px;
+      left: -2000px;
       width: 800px;
       padding: 20px;
       background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
       font-size: 14px;
       line-height: 1.5;
-      z-index: 9999;
-      visibility: hidden;
+      z-index: -1;
+      opacity: 1;
       pointer-events: none;
-      border: 1px solid transparent;
+    `
+
+    const container = document.createElement(`div`)
+    container.style.cssText = `
+      width: 800px;
+      padding: 20px;
+      background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.5;
     `
 
     // 创建代码块HTML
@@ -72,11 +82,38 @@ export class BlockRenderer {
 
     codeElement.appendChild(codeInner)
     container.appendChild(codeElement)
-    document.body.appendChild(container)
+    renderContainer.appendChild(container)
+    document.body.appendChild(renderContainer)
 
     try {
       // 等待字体和样式加载
       await new Promise(resolve => setTimeout(resolve, 500))
+
+      // 测试：创建一个简单的canvas图片来验证上传流程
+      if (code.includes(`TEST_SIMPLE_IMAGE`)) {
+        const canvas = document.createElement(`canvas`)
+        canvas.width = 400
+        canvas.height = 200
+        const ctx = canvas.getContext(`2d`)!
+        ctx.fillStyle = this.isDark ? `#1e1e1e` : `#ffffff`
+        ctx.fillRect(0, 0, 400, 200)
+        ctx.fillStyle = this.isDark ? `#ffffff` : `#000000`
+        ctx.font = `16px Arial`
+        ctx.fillText(`Test Image - Code Block`, 50, 100)
+        ctx.fillText(code, 50, 130)
+
+        const testDataUrl = canvas.toDataURL(`image/png`)
+        console.log(`Test canvas dataUrl length: ${testDataUrl.length}`)
+
+        const base64Content = testDataUrl.split(`,`)[1]
+        const imageUrl = await uploadImageToGitHub(base64Content, `test-code-${Date.now()}.png`, `code`)
+        imageCache.cacheImage(base64Content, imageUrl, `code`)
+        return imageUrl
+      }
+
+      // 确保容器有内容并且可见
+      console.log(`Container dimensions: ${container.offsetWidth}x${container.offsetHeight}`)
+      console.log(`Container innerHTML length: ${container.innerHTML.length}`)
 
       const dataUrl = await toPng(container, {
         backgroundColor: this.isDark ? `#1e1e1e` : `#ffffff`,
@@ -89,6 +126,10 @@ export class BlockRenderer {
         },
         cacheBust: true,
         includeQueryParams: true,
+        filter: (_node) => {
+          // 确保所有节点都被包含
+          return true
+        },
       })
 
       // 调试：输出dataUrl信息
@@ -117,7 +158,7 @@ export class BlockRenderer {
       return imageUrl
     }
     finally {
-      document.body.removeChild(container)
+      document.body.removeChild(renderContainer)
     }
   }
 
