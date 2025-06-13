@@ -1,5 +1,4 @@
 import type { ThemeStyles } from '@/types'
-import hljs from 'highlight.js'
 import { toPng } from 'html-to-image'
 import mermaid from 'mermaid'
 import { getStyleString } from '.'
@@ -22,7 +21,7 @@ export class BlockRenderer {
   /**
    * 渲染代码块为图片
    */
-  async renderCodeBlock(code: string, lang: string): Promise<string> {
+  async renderCodeBlock(code: string, _lang: string): Promise<string> {
     // 创建一个临时的渲染容器
     const renderContainer = document.createElement(`div`)
     renderContainer.style.cssText = `
@@ -50,11 +49,7 @@ export class BlockRenderer {
       line-height: 1.5;
     `
 
-    // 创建代码块HTML
-    const language = hljs.getLanguage(lang) ? lang : `plaintext`
-    let highlighted = hljs.highlight(code, { language }).value
-    highlighted = highlighted.replace(/\t/g, `    `)
-
+    // 创建代码块HTML - 使用纯文本避免highlight.js的跨域CSS问题
     const codeElement = document.createElement(`pre`)
     codeElement.style.cssText = `
       margin: 0;
@@ -68,17 +63,18 @@ export class BlockRenderer {
       color: ${this.isDark ? `#e1e4e8` : `#24292e`};
       white-space: pre-wrap;
       word-wrap: break-word;
+      border: 1px solid ${this.isDark ? `#444` : `#d1d9e0`};
     `
 
     const codeInner = document.createElement(`code`)
-    codeInner.className = `language-${lang}`
     codeInner.style.cssText = `
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
       font-size: 14px;
       color: inherit;
       display: block;
     `
-    codeInner.innerHTML = highlighted
+    // 使用纯文本，不使用highlight.js避免跨域CSS问题
+    codeInner.textContent = code
 
     codeElement.appendChild(codeInner)
     container.appendChild(codeElement)
@@ -126,6 +122,7 @@ export class BlockRenderer {
         },
         cacheBust: true,
         includeQueryParams: true,
+        skipFonts: true, // 跳过字体处理避免跨域问题
         filter: (_node) => {
           // 确保所有节点都被包含
           return true
@@ -212,6 +209,7 @@ export class BlockRenderer {
         },
         cacheBust: true,
         includeQueryParams: true,
+        skipFonts: true,
       })
 
       // 将dataUrl转换为base64
@@ -298,6 +296,7 @@ export class BlockRenderer {
         },
         cacheBust: true,
         includeQueryParams: true,
+        skipFonts: true,
       })
 
       // 将dataUrl转换为base64
@@ -387,6 +386,7 @@ export class BlockRenderer {
         },
         cacheBust: true,
         includeQueryParams: true,
+        skipFonts: true,
       })
 
       // 将dataUrl转换为base64
