@@ -3,11 +3,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { useStore } from '@/stores'
-import { getConfigInfo, testGitHubConnection } from '@/utils/githubImageBed'
+import { testGitHubConnection } from '@/utils/githubImageBed'
 import { imageCache } from '@/utils/imageCache'
 import { Database, Image, Settings, TestTube, Trash2 } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 
 // 获取store
@@ -25,29 +25,6 @@ const { clearImageModeState } = store
 
 // 获取GitHub图床配置信息
 const isTestingConnection = ref(false)
-
-// 计算属性：实时获取GitHub配置
-const githubConfig = computed(() => {
-  try {
-    const storeConfig = {
-      repo: githubImageRepo.value,
-      branch: githubImageBranch.value,
-      token: githubImageToken.value,
-      basePath: githubImageBasePath.value,
-      baseUrl: githubImageBaseUrl.value,
-    }
-    return getConfigInfo(storeConfig)
-  }
-  catch {
-    return {
-      repo: `ERROR`,
-      branch: `ERROR`,
-      basePath: `ERROR`,
-      baseUrl: `ERROR`,
-      token: `ERROR`,
-    }
-  }
-})
 
 // 缓存统计信息（响应式）
 const cacheStats = ref(imageCache.getCacheStats())
@@ -247,23 +224,8 @@ onUnmounted(() => {
             </p>
           </div>
         </div>
-      </div>
 
-      <Separator />
-
-      <!-- GitHub图床配置信息 -->
-      <div class="space-y-2">
-        <h4 class="flex items-center gap-2 text-sm font-medium">
-          <Settings class="h-4 w-4" />
-          当前配置
-        </h4>
-        <div class="space-y-1 bg-muted/30 rounded-lg p-3 text-xs">
-          <div><strong>仓库:</strong> {{ githubConfig.repo }}</div>
-          <div><strong>分支:</strong> {{ githubConfig.branch }}</div>
-          <div><strong>存储路径:</strong> {{ githubConfig.basePath }}</div>
-          <div><strong>访问地址:</strong> {{ githubConfig.baseUrl }}</div>
-          <div><strong>Token:</strong> {{ githubConfig.token }}</div>
-        </div>
+        <!-- 测试连接按钮 -->
         <Button
           variant="outline"
           size="sm"
