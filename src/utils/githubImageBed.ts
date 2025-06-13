@@ -217,10 +217,11 @@ export async function uploadImageToGitHub(
     // 生成访问URL
     const accessUrl = generateAccessUrl(config, storagePath)
 
-    // 异步上传（不等待完成）
-    uploadImageToGitHubAsync(base64Content, accessUrl)
+    // 同步上传（等待完成）
+    console.log(`Uploading image to GitHub: ${storagePath}`)
+    await uploadToGitHub(config, base64Content, storagePath)
 
-    console.log(`Image URL generated: ${accessUrl}`)
+    console.log(`Image uploaded successfully: ${accessUrl}`)
     return accessUrl
   }
   catch (error) {
