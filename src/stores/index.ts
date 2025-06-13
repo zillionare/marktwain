@@ -440,20 +440,22 @@ export const useStore = defineStore(`store`, () => {
           toast.info(`正在转换特殊语法块为图片...`)
           console.log(`Converting special blocks to images...`)
 
+          // 立即切换到图片模式，显示占位符
+          isImageMode.value = true
+
           const processedContent = await processSpecialBlocks(currentContent)
 
           imageContent.value = processedContent
           contentHash.value = currentHash
 
           editor.value?.setValue(processedContent)
-          isImageMode.value = true
-          toast.success(`已成功转换为图片模式`)
+          toast.success(`图片转换完成`)
           console.log(`Successfully converted to image mode`)
         }
         catch (error) {
           console.error(`Failed to convert to image mode:`, error)
           toast.error(`转换图片模式失败`)
-          // 转换失败，保持原始状态
+          isImageMode.value = false // 转换失败，恢复状态
         }
       }
     }

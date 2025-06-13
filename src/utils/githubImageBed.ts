@@ -113,30 +113,54 @@ function generateAccessUrl(config: GitHubImageBedConfig, path: string): string {
 }
 
 /**
- * 等待图片可访问
- * GitHub Pages需要一些时间来构建和部署
+ * 从URL提取存储路径
  */
-async function waitForImageAvailable(url: string, maxAttempts: number = 6, interval: number = 5000): Promise<boolean> {
-  for (let i = 0; i < maxAttempts; i++) {
-    try {
-      const response = await fetch(url, { method: `HEAD` })
-      if (response.ok) {
-        return true
-      }
-    }
-    catch {
-      // 忽略网络错误，继续重试
-    }
-
-    if (i < maxAttempts - 1) {
-      await new Promise(resolve => setTimeout(resolve, interval))
-    }
-  }
-  return false
+function extractStoragePathFromUrl(url: string, baseUrl: string): string {
+  return url.replace(`${baseUrl}/`, ``)
 }
 
 /**
- * 主要的上传函数
+ * 预生成图片URL（不等待上传完成）
+ */
+export function generateImageUrl(prefix: string = `image`): string {
+  const config = getGitHubImageBedConfig()
+  const uniqueFilename = generateUniqueFilename(prefix)
+  const storagePath = generateStoragePath(config.basePath, uniqueFilename)
+  return generateAccessUrl(config, storagePath)
+}
+
+/**
+ * 异步上传图片到GitHub（不阻塞返回）
+ */
+export async function uploadImageToGitHubAsync(
+  base64Content: string,
+  targetUrl: string,
+): Promise<void> {
+  try {
+    const config = getGitHubImageBedConfig()
+
+    // 验证base64内容
+    if (!base64Content || base64Content.length === 0) {
+      throw new Error(`Base64 content is empty`)
+    }
+
+    // 从目标URL提取存储路径
+    const storagePath = extractStoragePathFromUrl(targetUrl, config.baseUrl)
+
+    // 异步上传到GitHub
+    console.log(`Uploading image to GitHub asynchronously: ${storagePath}`)
+    await uploadToGitHub(config, base64Content, storagePath)
+
+    console.log(`Image uploaded successfully: ${targetUrl}`)
+  }
+  catch (error) {
+    console.error(`Failed to upload image to GitHub:`, error)
+    // 不抛出错误，避免影响用户体验
+  }
+}
+
+/**
+ * 主要的上传函数（修改为立即返回URL）
  */
 export async function uploadImageToGitHub(
   base64Content: string,
@@ -157,22 +181,13 @@ export async function uploadImageToGitHub(
     // 生成存储路径
     const storagePath = generateStoragePath(config.basePath, uniqueFilename)
 
-    // 上传到GitHub
-    console.log(`Uploading image to GitHub: ${storagePath}`)
-    await uploadToGitHub(config, base64Content, storagePath)
-
     // 生成访问URL
     const accessUrl = generateAccessUrl(config, storagePath)
 
-    // 等待图片可访问
-    console.log(`Waiting for image to be available...`)
-    const isAvailable = await waitForImageAvailable(accessUrl)
+    // 异步上传（不等待完成）
+    uploadImageToGitHubAsync(base64Content, accessUrl)
 
-    if (!isAvailable) {
-      console.warn(`Image may not be immediately available, but upload was successful`)
-    }
-
-    console.log(`Image uploaded successfully: ${accessUrl}`)
+    console.log(`Image URL generated: ${accessUrl}`)
     return accessUrl
   }
   catch (error) {

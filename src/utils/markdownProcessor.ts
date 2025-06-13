@@ -15,160 +15,175 @@ export class MarkdownProcessor {
 
   /**
    * 处理markdown内容，将特殊语法块转换为图片
+   * 使用并发处理提高性能
    */
   async processMarkdown(content: string): Promise<string> {
+    // 收集所有需要处理的块
+    const allBlocks = this.collectAllBlocks(content)
+
+    if (allBlocks.length === 0) {
+      return content
+    }
+
+    console.log(`Found ${allBlocks.length} blocks to process, starting concurrent processing...`)
+
     let processedContent = content
+    const processingPromises: Promise<{ block: any, imageUrl: string }>[] = []
 
-    // 1. 处理代码块（包括mermaid）
-    processedContent = await this.processCodeBlocks(processedContent)
+    for (const block of allBlocks) {
+      // 检查缓存
+      if (this.processedBlocks.has(block.id)) {
+        processedContent = processedContent.replace(block.fullMatch, this.processedBlocks.get(block.id)!)
+        continue
+      }
 
-    // 2. 处理admonition块
-    processedContent = await this.processAdmonitionBlocks(processedContent)
+      // 创建异步处理Promise
+      const processingPromise = this.processBlockAsync(block).then(result => ({
+        block,
+        imageUrl: result.imageUrl,
+      }))
 
-    // 3. 处理数学公式块
-    processedContent = await this.processMathBlocks(processedContent)
+      processingPromises.push(processingPromise)
+    }
+
+    // 并发处理所有块
+    if (processingPromises.length > 0) {
+      try {
+        const results = await Promise.all(processingPromises)
+
+        // 替换所有处理完成的块
+        for (const { block, imageUrl } of results) {
+          const imageMarkdown = `![${block.type} ${block.lang || ``}](${imageUrl})`
+          processedContent = processedContent.replace(block.fullMatch, imageMarkdown)
+          this.processedBlocks.set(block.id, imageMarkdown)
+        }
+
+        console.log(`All ${results.length} blocks processed successfully`)
+      }
+      catch (error) {
+        console.error(`Some blocks failed to process:`, error)
+        // 继续处理，不阻塞整个流程
+      }
+    }
 
     return processedContent
   }
 
   /**
-   * 处理代码块
+   * 收集所有需要处理的块
    */
-  private async processCodeBlocks(content: string): Promise<string> {
-    // 匹配fenced code blocks
-    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g
-    const matches = Array.from(content.matchAll(codeBlockRegex))
+  private collectAllBlocks(content: string): Array<{
+    id: string
+    type: string
+    fullMatch: string
+    content: string
+    lang?: string
+  }> {
+    const blocks: Array<{
+      id: string
+      type: string
+      fullMatch: string
+      content: string
+      lang?: string
+    }> = []
 
-    for (const match of matches) {
+    // 收集代码块
+    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g
+    let match = codeBlockRegex.exec(content)
+    while (match !== null) {
       const [fullMatch, lang = ``, code] = match
       const blockId = this.generateBlockId(fullMatch)
 
-      if (this.processedBlocks.has(blockId)) {
-        content = content.replace(fullMatch, this.processedBlocks.get(blockId)!)
-        continue
-      }
+      blocks.push({
+        id: blockId,
+        type: lang.toLowerCase() === `mermaid` ? `mermaid` : `code`,
+        fullMatch,
+        content: code.trim(),
+        lang: lang || `text`,
+      })
 
-      try {
-        let imageUrl: string
-
-        if (lang.toLowerCase() === `mermaid`) {
-          // 处理mermaid图表
-          imageUrl = await this.blockRenderer.renderMermaidChart(code.trim())
-        }
-        else {
-          // 处理普通代码块
-          imageUrl = await this.blockRenderer.renderCodeBlock(code.trim(), lang)
-        }
-
-        const imageMarkdown = `![${lang} code block](${imageUrl})`
-        this.processedBlocks.set(blockId, imageMarkdown)
-        content = content.replace(fullMatch, imageMarkdown)
-      }
-      catch (error) {
-        console.error(`Failed to render code block:`, error)
-        // 如果渲染失败，保留原始代码块
-      }
+      match = codeBlockRegex.exec(content)
     }
 
-    return content
-  }
-
-  /**
-   * 处理admonition块
-   */
-  private async processAdmonitionBlocks(content: string): Promise<string> {
-    // 匹配GitHub风格的admonition语法: > [!NOTE] 等
+    // 收集admonition块
     const admonitionRegex = /^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n((?:^>.*\n?)*)/gm
-    const matches = Array.from(content.matchAll(admonitionRegex))
-
-    for (const match of matches) {
+    match = admonitionRegex.exec(content)
+    while (match !== null) {
       const [fullMatch, type, contentLines] = match
       const blockId = this.generateBlockId(fullMatch)
 
-      if (this.processedBlocks.has(blockId)) {
-        content = content.replace(fullMatch, this.processedBlocks.get(blockId)!)
-        continue
-      }
+      const admonitionContent = contentLines
+        .split(`\n`)
+        .map(line => line.replace(/^>\s?/, ``))
+        .join(`\n`)
+        .trim()
 
-      try {
-        // 提取admonition内容（去掉引用符号）
-        const admonitionContent = contentLines
-          .split(`\n`)
-          .map(line => line.replace(/^>\s?/, ``))
-          .join(`\n`)
-          .trim()
+      blocks.push({
+        id: blockId,
+        type: `admonition`,
+        fullMatch,
+        content: admonitionContent,
+        lang: type.toLowerCase(),
+      })
 
-        const imageUrl = await this.blockRenderer.renderAdmonitionBlock(
-          admonitionContent,
-          type.toLowerCase(),
-        )
-
-        const imageMarkdown = `![${type} admonition](${imageUrl})`
-        this.processedBlocks.set(blockId, imageMarkdown)
-        content = content.replace(fullMatch, imageMarkdown)
-      }
-      catch (error) {
-        console.error(`Failed to render admonition block:`, error)
-        // 如果渲染失败，保留原始块
-      }
+      match = admonitionRegex.exec(content)
     }
 
-    return content
-  }
-
-  /**
-   * 处理数学公式块
-   */
-  private async processMathBlocks(content: string): Promise<string> {
-    // 处理块级数学公式 $$...$$
-    const blockMathRegex = /\$\$([\s\S]*?)\$\$/g
-    const blockMatches = Array.from(content.matchAll(blockMathRegex))
-
-    for (const match of blockMatches) {
+    // 收集数学公式块
+    const mathBlockRegex = /\$\$([\s\S]*?)\$\$/g
+    match = mathBlockRegex.exec(content)
+    while (match !== null) {
       const [fullMatch, formula] = match
       const blockId = this.generateBlockId(fullMatch)
 
-      if (this.processedBlocks.has(blockId)) {
-        content = content.replace(fullMatch, this.processedBlocks.get(blockId)!)
-        continue
-      }
+      blocks.push({
+        id: blockId,
+        type: `math`,
+        fullMatch,
+        content: formula.trim(),
+      })
 
-      try {
-        const imageUrl = await this.blockRenderer.renderMathBlock(formula.trim(), false)
-        const imageMarkdown = `![Math formula](${imageUrl})`
-        this.processedBlocks.set(blockId, imageMarkdown)
-        content = content.replace(fullMatch, imageMarkdown)
-      }
-      catch (error) {
-        console.error(`Failed to render math block:`, error)
-        // 如果渲染失败，保留原始公式
-      }
+      match = mathBlockRegex.exec(content)
     }
 
-    // 处理行内数学公式 $...$（可选，根据需求决定是否启用）
-    // const inlineMathRegex = /\$([^$\n]+?)\$/g
-    // const inlineMatches = Array.from(content.matchAll(inlineMathRegex))
+    return blocks
+  }
 
-    // for (const match of inlineMatches) {
-    //   const [fullMatch, formula] = match
-    //   const blockId = this.generateBlockId(fullMatch)
+  /**
+   * 异步处理单个块
+   */
+  private async processBlockAsync(
+    block: { id: string, type: string, content: string, lang?: string },
+  ): Promise<{ blockId: string, imageUrl: string }> {
+    try {
+      console.log(`Processing ${block.type} block...`)
 
-    //   if (this.processedBlocks.has(blockId)) {
-    //     content = content.replace(fullMatch, this.processedBlocks.get(blockId)!)
-    //     continue
-    //   }
+      let imageUrl: string
 
-    //   try {
-    //     const imageUrl = await this.blockRenderer.renderMathBlock(formula.trim(), true)
-    //     const imageMarkdown = `![Inline math](${imageUrl})`
-    //     this.processedBlocks.set(blockId, imageMarkdown)
-    //     content = content.replace(fullMatch, imageMarkdown)
-    //   } catch (error) {
-    //     console.error(`Failed to render inline math:`, error)
-    //   }
-    // }
+      switch (block.type) {
+        case `mermaid`:
+          imageUrl = await this.blockRenderer.renderMermaidChart(block.content)
+          break
+        case `code`:
+          imageUrl = await this.blockRenderer.renderCodeBlock(block.content, block.lang || `text`)
+          break
+        case `admonition`:
+          imageUrl = await this.blockRenderer.renderAdmonitionBlock(block.content, block.lang || `note`)
+          break
+        case `math`:
+          imageUrl = await this.blockRenderer.renderMathBlock(block.content, false)
+          break
+        default:
+          throw new Error(`Unknown block type: ${block.type}`)
+      }
 
-    return content
+      console.log(`Successfully processed ${block.type} block: ${imageUrl}`)
+      return { blockId: block.id, imageUrl }
+    }
+    catch (error) {
+      console.error(`Failed to process ${block.type} block:`, error)
+      throw error
+    }
   }
 
   /**
