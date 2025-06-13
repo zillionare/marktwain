@@ -24,15 +24,18 @@ export class BlockRenderer {
   async renderCodeBlock(code: string, lang: string): Promise<string> {
     const container = document.createElement(`div`)
     container.style.cssText = `
-      position: absolute;
-      top: -9999px;
-      left: -9999px;
+      position: fixed;
+      top: 0;
+      left: 0;
       width: 800px;
       padding: 20px;
       background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
       font-size: 14px;
       line-height: 1.5;
+      z-index: -1000;
+      opacity: 0;
+      pointer-events: none;
     `
 
     // 创建代码块HTML
@@ -41,9 +44,28 @@ export class BlockRenderer {
     highlighted = highlighted.replace(/\t/g, `    `)
 
     const codeElement = document.createElement(`pre`)
-    codeElement.style.cssText = getStyleString(this.styles.code_pre || {})
-    codeElement.innerHTML = `<code class="language-${lang}" style="${getStyleString(this.styles.code || {})}">${highlighted}</code>`
+    codeElement.style.cssText = `
+      margin: 0;
+      padding: 16px;
+      background: ${this.isDark ? `#2d2d2d` : `#f6f8fa`};
+      border-radius: 6px;
+      overflow-x: auto;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.45;
+      color: ${this.isDark ? `#e1e4e8` : `#24292e`};
+    `
 
+    const codeInner = document.createElement(`code`)
+    codeInner.className = `language-${lang}`
+    codeInner.style.cssText = `
+      font-family: inherit;
+      font-size: inherit;
+      color: inherit;
+    `
+    codeInner.innerHTML = highlighted
+
+    codeElement.appendChild(codeInner)
     container.appendChild(codeElement)
     document.body.appendChild(container)
 
@@ -74,17 +96,24 @@ export class BlockRenderer {
   async renderMermaidChart(code: string): Promise<string> {
     const container = document.createElement(`div`)
     container.style.cssText = `
-      position: absolute;
-      top: -9999px;
-      left: -9999px;
+      position: fixed;
+      top: 0;
+      left: 0;
       width: 800px;
       padding: 20px;
       background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
+      z-index: -1000;
+      opacity: 0;
+      pointer-events: none;
     `
 
     const mermaidElement = document.createElement(`div`)
     mermaidElement.className = `mermaid`
     mermaidElement.textContent = code
+    mermaidElement.style.cssText = `
+      font-family: 'Arial', sans-serif;
+      font-size: 14px;
+    `
     container.appendChild(mermaidElement)
     document.body.appendChild(container)
 
@@ -121,12 +150,15 @@ export class BlockRenderer {
   async renderAdmonitionBlock(content: string, type: string): Promise<string> {
     const container = document.createElement(`div`)
     container.style.cssText = `
-      position: absolute;
-      top: -9999px;
-      left: -9999px;
+      position: fixed;
+      top: 0;
+      left: 0;
       width: 800px;
       padding: 20px;
       background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
+      z-index: -1000;
+      opacity: 0;
+      pointer-events: none;
     `
 
     // 创建admonition HTML结构
@@ -185,13 +217,16 @@ export class BlockRenderer {
   async renderMathBlock(formula: string, isInline: boolean = false): Promise<string> {
     const container = document.createElement(`div`)
     container.style.cssText = `
-      position: absolute;
-      top: -9999px;
-      left: -9999px;
+      position: fixed;
+      top: 0;
+      left: 0;
       width: 800px;
       padding: 20px;
       background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
       font-size: 16px;
+      z-index: -1000;
+      opacity: 0;
+      pointer-events: none;
     `
 
     // 使用MathJax渲染数学公式

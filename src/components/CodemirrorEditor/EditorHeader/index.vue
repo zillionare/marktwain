@@ -64,7 +64,7 @@ const formatItems = [
 
 const store = useStore()
 
-const { isDark, isCiteStatus, isCountStatus, output, primaryColor, isOpenPostSlider, editor, isBlockRenderingEnabled, isImageMode } = storeToRefs(store)
+const { isDark, isCiteStatus, isCountStatus, output, primaryColor, isOpenPostSlider, editor, isImageMode } = storeToRefs(store)
 
 const { toggleDark, editorRefresh, citeStatusChanged, countStatusChanged, toggleImageMode } = store
 
@@ -226,7 +226,6 @@ function copy() {
 
       <!-- 转图按钮 -->
       <Button
-        v-if="isBlockRenderingEnabled"
         variant="outline"
         size="sm"
         :class="{ 'bg-primary text-primary-foreground': isImageMode }"

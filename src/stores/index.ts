@@ -359,7 +359,7 @@ export const useStore = defineStore(`store`, () => {
   // 转图状态管理
   const isImageMode = ref(false) // 当前是否处于图片模式
   const originalContent = ref(``) // 原始内容缓存
-  const imageContent = ref(``) // 图片内容缓存
+  const imageContent = ref(``) // 图片内容缓存（副本）
   const contentHash = ref(``) // 内容哈希，用于检测变化
 
   // 初始化Markdown处理器
@@ -403,64 +403,6 @@ export const useStore = defineStore(`store`, () => {
     }
   }
 
-  // 转图功能 - 手动触发
-  const toggleImageMode = async (): Promise<void> => {
-    if (!isBlockRenderingEnabled.value) {
-      toast.warning(`请先启用特殊语法块渲染功能`)
-      return
-    }
-
-    const currentContent = editor.value?.getValue() || ``
-    const currentHash = generateContentHash(currentContent)
-
-    if (isImageMode.value) {
-      // 当前是图片模式，切换回原始模式
-      if (originalContent.value) {
-        editor.value?.setValue(originalContent.value)
-        isImageMode.value = false
-        toast.success(`已切换回原始内容`)
-        console.log(`Switched back to original content`)
-      }
-    }
-    else {
-      // 当前是原始模式，切换到图片模式
-      originalContent.value = currentContent
-
-      // 检查是否需要重新生成图片
-      if (imageContent.value && contentHash.value === currentHash) {
-        // 内容没有变化，使用缓存的图片内容
-        editor.value?.setValue(imageContent.value)
-        isImageMode.value = true
-        toast.success(`已切换到图片模式（使用缓存）`)
-        console.log(`Using cached image content`)
-      }
-      else {
-        // 内容有变化或首次转换，重新生成图片
-        try {
-          toast.info(`正在转换特殊语法块为图片...`)
-          console.log(`Converting special blocks to images...`)
-
-          // 立即切换到图片模式，显示占位符
-          isImageMode.value = true
-
-          const processedContent = await processSpecialBlocks(currentContent)
-
-          imageContent.value = processedContent
-          contentHash.value = currentHash
-
-          editor.value?.setValue(processedContent)
-          toast.success(`图片转换完成`)
-          console.log(`Successfully converted to image mode`)
-        }
-        catch (error) {
-          console.error(`Failed to convert to image mode:`, error)
-          toast.error(`转换图片模式失败`)
-          isImageMode.value = false // 转换失败，恢复状态
-        }
-      }
-    }
-  }
-
   // 检查内容是否包含特殊语法块
   const hasSpecialBlocks = (content: string): boolean => {
     if (!markdownProcessor.value)
@@ -486,10 +428,16 @@ export const useStore = defineStore(`store`, () => {
       isMacCodeBlock: isMacCodeBlock.value,
     })
 
-    const content = editor.value!.getValue()
-
-    // 不再自动处理特殊语法块，只在手动转图时处理
-    // 这样可以避免响应慢的问题
+    // 根据当前模式决定渲染哪个内容
+    let content: string
+    if (isImageMode.value && imageContent.value) {
+      // 图片模式：渲染副本内容
+      content = imageContent.value
+    }
+    else {
+      // 原始模式：渲染编辑器内容
+      content = editor.value!.getValue()
+    }
 
     output.value = modifyHtmlContent(content, renderer)
 
@@ -510,6 +458,58 @@ export const useStore = defineStore(`store`, () => {
       i++
     }
     output.value = div.innerHTML
+  }
+
+  // 转图功能 - 手动触发（生成副本，不替换原文）
+  const toggleImageMode = async (): Promise<void> => {
+    const currentContent = editor.value?.getValue() || ``
+    const currentHash = generateContentHash(currentContent)
+
+    if (isImageMode.value) {
+      // 当前是图片模式，切换回原始模式
+      isImageMode.value = false
+      toast.success(`已切换回原始内容`)
+      console.log(`Switched back to original content`)
+      // 触发预览更新
+      await editorRefresh()
+    }
+    else {
+      // 当前是原始模式，切换到图片模式
+      originalContent.value = currentContent
+
+      // 检查是否需要重新生成图片
+      if (imageContent.value && contentHash.value === currentHash) {
+        // 内容没有变化，使用缓存的图片内容
+        isImageMode.value = true
+        toast.success(`已切换到图片模式（使用缓存）`)
+        console.log(`Using cached image content`)
+        // 触发预览更新
+        await editorRefresh()
+      }
+      else {
+        // 内容有变化或首次转换，重新生成图片
+        try {
+          toast.info(`正在转换特殊语法块为图片...`)
+          console.log(`Converting special blocks to images...`)
+
+          const processedContent = await processSpecialBlocks(currentContent)
+
+          imageContent.value = processedContent
+          contentHash.value = currentHash
+          isImageMode.value = true
+
+          toast.success(`图片转换完成`)
+          console.log(`Successfully converted to image mode`)
+          // 触发预览更新
+          await editorRefresh()
+        }
+        catch (error) {
+          console.error(`Failed to convert to image mode:`, error)
+          toast.error(`转换图片模式失败`)
+          isImageMode.value = false // 转换失败，恢复状态
+        }
+      }
+    }
   }
 
   // 更新 CSS
@@ -739,7 +739,11 @@ export const useStore = defineStore(`store`, () => {
 
   // 导出编辑器内容到本地
   const exportEditorContent2MD = () => {
-    downloadMD(editor.value!.getValue(), posts.value[currentPostIndex.value].title)
+    // 根据当前模式决定导出哪个内容
+    const content = isImageMode.value && imageContent.value
+      ? imageContent.value
+      : editor.value!.getValue()
+    downloadMD(content, posts.value[currentPostIndex.value].title)
   }
 
   // 导入默认文档
