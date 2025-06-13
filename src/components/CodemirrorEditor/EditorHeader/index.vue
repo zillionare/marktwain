@@ -224,18 +224,7 @@ function copy() {
         </DropdownMenu>
       </div>
 
-      <!-- 转图按钮 -->
-      <Button
-        variant="outline"
-        size="sm"
-        :class="{ 'bg-primary text-primary-foreground': isImageMode && !isPreviewMode }"
-        @click="toggleImageMode"
-      >
-        <Image class="mr-1 size-4" />
-        {{ isImageMode && !isPreviewMode ? '原文' : '转图' }}
-      </Button>
-
-      <!-- 预览按钮 -->
+      <!-- 转图预览按钮 -->
       <Button
         variant="outline"
         size="sm"
@@ -244,7 +233,18 @@ function copy() {
         @click="togglePreviewMode"
       >
         <Eye class="mr-1 size-4" />
-        {{ isPreviewMode ? '退出预览' : '预览' }}
+        {{ isPreviewMode ? '退出预览' : '转图预览' }}
+      </Button>
+
+      <!-- 上传图床按钮 -->
+      <Button
+        variant="outline"
+        size="sm"
+        :class="{ 'bg-primary text-primary-foreground': isImageMode && !isPreviewMode }"
+        @click="toggleImageMode"
+      >
+        <Image class="mr-1 size-4" />
+        {{ isImageMode && !isPreviewMode ? '原文' : '上传图床' }}
       </Button>
 
       <!-- 文章信息（移动端隐藏） -->

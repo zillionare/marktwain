@@ -85,7 +85,7 @@ export class BlockRenderer {
   private createMacStyleContainer(): HTMLElement {
     const macContainer = document.createElement(`div`)
     macContainer.style.cssText = `
-      background: ${this.isDark ? `#1d1f21` : `#ffffff`};
+      background: ${this.isDark ? `#1d1f21` : `#f6f8fa`};
       border-radius: 8px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
       overflow: hidden;
@@ -163,7 +163,7 @@ export class BlockRenderer {
     codeElement.style.cssText = `
       margin: 0;
       padding: 16px 20px;
-      background: ${this.isDark ? `#1d1f21` : `#ffffff`};
+      background: ${this.isDark ? `#1d1f21` : `#f6f8fa`};
       overflow: visible;
       font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
       font-size: 13px;
@@ -182,15 +182,19 @@ export class BlockRenderer {
       display: block;
     `
 
-    // 使用highlight.js进行语法高亮，然后应用内联样式
-    const language = hljs.getLanguage(_lang) ? _lang : `plaintext`
-    let highlighted = hljs.highlight(code, { language }).value
+    // 先处理原始代码的缩进，保留前导空格
+    let processedCode = code
+    processedCode = processedCode.replace(/\t/g, `    `) // 制表符转换为4个空格
 
-    // 保留所有空白字符，包括前导空格和制表符
-    highlighted = highlighted.replace(/\t/g, `    `) // 制表符转换为4个空格
-    highlighted = highlighted.replace(/^ +/gm, (match) => {
-      // 保留行首的空格，转换为不间断空格以防止HTML压缩
-      return `&nbsp;`.repeat(match.length)
+    // 使用highlight.js进行语法高亮
+    const language = hljs.getLanguage(_lang) ? _lang : `plaintext`
+    let highlighted = hljs.highlight(processedCode, { language }).value
+
+    // 在高亮后的HTML中保留行首空格
+    // 处理换行符后的空格（包括第一行）
+    highlighted = highlighted.replace(/(^|\n)( +)/g, (_match, lineStart, spaces) => {
+      // 将行首的空格转换为不间断空格
+      return lineStart + `&nbsp;`.repeat(spaces.length)
     })
 
     // 应用内联样式替换CSS类
