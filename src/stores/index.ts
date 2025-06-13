@@ -601,9 +601,10 @@ export const useStore = defineStore(`store`, () => {
     const currentContent = editor.value?.getValue() || ``
     const currentHash = generateContentHash(currentContent)
 
-    if (isImageMode.value) {
-      // 当前是图片模式，切换回原始模式
+    if (isImageMode.value && !isPreviewMode.value) {
+      // 当前是上传图床模式，切换回原始模式
       isImageMode.value = false
+      isPreviewMode.value = false
       stopImageRefreshTimer()
       toast.success(`已切换回原始内容`)
       console.log(`Switched back to original content`)
@@ -611,41 +612,72 @@ export const useStore = defineStore(`store`, () => {
       await editorRefresh()
     }
     else {
-      // 当前是原始模式，切换到图片模式
+      // 当前是原始模式或预览模式，切换到上传图床模式
       originalContent.value = currentContent
 
-      // 检查是否需要重新生成图片
-      if (imageContent.value && !shouldRegenerateImages(currentContent, currentHash)) {
-        // 内容没有变化，使用缓存的图片内容
-        isImageMode.value = true
-        startImageRefreshTimer()
-        toast.success(`已切换到图片模式（使用缓存）`)
-        console.log(`Using cached image content`)
-        // 触发预览更新
-        await editorRefresh()
-      }
-      else {
-        // 内容有变化或首次转换，重新生成图片
-        try {
-          toast.info(`正在转换特殊语法块为图片...`)
-          console.log(`Converting special blocks to images...`)
+      // 如果当前是预览模式，需要重新生成并上传到GitHub
+      if (isPreviewMode.value) {
+        console.log(`Converting from preview mode to upload mode...`)
+        toast.info(`正在将预览图片上传到GitHub...`)
 
-          const processedContent = await processSpecialBlocks(currentContent)
+        try {
+          // 重新处理，这次上传到GitHub (isPreview: false)
+          const processedContent = await processSpecialBlocks(currentContent, false)
 
           imageContent.value = processedContent
           contentHash.value = currentHash
+          isPreviewMode.value = false // 退出预览模式
           isImageMode.value = true
           startImageRefreshTimer()
 
-          toast.success(`图片转换完成，将定期检查图片可用性`)
-          console.log(`Successfully converted to image mode`)
-          // 触发预览更新
+          toast.success(`图片已上传到GitHub，将定期检查图片可用性`)
+          console.log(`Successfully converted from preview to upload mode`)
           await editorRefresh()
         }
         catch (error) {
-          console.error(`Failed to convert to image mode:`, error)
-          toast.error(`转换图片模式失败`)
-          isImageMode.value = false // 转换失败，恢复状态
+          console.error(`Failed to upload images to GitHub:`, error)
+          toast.error(`上传图片到GitHub失败`)
+          // 保持预览模式
+        }
+      }
+      else {
+        // 从原始模式直接转换到上传模式
+        // 检查是否需要重新生成图片
+        if (imageContent.value && !shouldRegenerateImages(currentContent, currentHash)) {
+          // 内容没有变化，使用缓存的图片内容
+          isImageMode.value = true
+          isPreviewMode.value = false
+          startImageRefreshTimer()
+          toast.success(`已切换到图片模式（使用缓存）`)
+          console.log(`Using cached image content`)
+          // 触发预览更新
+          await editorRefresh()
+        }
+        else {
+          // 内容有变化或首次转换，重新生成图片并上传
+          try {
+            toast.info(`正在转换特殊语法块为图片并上传到GitHub...`)
+            console.log(`Converting special blocks to images and uploading to GitHub...`)
+
+            const processedContent = await processSpecialBlocks(currentContent, false) // false = 上传到GitHub
+
+            imageContent.value = processedContent
+            contentHash.value = currentHash
+            isImageMode.value = true
+            isPreviewMode.value = false
+            startImageRefreshTimer()
+
+            toast.success(`图片转换完成并已上传到GitHub，将定期检查图片可用性`)
+            console.log(`Successfully converted to upload mode`)
+            // 触发预览更新
+            await editorRefresh()
+          }
+          catch (error) {
+            console.error(`Failed to convert to upload mode:`, error)
+            toast.error(`转换图片模式失败`)
+            isImageMode.value = false // 转换失败，恢复状态
+            isPreviewMode.value = false
+          }
         }
       }
     }

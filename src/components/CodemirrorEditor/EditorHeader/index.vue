@@ -135,6 +135,28 @@ function copy() {
     })
   }, 350)
 }
+
+// 获取上传按钮文本
+function getUploadButtonText() {
+  if (isImageMode.value && !isPreviewMode.value) {
+    return `原文`
+  }
+  if (isPreviewMode.value) {
+    return `上传图床`
+  }
+  return `上传图床`
+}
+
+// 获取上传按钮提示
+function getUploadButtonTitle() {
+  if (isImageMode.value && !isPreviewMode.value) {
+    return `切换回原始内容`
+  }
+  if (isPreviewMode.value) {
+    return `将预览图片上传到GitHub图床`
+  }
+  return `转换语法块为图片并上传到GitHub图床`
+}
 </script>
 
 <template>
@@ -193,7 +215,7 @@ function copy() {
       </Button>
 
       <!-- 复制按钮组 -->
-      <div class="space-x-1 bg-background text-background-foreground mx-2 flex items-center border rounded-md">
+      <div class="bg-background space-x-1 text-background-foreground mx-2 flex items-center border rounded-md">
         <Button variant="ghost" class="shadow-none" @click="copy">
           复制
         </Button>
@@ -241,10 +263,11 @@ function copy() {
         variant="outline"
         size="sm"
         :class="{ 'bg-primary text-primary-foreground': isImageMode && !isPreviewMode }"
+        :title="getUploadButtonTitle()"
         @click="toggleImageMode"
       >
         <Image class="mr-1 size-4" />
-        {{ isImageMode && !isPreviewMode ? '原文' : '上传图床' }}
+        {{ getUploadButtonText() }}
       </Button>
 
       <!-- 文章信息（移动端隐藏） -->
