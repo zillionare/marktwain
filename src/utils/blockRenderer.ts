@@ -176,8 +176,9 @@ export class BlockRenderer {
       font-size: 13px;
       line-height: 1.5;
       color: ${forceDarkTheme ? `#c5c8c6` : `#24292e`};
-      white-space: pre;
-      word-wrap: normal;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      tab-size: 4;
       min-height: 60px;
     `
 
@@ -187,44 +188,22 @@ export class BlockRenderer {
       font-size: inherit;
       color: inherit;
       display: block;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      tab-size: 4;
     `
 
-    // 彻底重写缩进处理逻辑
+    // 方案3：使用white-space: pre-wrap保留所有空白字符
     let processedCode = code
     processedCode = processedCode.replace(/\t/g, `    `) // 制表符转换为4个空格
 
     console.log(`Original code:`, JSON.stringify(processedCode))
 
-    // 直接在原始代码中处理缩进，不依赖highlight.js后处理
-    // 将所有前导空格替换为特殊标记，这样highlight.js不会破坏它们
-    const INDENT_MARKER = `__INDENT_SPACE__`
-    const lines = processedCode.split(`\n`)
-
-    // 记录每行的缩进并用标记替换
-    const processedLines = lines.map((line, index) => {
-      const match = line.match(/^( +)(.*)/)
-      if (match) {
-        const [, spaces, content] = match
-        const indentMarkers = INDENT_MARKER.repeat(spaces.length)
-        console.log(`Line ${index}: Found ${spaces.length} leading spaces, replacing with markers`)
-        return indentMarkers + content
-      }
-      return line
-    })
-
-    const markedCode = processedLines.join(`\n`)
-    console.log(`Code with indent markers:`, markedCode.substring(0, 200))
-
-    // 使用highlight.js进行语法高亮
+    // 使用highlight.js进行语法高亮，保持原始代码不变
     const language = hljs.getLanguage(_lang) ? _lang : `plaintext`
-    let highlighted = hljs.highlight(markedCode, { language }).value
+    const highlighted = hljs.highlight(processedCode, { language }).value
 
-    console.log(`Highlighted with markers:`, highlighted.substring(0, 300))
-
-    // 将标记替换回不间断空格
-    highlighted = highlighted.replace(new RegExp(INDENT_MARKER, `g`), `&nbsp;`)
-
-    console.log(`Final highlighted with spaces:`, highlighted.substring(0, 300))
+    console.log(`Highlighted code:`, highlighted.substring(0, 300))
 
     // 应用内联样式替换CSS类
     const styledHighlighted = this.applyInlineStyles(highlighted)
