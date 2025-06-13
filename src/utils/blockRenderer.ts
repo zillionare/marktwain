@@ -26,17 +26,18 @@ export class BlockRenderer {
     const container = document.createElement(`div`)
     container.style.cssText = `
       position: fixed;
-      top: 0;
-      left: 0;
+      top: 50px;
+      left: 50px;
       width: 800px;
       padding: 20px;
       background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
       font-size: 14px;
       line-height: 1.5;
-      z-index: -1000;
-      opacity: 0;
+      z-index: 9999;
+      visibility: hidden;
       pointer-events: none;
+      border: 1px solid transparent;
     `
 
     // 创建代码块HTML
@@ -50,19 +51,22 @@ export class BlockRenderer {
       padding: 16px;
       background: ${this.isDark ? `#2d2d2d` : `#f6f8fa`};
       border-radius: 6px;
-      overflow-x: auto;
+      overflow: visible;
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
       font-size: 14px;
       line-height: 1.45;
       color: ${this.isDark ? `#e1e4e8` : `#24292e`};
+      white-space: pre-wrap;
+      word-wrap: break-word;
     `
 
     const codeInner = document.createElement(`code`)
     codeInner.className = `language-${lang}`
     codeInner.style.cssText = `
-      font-family: inherit;
-      font-size: inherit;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 14px;
       color: inherit;
+      display: block;
     `
     codeInner.innerHTML = highlighted
 
@@ -71,19 +75,33 @@ export class BlockRenderer {
     document.body.appendChild(container)
 
     try {
+      // 等待字体和样式加载
+      await new Promise(resolve => setTimeout(resolve, 500))
+
       const dataUrl = await toPng(container, {
         backgroundColor: this.isDark ? `#1e1e1e` : `#ffffff`,
         pixelRatio: 2,
         width: 800,
+        height: container.offsetHeight || 200,
         style: {
           transform: `scale(1)`,
           transformOrigin: `top left`,
         },
-        skipFonts: true,
+        cacheBust: true,
+        includeQueryParams: true,
       })
+
+      // 调试：输出dataUrl信息
+      console.log(`Code block dataUrl length: ${dataUrl.length}`)
+      console.log(`Code block dataUrl preview: ${dataUrl.substring(0, 100)}...`)
 
       // 将dataUrl转换为base64
       const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
+
+      // 验证base64内容
+      if (!base64Content || base64Content.length < 100) {
+        throw new Error(`Generated image is too small or empty. DataURL length: ${dataUrl.length}`)
+      }
 
       // 检查缓存
       const cachedUrl = imageCache.getImageUrl(base64Content)
@@ -110,14 +128,15 @@ export class BlockRenderer {
     const container = document.createElement(`div`)
     container.style.cssText = `
       position: fixed;
-      top: 0;
-      left: 0;
+      top: 50px;
+      left: 50px;
       width: 800px;
       padding: 20px;
       background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
-      z-index: -1000;
-      opacity: 0;
+      z-index: 9999;
+      visibility: hidden;
       pointer-events: none;
+      border: 1px solid transparent;
     `
 
     const mermaidElement = document.createElement(`div`)
@@ -126,6 +145,8 @@ export class BlockRenderer {
     mermaidElement.style.cssText = `
       font-family: 'Arial', sans-serif;
       font-size: 14px;
+      color: ${this.isDark ? `#ffffff` : `#000000`};
+      display: block;
     `
     container.appendChild(mermaidElement)
     document.body.appendChild(container)
@@ -137,16 +158,19 @@ export class BlockRenderer {
       })
 
       // 等待渲染完成
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await new Promise(resolve => setTimeout(resolve, 1500))
 
       const dataUrl = await toPng(container, {
         backgroundColor: this.isDark ? `#1e1e1e` : `#ffffff`,
         pixelRatio: 2,
+        width: 800,
+        height: container.offsetHeight || 400,
         style: {
           transform: `scale(1)`,
           transformOrigin: `top left`,
         },
-        skipFonts: true,
+        cacheBust: true,
+        includeQueryParams: true,
       })
 
       // 将dataUrl转换为base64
@@ -177,14 +201,15 @@ export class BlockRenderer {
     const container = document.createElement(`div`)
     container.style.cssText = `
       position: fixed;
-      top: 0;
-      left: 0;
+      top: 50px;
+      left: 50px;
       width: 800px;
       padding: 20px;
       background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
-      z-index: -1000;
-      opacity: 0;
+      z-index: 9999;
+      visibility: hidden;
       pointer-events: none;
+      border: 1px solid transparent;
     `
 
     // 创建admonition HTML结构
@@ -218,15 +243,20 @@ export class BlockRenderer {
     document.body.appendChild(container)
 
     try {
+      // 等待样式加载
+      await new Promise(resolve => setTimeout(resolve, 300))
+
       const dataUrl = await toPng(container, {
         backgroundColor: this.isDark ? `#1e1e1e` : `#ffffff`,
         pixelRatio: 2,
         width: 800,
+        height: container.offsetHeight || 150,
         style: {
           transform: `scale(1)`,
           transformOrigin: `top left`,
         },
-        skipFonts: true,
+        cacheBust: true,
+        includeQueryParams: true,
       })
 
       // 将dataUrl转换为base64
@@ -257,15 +287,16 @@ export class BlockRenderer {
     const container = document.createElement(`div`)
     container.style.cssText = `
       position: fixed;
-      top: 0;
-      left: 0;
+      top: 50px;
+      left: 50px;
       width: 800px;
       padding: 20px;
       background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
       font-size: 16px;
-      z-index: -1000;
-      opacity: 0;
+      z-index: 9999;
+      visibility: hidden;
       pointer-events: none;
+      border: 1px solid transparent;
     `
 
     // 使用MathJax渲染数学公式
@@ -301,14 +332,20 @@ export class BlockRenderer {
     document.body.appendChild(container)
 
     try {
+      // 等待MathJax渲染完成
+      await new Promise(resolve => setTimeout(resolve, 800))
+
       const dataUrl = await toPng(container, {
         backgroundColor: this.isDark ? `#1e1e1e` : `#ffffff`,
         pixelRatio: 2,
+        width: 800,
+        height: container.offsetHeight || 100,
         style: {
           transform: `scale(1)`,
           transformOrigin: `top left`,
         },
-        skipFonts: true,
+        cacheBust: true,
+        includeQueryParams: true,
       })
 
       // 将dataUrl转换为base64
