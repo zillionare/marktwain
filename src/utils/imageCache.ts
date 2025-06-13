@@ -9,6 +9,7 @@ interface ImageCacheItem {
   uploadTime: number
   lastAccessed: number
   type: string // 图片类型：code, mermaid, math, admonition
+  isUploaded: boolean // 是否已上传到GitHub（true=GitHub URL, false=dataURL）
 }
 
 /**
@@ -138,7 +139,7 @@ class ImageCacheManager {
   /**
    * 缓存新的图片
    */
-  public cacheImage(base64Content: string, url: string, type: string): void {
+  public cacheImage(base64Content: string, url: string, type: string, isUploaded: boolean = true): void {
     const md5 = this.calculateMD5(base64Content)
     const now = Date.now()
 
@@ -148,12 +149,62 @@ class ImageCacheManager {
       uploadTime: now,
       lastAccessed: now,
       type,
+      isUploaded,
     }
 
     this.cache.set(md5, item)
     this.saveCache()
 
-    console.log(`Cached new image: type=${type}, md5=${md5.substring(0, 8)}..., url=${url}`)
+    const status = isUploaded ? `uploaded` : `preview`
+    console.log(`Cached new image: type=${type}, status=${status}, md5=${md5.substring(0, 8)}..., url=${url.substring(0, 50)}...`)
+  }
+
+  /**
+   * 检查图片是否已上传到GitHub
+   */
+  public isImageUploaded(base64Content: string): boolean {
+    const md5 = this.calculateMD5(base64Content)
+    const item = this.cache.get(md5)
+
+    if (!item) {
+      return false
+    }
+
+    // 检查是否过期
+    const now = Date.now()
+    if (now - item.uploadTime > this.CACHE_DURATION) {
+      this.cache.delete(md5)
+      this.saveCache()
+      return false
+    }
+
+    return item.isUploaded
+  }
+
+  /**
+   * 获取图片的上传状态和URL
+   */
+  public getImageStatus(base64Content: string): { isUploaded: boolean, url: string | null } {
+    const md5 = this.calculateMD5(base64Content)
+    const item = this.cache.get(md5)
+
+    if (!item) {
+      return { isUploaded: false, url: null }
+    }
+
+    // 检查是否过期
+    const now = Date.now()
+    if (now - item.uploadTime > this.CACHE_DURATION) {
+      this.cache.delete(md5)
+      this.saveCache()
+      return { isUploaded: false, url: null }
+    }
+
+    // 更新最后访问时间
+    item.lastAccessed = now
+    this.saveCache()
+
+    return { isUploaded: item.isUploaded, url: item.url }
   }
 
   /**

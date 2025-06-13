@@ -282,22 +282,24 @@ export class BlockRenderer {
         throw new Error(`Generated image is too small or empty. DataURL length: ${dataUrl.length}`)
       }
 
-      // 预览模式：直接返回dataURL
+      // 预览模式：返回dataURL并缓存为未上传状态
       if (isPreview) {
         console.log(`Preview mode: returning dataURL for code block`)
+        imageCache.cacheImage(base64Content, dataUrl, `code`, false) // false = 未上传
         return dataUrl
       }
 
-      // 检查缓存
-      const cachedUrl = imageCache.getImageUrl(base64Content)
-      if (cachedUrl) {
-        console.log(`Using cached code block image: ${cachedUrl}`)
-        return cachedUrl
+      // 上传模式：检查上传状态
+      const imageStatus = imageCache.getImageStatus(base64Content)
+      if (imageStatus.isUploaded && imageStatus.url) {
+        console.log(`Using already uploaded code block image: ${imageStatus.url}`)
+        return imageStatus.url
       }
 
-      // 上传到GitHub并缓存
+      // 需要上传到GitHub
+      console.log(`Uploading code block to GitHub...`)
       const imageUrl = await uploadImageToGitHub(base64Content, `code-${Date.now()}.png`, `code`, this.githubConfig)
-      imageCache.cacheImage(base64Content, imageUrl, `code`)
+      imageCache.cacheImage(base64Content, imageUrl, `code`, true) // true = 已上传
 
       return imageUrl
     }
@@ -362,22 +364,24 @@ export class BlockRenderer {
       // 将dataUrl转换为base64
       const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
 
-      // 预览模式：直接返回dataURL
+      // 预览模式：返回dataURL并缓存为未上传状态
       if (isPreview) {
         console.log(`Preview mode: returning dataURL for mermaid chart`)
+        imageCache.cacheImage(base64Content, dataUrl, `mermaid`, false) // false = 未上传
         return dataUrl
       }
 
-      // 检查缓存
-      const cachedUrl = imageCache.getImageUrl(base64Content)
-      if (cachedUrl) {
-        console.log(`Using cached mermaid image: ${cachedUrl}`)
-        return cachedUrl
+      // 上传模式：检查上传状态
+      const imageStatus = imageCache.getImageStatus(base64Content)
+      if (imageStatus.isUploaded && imageStatus.url) {
+        console.log(`Using already uploaded mermaid image: ${imageStatus.url}`)
+        return imageStatus.url
       }
 
-      // 上传到GitHub并缓存
+      // 需要上传到GitHub
+      console.log(`Uploading mermaid chart to GitHub...`)
       const imageUrl = await uploadImageToGitHub(base64Content, `mermaid-${Date.now()}.png`, `mermaid`, this.githubConfig)
-      imageCache.cacheImage(base64Content, imageUrl, `mermaid`)
+      imageCache.cacheImage(base64Content, imageUrl, `mermaid`, true) // true = 已上传
 
       return imageUrl
     }
@@ -455,22 +459,24 @@ export class BlockRenderer {
       // 将dataUrl转换为base64
       const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
 
-      // 预览模式：直接返回dataURL
+      // 预览模式：返回dataURL并缓存为未上传状态
       if (isPreview) {
         console.log(`Preview mode: returning dataURL for admonition block`)
+        imageCache.cacheImage(base64Content, dataUrl, `admonition`, false) // false = 未上传
         return dataUrl
       }
 
-      // 检查缓存
-      const cachedUrl = imageCache.getImageUrl(base64Content)
-      if (cachedUrl) {
-        console.log(`Using cached admonition image: ${cachedUrl}`)
-        return cachedUrl
+      // 上传模式：检查上传状态
+      const imageStatus = imageCache.getImageStatus(base64Content)
+      if (imageStatus.isUploaded && imageStatus.url) {
+        console.log(`Using already uploaded admonition image: ${imageStatus.url}`)
+        return imageStatus.url
       }
 
-      // 上传到GitHub并缓存
+      // 需要上传到GitHub
+      console.log(`Uploading admonition block to GitHub...`)
       const imageUrl = await uploadImageToGitHub(base64Content, `admonition-${type}-${Date.now()}.png`, `admonition`, this.githubConfig)
-      imageCache.cacheImage(base64Content, imageUrl, `admonition`)
+      imageCache.cacheImage(base64Content, imageUrl, `admonition`, true) // true = 已上传
 
       return imageUrl
     }
@@ -551,22 +557,24 @@ export class BlockRenderer {
       // 将dataUrl转换为base64
       const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
 
-      // 预览模式：直接返回dataURL
+      // 预览模式：返回dataURL并缓存为未上传状态
       if (isPreview) {
         console.log(`Preview mode: returning dataURL for math block`)
+        imageCache.cacheImage(base64Content, dataUrl, `math`, false) // false = 未上传
         return dataUrl
       }
 
-      // 检查缓存
-      const cachedUrl = imageCache.getImageUrl(base64Content)
-      if (cachedUrl) {
-        console.log(`Using cached math image: ${cachedUrl}`)
-        return cachedUrl
+      // 上传模式：检查上传状态
+      const imageStatus = imageCache.getImageStatus(base64Content)
+      if (imageStatus.isUploaded && imageStatus.url) {
+        console.log(`Using already uploaded math image: ${imageStatus.url}`)
+        return imageStatus.url
       }
 
-      // 上传到GitHub并缓存
+      // 需要上传到GitHub
+      console.log(`Uploading math block to GitHub...`)
       const imageUrl = await uploadImageToGitHub(base64Content, `math-${Date.now()}.png`, `math`, this.githubConfig)
-      imageCache.cacheImage(base64Content, imageUrl, `math`)
+      imageCache.cacheImage(base64Content, imageUrl, `math`, true) // true = 已上传
 
       return imageUrl
     }

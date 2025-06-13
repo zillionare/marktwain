@@ -621,18 +621,9 @@ export const useStore = defineStore(`store`, () => {
         toast.info(`正在将预览图片上传到GitHub...`)
 
         try {
-          // 清除所有缓存，强制重新处理和上传
-          if (markdownProcessor.value) {
-            markdownProcessor.value.clearCache()
-            console.log(`Cleared markdown processor cache to force re-processing`)
-          }
-
-          // 清除图片缓存，强制重新上传
-          const { imageCache } = await import(`@/utils/imageCache`)
-          imageCache.clearCache()
-          console.log(`Cleared image cache to force re-upload`)
-
           // 重新处理，这次上传到GitHub (isPreview: false)
+          // blockRenderer会自动检查上传状态，只上传未上传的图片
+          console.log(`Converting preview images to uploaded images...`)
           const processedContent = await processSpecialBlocks(currentContent, false)
 
           imageContent.value = processedContent
