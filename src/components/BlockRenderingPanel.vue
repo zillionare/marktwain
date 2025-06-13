@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
 import { getConfigInfo, testGitHubConnection } from '@/utils/githubImageBed'
-import { Image, Settings, TestTube } from 'lucide-vue-next'
-import { ref } from 'vue'
+import { imageCache } from '@/utils/imageCache'
+import { Database, Image, Settings, TestTube, Trash2 } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
 import { toast } from 'vue-sonner'
 
 // 获取GitHub图床配置信息
 const githubConfig = getConfigInfo()
 const isTestingConnection = ref(false)
+
+// 缓存统计信息
+const cacheStats = computed(() => imageCache.getCacheStats())
 
 // 测试GitHub连接
 async function handleTestConnection() {
@@ -28,6 +33,23 @@ async function handleTestConnection() {
   finally {
     isTestingConnection.value = false
   }
+}
+
+// 清理过期缓存
+function cleanExpiredCache() {
+  const cleanedCount = imageCache.cleanExpired()
+  if (cleanedCount > 0) {
+    toast.success(`已清理 ${cleanedCount} 个过期缓存项`)
+  }
+  else {
+    toast.info(`没有过期的缓存项`)
+  }
+}
+
+// 清空所有缓存
+function clearAllCache() {
+  imageCache.clearCache()
+  toast.success(`已清空所有图片缓存`)
 }
 </script>
 
@@ -68,6 +90,62 @@ async function handleTestConnection() {
         </Button>
       </div>
 
+      <Separator />
+
+      <!-- 图片缓存管理 -->
+      <div class="space-y-2">
+        <h4 class="flex items-center gap-2 text-sm font-medium">
+          <Database class="h-4 w-4" />
+          图片缓存管理
+        </h4>
+
+        <div class="space-y-2 bg-muted/30 rounded-lg p-3 text-xs">
+          <div class="grid grid-cols-2 gap-2">
+            <div><strong>缓存项数:</strong> {{ cacheStats.totalItems }}</div>
+            <div><strong>有效期:</strong> 2天</div>
+          </div>
+
+          <div v-if="cacheStats.totalItems > 0" class="space-y-1">
+            <div><strong>类型分布:</strong></div>
+            <div class="space-y-1 ml-2">
+              <div v-for="(count, type) in cacheStats.typeBreakdown" :key="type">
+                {{ type }}: {{ count }}个
+              </div>
+            </div>
+
+            <div v-if="cacheStats.oldestItem" class="space-y-1">
+              <div><strong>最早:</strong> {{ cacheStats.oldestItem.toLocaleString() }}</div>
+              <div><strong>最新:</strong> {{ cacheStats.newestItem?.toLocaleString() }}</div>
+            </div>
+          </div>
+
+          <div v-else class="text-muted-foreground">
+            暂无缓存项
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            class="flex-1"
+            @click="cleanExpiredCache"
+          >
+            <Database class="mr-2 h-4 w-4" />
+            清理过期
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            class="flex-1"
+            @click="clearAllCache"
+          >
+            <Trash2 class="mr-2 h-4 w-4" />
+            清空缓存
+          </Button>
+        </div>
+      </div>
+
       <!-- 使用说明 -->
       <div class="space-y-2 text-muted-foreground text-xs">
         <p><strong>使用方法：</strong></p>
@@ -91,6 +169,11 @@ async function handleTestConnection() {
         <p class="mt-3">
           <strong>注意：</strong>转图功能会生成内容副本用于预览和复制，不会修改原始编辑器内容。
           图片将上传到配置的GitHub仓库中。
+        </p>
+
+        <p class="mt-2">
+          <strong>缓存机制：</strong>系统会自动缓存生成的图片2天，相同内容的语法块会直接使用缓存，
+          避免重复上传，提高转换速度。
         </p>
       </div>
     </CardContent>

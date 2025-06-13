@@ -73,36 +73,68 @@ function generateUniqueFilename(prefix: string, extension: string = `png`): stri
 }
 
 /**
- * 上传图片到GitHub仓库
+ * 上传图片到GitHub仓库（带重试机制）
  */
 async function uploadToGitHub(
   config: GitHubImageBedConfig,
   content: string,
   path: string,
+  retryCount: number = 0,
 ): Promise<string> {
   const url = `https://api.github.com/repos/${config.repo}/contents/${path}`
 
-  const response = await fetch(url, {
-    method: `PUT`,
-    headers: {
-      'Authorization': `Bearer ${config.token}`,
-      'Accept': `application/vnd.github.v3+json`,
-      'Content-Type': `application/json`,
-    },
-    body: JSON.stringify({
-      message: `Upload image: ${path}`,
-      content,
-      branch: config.branch,
-    }),
-  })
+  try {
+    const response = await fetch(url, {
+      method: `PUT`,
+      headers: {
+        'Authorization': `Bearer ${config.token}`,
+        'Accept': `application/vnd.github.v3+json`,
+        'Content-Type': `application/json`,
+      },
+      body: JSON.stringify({
+        message: `Upload image: ${path}`,
+        content,
+        branch: config.branch,
+      }),
+    })
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`GitHub API error: ${response.status} ${response.statusText} - ${errorText}`)
+    if (!response.ok) {
+      const errorText = await response.text()
+
+      // 如果是409冲突错误且重试次数少于3次，则重试
+      if (response.status === 409 && retryCount < 3) {
+        console.warn(`GitHub API conflict (409), retrying in ${(retryCount + 1) * 1000}ms...`)
+        await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000))
+
+        // 生成新的文件名避免冲突
+        const timestamp = Date.now()
+        const randomSuffix = Math.random().toString(36).substring(2, 8)
+        const pathParts = path.split(`/`)
+        const fileName = pathParts.pop()!
+        const fileNameParts = fileName.split(`.`)
+        const extension = fileNameParts.pop()
+        const baseName = fileNameParts.join(`.`)
+        const newFileName = `${baseName}-${timestamp}-${randomSuffix}.${extension}`
+        const newPath = [...pathParts, newFileName].join(`/`)
+
+        console.log(`Retrying with new path: ${newPath}`)
+        return await uploadToGitHub(config, content, newPath, retryCount + 1)
+      }
+
+      throw new Error(`GitHub API error: ${response.status} ${response.statusText} - ${errorText}`)
+    }
+
+    const result: GitHubApiResponse = await response.json()
+    return result.content.download_url
   }
-
-  const result: GitHubApiResponse = await response.json()
-  return result.content.download_url
+  catch (error) {
+    if (retryCount < 2 && !(error instanceof Error && error.message.includes(`409`))) {
+      console.warn(`Upload failed, retrying in ${(retryCount + 1) * 1000}ms...`, error)
+      await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000))
+      return await uploadToGitHub(config, content, path, retryCount + 1)
+    }
+    throw error
+  }
 }
 
 /**

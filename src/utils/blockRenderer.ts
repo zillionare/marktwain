@@ -4,6 +4,7 @@ import { toPng } from 'html-to-image'
 import mermaid from 'mermaid'
 import { getStyleString } from '.'
 import { uploadImageToGitHub } from './githubImageBed'
+import { imageCache } from './imageCache'
 
 /**
  * 特殊语法块渲染器
@@ -81,9 +82,21 @@ export class BlockRenderer {
         skipFonts: true,
       })
 
-      // 将dataUrl转换为base64并上传到GitHub
+      // 将dataUrl转换为base64
       const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
-      return await uploadImageToGitHub(base64Content, `code-${Date.now()}.png`, `code`)
+
+      // 检查缓存
+      const cachedUrl = imageCache.getImageUrl(base64Content)
+      if (cachedUrl) {
+        console.log(`Using cached code block image: ${cachedUrl}`)
+        return cachedUrl
+      }
+
+      // 上传到GitHub并缓存
+      const imageUrl = await uploadImageToGitHub(base64Content, `code-${Date.now()}.png`, `code`)
+      imageCache.cacheImage(base64Content, imageUrl, `code`)
+
+      return imageUrl
     }
     finally {
       document.body.removeChild(container)
@@ -136,8 +149,21 @@ export class BlockRenderer {
         skipFonts: true,
       })
 
+      // 将dataUrl转换为base64
       const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
-      return await uploadImageToGitHub(base64Content, `mermaid-${Date.now()}.png`, `mermaid`)
+
+      // 检查缓存
+      const cachedUrl = imageCache.getImageUrl(base64Content)
+      if (cachedUrl) {
+        console.log(`Using cached mermaid image: ${cachedUrl}`)
+        return cachedUrl
+      }
+
+      // 上传到GitHub并缓存
+      const imageUrl = await uploadImageToGitHub(base64Content, `mermaid-${Date.now()}.png`, `mermaid`)
+      imageCache.cacheImage(base64Content, imageUrl, `mermaid`)
+
+      return imageUrl
     }
     finally {
       document.body.removeChild(container)
@@ -203,8 +229,21 @@ export class BlockRenderer {
         skipFonts: true,
       })
 
+      // 将dataUrl转换为base64
       const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
-      return await uploadImageToGitHub(base64Content, `admonition-${type}-${Date.now()}.png`, `admonition`)
+
+      // 检查缓存
+      const cachedUrl = imageCache.getImageUrl(base64Content)
+      if (cachedUrl) {
+        console.log(`Using cached admonition image: ${cachedUrl}`)
+        return cachedUrl
+      }
+
+      // 上传到GitHub并缓存
+      const imageUrl = await uploadImageToGitHub(base64Content, `admonition-${type}-${Date.now()}.png`, `admonition`)
+      imageCache.cacheImage(base64Content, imageUrl, `admonition`)
+
+      return imageUrl
     }
     finally {
       document.body.removeChild(container)
@@ -272,8 +311,21 @@ export class BlockRenderer {
         skipFonts: true,
       })
 
+      // 将dataUrl转换为base64
       const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
-      return await uploadImageToGitHub(base64Content, `math-${Date.now()}.png`, `math`)
+
+      // 检查缓存
+      const cachedUrl = imageCache.getImageUrl(base64Content)
+      if (cachedUrl) {
+        console.log(`Using cached math image: ${cachedUrl}`)
+        return cachedUrl
+      }
+
+      // 上传到GitHub并缓存
+      const imageUrl = await uploadImageToGitHub(base64Content, `math-${Date.now()}.png`, `math`)
+      imageCache.cacheImage(base64Content, imageUrl, `math`)
+
+      return imageUrl
     }
     finally {
       document.body.removeChild(container)
