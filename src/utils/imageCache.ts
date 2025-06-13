@@ -266,7 +266,12 @@ class ImageCacheManager {
         key === this.CACHE_KEY
         || key.includes(`github_image_cache`)
         || key.includes(`image_cache`)
-        || key.includes(`cache`),
+        || key.includes(`cache`)
+        || key.includes(`image_mode`)
+        || key.includes(`original_content`)
+        || key.includes(`image_content`)
+        || key.includes(`content_hash`)
+        || key.includes(`vueuse-`), // VueUse的存储键前缀
       )
 
       cacheKeys.forEach((key) => {
@@ -289,6 +294,48 @@ class ImageCacheManager {
     }
 
     console.log(`Force clear completed, final size: ${this.cache.size}`)
+  }
+
+  /**
+   * 超级清空 - 清空所有可能的缓存和状态
+   */
+  public nuclearClear(): void {
+    console.log(`Nuclear clear initiated...`)
+
+    // 清空内存缓存
+    this.cache.clear()
+
+    // 获取所有localStorage键
+    const allKeys = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key)
+        allKeys.push(key)
+    }
+
+    console.log(`Found ${allKeys.length} localStorage keys:`, allKeys)
+
+    // 删除所有可能相关的键
+    const keysToDelete = allKeys.filter(key =>
+      key.includes(`cache`)
+      || key.includes(`image`)
+      || key.includes(`content`)
+      || key.includes(`hash`)
+      || key.includes(`mode`)
+      || key.includes(`vueuse`)
+      || key.includes(`md-`)
+      || key.startsWith(`github_`),
+    )
+
+    keysToDelete.forEach((key) => {
+      localStorage.removeItem(key)
+      console.log(`Nuclear removed: ${key}`)
+    })
+
+    // 强制重新创建缓存实例
+    this.cache = new Map()
+
+    console.log(`Nuclear clear completed. Removed ${keysToDelete.length} keys.`)
   }
 }
 

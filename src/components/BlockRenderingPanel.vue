@@ -2,6 +2,7 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { useStore } from '@/stores'
 import { getConfigInfo, testGitHubConnection } from '@/utils/githubImageBed'
 import { imageCache } from '@/utils/imageCache'
 import { Database, Image, Settings, TestTube, Trash2 } from 'lucide-vue-next'
@@ -11,6 +12,9 @@ import { toast } from 'vue-sonner'
 // 获取GitHub图床配置信息
 const githubConfig = getConfigInfo()
 const isTestingConnection = ref(false)
+
+// 获取store
+const { clearImageModeState } = useStore()
 
 // 缓存统计信息（响应式）
 const cacheStats = ref(imageCache.getCacheStats())
@@ -92,6 +96,23 @@ function verifyCacheState() {
   console.log(`All localStorage keys:`, Object.keys(localStorage))
 
   toast.info(`内存缓存: ${memoryStats.totalItems}, 本地存储: ${localStorageSize}`)
+}
+
+// 超级清空 - 清空所有缓存和状态
+function nuclearClearAll() {
+  console.log(`=== NUCLEAR CLEAR INITIATED ===`)
+
+  // 清空store状态
+  clearImageModeState()
+
+  // 清空imageCache
+  imageCache.nuclearClear()
+
+  // 更新UI统计
+  updateCacheStats()
+
+  console.log(`=== NUCLEAR CLEAR COMPLETED ===`)
+  toast.success(`已执行超级清空，所有缓存和状态已清除`)
 }
 
 // 定时器引用
@@ -225,15 +246,27 @@ onUnmounted(() => {
               强力清空
             </Button>
           </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            class="w-full"
-            @click="verifyCacheState"
-          >
-            <Database class="mr-2 h-4 w-4" />
-            验证缓存状态
-          </Button>
+          <div class="flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              class="flex-1"
+              @click="verifyCacheState"
+            >
+              <Database class="mr-2 h-4 w-4" />
+              验证状态
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              class="flex-1"
+              title="清空所有缓存、状态和localStorage数据"
+              @click="nuclearClearAll"
+            >
+              <Trash2 class="mr-2 h-4 w-4" />
+              超级清空
+            </Button>
+          </div>
         </div>
       </div>
 

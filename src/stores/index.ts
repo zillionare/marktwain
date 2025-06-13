@@ -525,6 +525,17 @@ export const useStore = defineStore(`store`, () => {
     }
   }
 
+  // 清空所有转图相关状态
+  const clearImageModeState = (): void => {
+    console.log(`Clearing image mode state...`)
+    isImageMode.value = false
+    originalContent.value = ``
+    imageContent.value = ``
+    contentHash.value = ``
+    stopImageRefreshTimer()
+    console.log(`Image mode state cleared`)
+  }
+
   // 转图功能 - 手动触发（生成副本，不替换原文）
   const toggleImageMode = async (): Promise<void> => {
     const currentContent = editor.value?.getValue() || ``
@@ -979,6 +990,7 @@ export const useStore = defineStore(`store`, () => {
     // 转图功能
     isImageMode,
     toggleImageMode,
+    clearImageModeState,
     restoreImageModeState,
     startImageRefreshTimer,
     stopImageRefreshTimer,
