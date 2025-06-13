@@ -14,11 +14,13 @@ export class BlockRenderer {
   private styles: ThemeStyles
   private isDark: boolean
   private imageWidth: number
+  private githubConfig?: any
 
-  constructor(styles: ThemeStyles, isDark: boolean = false, imageWidth: number = 800) {
+  constructor(styles: ThemeStyles, isDark: boolean = false, imageWidth: number = 800, githubConfig?: any) {
     this.styles = styles
     this.isDark = isDark
     this.imageWidth = imageWidth
+    this.githubConfig = githubConfig
   }
 
   // 内联语法高亮样式映射
@@ -315,7 +317,7 @@ export class BlockRenderer {
       }
 
       // 上传到GitHub并缓存
-      const imageUrl = await uploadImageToGitHub(base64Content, `code-${Date.now()}.png`, `code`)
+      const imageUrl = await uploadImageToGitHub(base64Content, `code-${Date.now()}.png`, `code`, this.githubConfig)
       imageCache.cacheImage(base64Content, imageUrl, `code`)
 
       return imageUrl
@@ -395,7 +397,7 @@ export class BlockRenderer {
       }
 
       // 上传到GitHub并缓存
-      const imageUrl = await uploadImageToGitHub(base64Content, `mermaid-${Date.now()}.png`, `mermaid`)
+      const imageUrl = await uploadImageToGitHub(base64Content, `mermaid-${Date.now()}.png`, `mermaid`, this.githubConfig)
       imageCache.cacheImage(base64Content, imageUrl, `mermaid`)
 
       return imageUrl
@@ -488,7 +490,7 @@ export class BlockRenderer {
       }
 
       // 上传到GitHub并缓存
-      const imageUrl = await uploadImageToGitHub(base64Content, `admonition-${type}-${Date.now()}.png`, `admonition`)
+      const imageUrl = await uploadImageToGitHub(base64Content, `admonition-${type}-${Date.now()}.png`, `admonition`, this.githubConfig)
       imageCache.cacheImage(base64Content, imageUrl, `admonition`)
 
       return imageUrl
@@ -584,7 +586,7 @@ export class BlockRenderer {
       }
 
       // 上传到GitHub并缓存
-      const imageUrl = await uploadImageToGitHub(base64Content, `math-${Date.now()}.png`, `math`)
+      const imageUrl = await uploadImageToGitHub(base64Content, `math-${Date.now()}.png`, `math`, this.githubConfig)
       imageCache.cacheImage(base64Content, imageUrl, `math`)
 
       return imageUrl

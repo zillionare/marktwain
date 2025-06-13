@@ -20,9 +20,9 @@ interface GitHubApiResponse {
 
 /**
  * 获取GitHub图床配置
- * 优先从环境变量读取，如果没有则使用默认配置
+ * 优先从store设置读取，如果没有则从环境变量读取，最后使用默认配置
  */
-function getGitHubImageBedConfig(): GitHubImageBedConfig {
+function getGitHubImageBedConfig(storeConfig?: Partial<GitHubImageBedConfig>): GitHubImageBedConfig {
   // 从环境变量读取配置
   const envRepo = import.meta.env.VITE_GITHUB_IMAGE_REPO
   const envBranch = import.meta.env.VITE_GITHUB_IMAGE_BRANCH
@@ -30,18 +30,18 @@ function getGitHubImageBedConfig(): GitHubImageBedConfig {
   const envBasePath = import.meta.env.VITE_GITHUB_IMAGE_BASE_PATH
   const envBaseUrl = import.meta.env.VITE_GITHUB_IMAGE_BASE_URL
 
-  // 使用环境变量或默认值
+  // 优先级：store设置 > 环境变量 > 默认值
   const config = {
-    repo: envRepo || `zillionare/images`,
-    branch: envBranch || `main`,
-    token: envToken || ``, // 必须通过环境变量设置
-    basePath: envBasePath || `images/{year}/{month}/`,
-    baseUrl: envBaseUrl || `https://images.jieyu.ai`,
+    repo: storeConfig?.repo || envRepo || `zillionare/images`,
+    branch: storeConfig?.branch || envBranch || `main`,
+    token: storeConfig?.token || envToken || ``, // 必须设置
+    basePath: storeConfig?.basePath || envBasePath || `images/{year}/{month}/`,
+    baseUrl: storeConfig?.baseUrl || envBaseUrl || `https://images.jieyu.ai`,
   }
 
   // 验证token是否存在
   if (!config.token || config.token === ``) {
-    throw new Error(`GitHub token is required. Please set VITE_GITHUB_IMAGE_TOKEN environment variable.`)
+    throw new Error(`GitHub token is required. Please set it in settings or VITE_GITHUB_IMAGE_TOKEN environment variable.`)
   }
 
   return config
@@ -154,8 +154,8 @@ function extractStoragePathFromUrl(url: string, baseUrl: string): string {
 /**
  * 预生成图片URL（不等待上传完成）
  */
-export function generateImageUrl(prefix: string = `image`): string {
-  const config = getGitHubImageBedConfig()
+export function generateImageUrl(prefix: string = `image`, storeConfig?: Partial<GitHubImageBedConfig>): string {
+  const config = getGitHubImageBedConfig(storeConfig)
   const uniqueFilename = generateUniqueFilename(prefix)
   const storagePath = generateStoragePath(config.basePath, uniqueFilename)
   return generateAccessUrl(config, storagePath)
@@ -198,9 +198,10 @@ export async function uploadImageToGitHub(
   base64Content: string,
   _filename: string,
   prefix: string = `image`,
+  storeConfig?: Partial<GitHubImageBedConfig>,
 ): Promise<string> {
   try {
-    const config = getGitHubImageBedConfig()
+    const config = getGitHubImageBedConfig(storeConfig)
 
     // 验证base64内容
     if (!base64Content || base64Content.length === 0) {
@@ -248,9 +249,9 @@ export async function uploadImageToGitHub(
 /**
  * 获取配置信息（用于调试）
  */
-export function getConfigInfo(): GitHubImageBedConfig & { token: string } {
+export function getConfigInfo(storeConfig?: Partial<GitHubImageBedConfig>): GitHubImageBedConfig & { token: string } {
   try {
-    const config = getGitHubImageBedConfig()
+    const config = getGitHubImageBedConfig(storeConfig)
     return {
       repo: config.repo,
       branch: config.branch,
@@ -274,9 +275,9 @@ export function getConfigInfo(): GitHubImageBedConfig & { token: string } {
 /**
  * 测试GitHub API连接
  */
-export async function testGitHubConnection(): Promise<{ success: boolean, message: string }> {
+export async function testGitHubConnection(storeConfig?: Partial<GitHubImageBedConfig>): Promise<{ success: boolean, message: string }> {
   try {
-    const config = getGitHubImageBedConfig()
+    const config = getGitHubImageBedConfig(storeConfig)
 
     // 测试仓库访问
     const response = await fetch(`https://api.github.com/repos/${config.repo}`, {

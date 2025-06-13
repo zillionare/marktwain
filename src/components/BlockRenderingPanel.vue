@@ -6,15 +6,48 @@ import { useStore } from '@/stores'
 import { getConfigInfo, testGitHubConnection } from '@/utils/githubImageBed'
 import { imageCache } from '@/utils/imageCache'
 import { Database, Image, Settings, TestTube, Trash2 } from 'lucide-vue-next'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 
+// 获取store
+const store = useStore()
+const {
+  imageWidth,
+  githubImageRepo,
+  githubImageBranch,
+  githubImageToken,
+  githubImageBasePath,
+  githubImageBaseUrl,
+} = storeToRefs(store)
+
+const { clearImageModeState } = store
+
 // 获取GitHub图床配置信息
-const githubConfig = getConfigInfo()
 const isTestingConnection = ref(false)
 
-// 获取store
-const { clearImageModeState, imageWidth } = useStore()
+// 计算属性：实时获取GitHub配置
+const githubConfig = computed(() => {
+  try {
+    const storeConfig = {
+      repo: githubImageRepo.value,
+      branch: githubImageBranch.value,
+      token: githubImageToken.value,
+      basePath: githubImageBasePath.value,
+      baseUrl: githubImageBaseUrl.value,
+    }
+    return getConfigInfo(storeConfig)
+  }
+  catch {
+    return {
+      repo: `ERROR`,
+      branch: `ERROR`,
+      basePath: `ERROR`,
+      baseUrl: `ERROR`,
+      token: `ERROR`,
+    }
+  }
+})
 
 // 缓存统计信息（响应式）
 const cacheStats = ref(imageCache.getCacheStats())
@@ -28,7 +61,16 @@ function updateCacheStats() {
 async function handleTestConnection() {
   isTestingConnection.value = true
   try {
-    const result = await testGitHubConnection()
+    // 准备store配置
+    const storeConfig = {
+      repo: githubImageRepo.value,
+      branch: githubImageBranch.value,
+      token: githubImageToken.value,
+      basePath: githubImageBasePath.value,
+      baseUrl: githubImageBaseUrl.value,
+    }
+
+    const result = await testGitHubConnection(storeConfig)
     if (result.success) {
       toast.success(`连接测试成功: ${result.message}`)
     }
@@ -130,11 +172,90 @@ onUnmounted(() => {
       </CardDescription>
     </CardHeader>
     <CardContent class="space-y-4">
+      <!-- GitHub图床设置表单 -->
+      <div class="space-y-3">
+        <h4 class="flex items-center gap-2 text-sm font-medium">
+          <Settings class="h-4 w-4" />
+          GitHub图床设置
+        </h4>
+
+        <div class="space-y-3">
+          <!-- 仓库设置 -->
+          <div class="space-y-1">
+            <label class="text-xs font-medium">GitHub仓库</label>
+            <input
+              v-model="githubImageRepo"
+              type="text"
+              placeholder="owner/repository"
+              class="w-full border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+            <p class="text-xs text-gray-500">
+              格式：用户名/仓库名，如：zillionare/images
+            </p>
+          </div>
+
+          <!-- 分支设置 -->
+          <div class="space-y-1">
+            <label class="text-xs font-medium">分支名</label>
+            <input
+              v-model="githubImageBranch"
+              type="text"
+              placeholder="main"
+              class="w-full border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+          </div>
+
+          <!-- Token设置 -->
+          <div class="space-y-1">
+            <label class="text-xs font-medium">访问令牌 (Token)</label>
+            <input
+              v-model="githubImageToken"
+              type="password"
+              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+              class="w-full border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+            <p class="text-xs text-gray-500">
+              需要 Contents: Write 权限
+            </p>
+          </div>
+
+          <!-- 存储路径设置 -->
+          <div class="space-y-1">
+            <label class="text-xs font-medium">存储路径</label>
+            <input
+              v-model="githubImageBasePath"
+              type="text"
+              placeholder="images/{year}/{month}/"
+              class="w-full border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+            <p class="text-xs text-gray-500">
+              支持变量：{year} = 年份，{month} = 月份
+            </p>
+          </div>
+
+          <!-- 访问地址设置 -->
+          <div class="space-y-1">
+            <label class="text-xs font-medium">访问地址</label>
+            <input
+              v-model="githubImageBaseUrl"
+              type="text"
+              placeholder="https://images.jieyu.ai"
+              class="w-full border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+            <p class="text-xs text-gray-500">
+              图片的访问域名，通常是CDN地址
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <Separator />
+
       <!-- GitHub图床配置信息 -->
       <div class="space-y-2">
         <h4 class="flex items-center gap-2 text-sm font-medium">
           <Settings class="h-4 w-4" />
-          GitHub图床配置
+          当前配置
         </h4>
         <div class="space-y-1 bg-muted/30 rounded-lg p-3 text-xs">
           <div><strong>仓库:</strong> {{ githubConfig.repo }}</div>

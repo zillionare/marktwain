@@ -9,8 +9,8 @@ export class MarkdownProcessor {
   private blockRenderer: BlockRenderer
   private processedBlocks: Map<string, string> = new Map()
 
-  constructor(styles: ThemeStyles, isDark: boolean = false, imageWidth: number = 800) {
-    this.blockRenderer = new BlockRenderer(styles, isDark, imageWidth)
+  constructor(styles: ThemeStyles, isDark: boolean = false, imageWidth: number = 800, githubConfig?: any) {
+    this.blockRenderer = new BlockRenderer(styles, isDark, imageWidth, githubConfig)
   }
 
   /**

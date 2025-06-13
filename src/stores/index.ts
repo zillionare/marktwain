@@ -365,6 +365,13 @@ export const useStore = defineStore(`store`, () => {
   const contentHash = useStorage(addPrefix(`content_hash`), ``) // 内容哈希，用于检测变化
   const imageRefreshTimer = ref<number | null>(null) // 定时器引用
 
+  // GitHub图床设置（持久化）
+  const githubImageRepo = useStorage(addPrefix(`github_image_repo`), `zillionare/images`) // GitHub仓库
+  const githubImageBranch = useStorage(addPrefix(`github_image_branch`), `main`) // 分支名
+  const githubImageToken = useStorage(addPrefix(`github_image_token`), ``) // 访问令牌
+  const githubImageBasePath = useStorage(addPrefix(`github_image_base_path`), `images/{year}/{month}/`) // 存储路径
+  const githubImageBaseUrl = useStorage(addPrefix(`github_image_base_url`), `https://images.jieyu.ai`) // 访问URL
+
   // 初始化Markdown处理器
   const initMarkdownProcessor = () => {
     const currentTheme = customCssWithTemplate(
@@ -375,7 +382,16 @@ export const useStore = defineStore(`store`, () => {
         color: primaryColor.value,
       }),
     ) as unknown as ThemeStyles
-    markdownProcessor.value = new MarkdownProcessor(currentTheme, isDark.value, imageWidth.value)
+    // 准备GitHub配置
+    const githubConfig = {
+      repo: githubImageRepo.value,
+      branch: githubImageBranch.value,
+      token: githubImageToken.value,
+      basePath: githubImageBasePath.value,
+      baseUrl: githubImageBaseUrl.value,
+    }
+
+    markdownProcessor.value = new MarkdownProcessor(currentTheme, isDark.value, imageWidth.value, githubConfig)
   }
 
   // 生成内容哈希
@@ -1041,6 +1057,13 @@ export const useStore = defineStore(`store`, () => {
     restoreImageModeState,
     startImageRefreshTimer,
     stopImageRefreshTimer,
+
+    // GitHub图床设置
+    githubImageRepo,
+    githubImageBranch,
+    githubImageToken,
+    githubImageBasePath,
+    githubImageBaseUrl,
   }
 })
 
