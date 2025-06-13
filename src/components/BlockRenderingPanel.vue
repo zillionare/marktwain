@@ -56,14 +56,25 @@ function cleanExpiredCache() {
   }
 }
 
-// 清空所有缓存
+// 清空所有缓存（使用超级清空）
 function clearAllCache() {
+  console.log(`=== CLEARING ALL CACHE ===`)
   console.log(`Before clear - cache stats:`, imageCache.getCacheStats())
-  imageCache.clearCache()
+
+  // 清空store状态
+  clearImageModeState()
+
+  // 使用核弹级清空
+  imageCache.nuclearClear()
+
+  // 更新UI统计
+  updateCacheStats()
+
   console.log(`After clear - cache stats:`, imageCache.getCacheStats())
-  updateCacheStats() // 更新统计
   console.log(`After update - cache stats:`, cacheStats.value)
-  toast.success(`已清空所有图片缓存`)
+  console.log(`=== CACHE CLEARING COMPLETED ===`)
+
+  toast.success(`已清空所有缓存和状态`)
 }
 
 // 强制刷新缓存统计
@@ -71,16 +82,6 @@ function forceRefreshCache() {
   imageCache.forceReload()
   updateCacheStats()
   toast.info(`已强制刷新缓存统计`)
-}
-
-// 强力清空所有缓存
-function forceClearAllCache() {
-  console.log(`Before force clear - cache stats:`, imageCache.getCacheStats())
-  imageCache.forceClearAll()
-  console.log(`After force clear - cache stats:`, imageCache.getCacheStats())
-  updateCacheStats()
-  console.log(`After update - cache stats:`, cacheStats.value)
-  toast.success(`已强力清空所有缓存`)
 }
 
 // 验证缓存状态
@@ -96,23 +97,6 @@ function verifyCacheState() {
   console.log(`All localStorage keys:`, Object.keys(localStorage))
 
   toast.info(`内存缓存: ${memoryStats.totalItems}, 本地存储: ${localStorageSize}`)
-}
-
-// 超级清空 - 清空所有缓存和状态
-function nuclearClearAll() {
-  console.log(`=== NUCLEAR CLEAR INITIATED ===`)
-
-  // 清空store状态
-  clearImageModeState()
-
-  // 清空imageCache
-  imageCache.nuclearClear()
-
-  // 更新UI统计
-  updateCacheStats()
-
-  console.log(`=== NUCLEAR CLEAR COMPLETED ===`)
-  toast.success(`已执行超级清空，所有缓存和状态已清除`)
 }
 
 // 定时器引用
@@ -217,7 +201,7 @@ onUnmounted(() => {
               清理过期
             </Button>
             <Button
-              variant="outline"
+              variant="destructive"
               size="sm"
               class="flex-1"
               @click="clearAllCache"
@@ -237,17 +221,6 @@ onUnmounted(() => {
               刷新统计
             </Button>
             <Button
-              variant="destructive"
-              size="sm"
-              class="flex-1"
-              @click="forceClearAllCache"
-            >
-              <Trash2 class="mr-2 h-4 w-4" />
-              强力清空
-            </Button>
-          </div>
-          <div class="flex gap-2">
-            <Button
               variant="secondary"
               size="sm"
               class="flex-1"
@@ -255,16 +228,6 @@ onUnmounted(() => {
             >
               <Database class="mr-2 h-4 w-4" />
               验证状态
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              class="flex-1"
-              title="清空所有缓存、状态和localStorage数据"
-              @click="nuclearClearAll"
-            >
-              <Trash2 class="mr-2 h-4 w-4" />
-              超级清空
             </Button>
           </div>
         </div>
