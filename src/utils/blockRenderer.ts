@@ -84,24 +84,26 @@ export class BlockRenderer {
   // 创建Mac样式的代码块容器
   private createMacStyleContainer(): HTMLElement {
     const macContainer = document.createElement(`div`)
+    // 强制使用深色主题以确保一致性
+    const isDarkTheme = true // 强制深色主题
     macContainer.style.cssText = `
-      background: ${this.isDark ? `#1d1f21` : `#f6f8fa`};
+      background: ${isDarkTheme ? `#1d1f21` : `#f6f8fa`};
       border-radius: 8px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
       overflow: hidden;
       font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
-      border: 1px solid ${this.isDark ? `#333` : `#e1e1e1`};
+      border: 1px solid ${isDarkTheme ? `#333` : `#e1e1e1`};
     `
 
     // Mac样式的标题栏
     const titleBar = document.createElement(`div`)
     titleBar.style.cssText = `
-      background: linear-gradient(180deg, ${this.isDark ? `#3c3c3c` : `#f8f8f8`} 0%, ${this.isDark ? `#2c2c2c` : `#e8e8e8`} 100%);
+      background: linear-gradient(180deg, ${isDarkTheme ? `#3c3c3c` : `#f8f8f8`} 0%, ${isDarkTheme ? `#2c2c2c` : `#e8e8e8`} 100%);
       height: 32px;
       display: flex;
       align-items: center;
       padding: 0 16px;
-      border-bottom: 1px solid ${this.isDark ? `#404040` : `#e1e1e1`};
+      border-bottom: 1px solid ${isDarkTheme ? `#404040` : `#e1e1e1`};
     `
 
     // 三个圆点
@@ -160,15 +162,16 @@ export class BlockRenderer {
 
     // 创建代码内容区域
     const codeElement = document.createElement(`pre`)
+    const forceDarkTheme = true // 强制深色主题
     codeElement.style.cssText = `
       margin: 0;
       padding: 16px 20px;
-      background: ${this.isDark ? `#1d1f21` : `#f6f8fa`};
+      background: ${forceDarkTheme ? `#1d1f21` : `#f6f8fa`};
       overflow: visible;
       font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
       font-size: 13px;
       line-height: 1.5;
-      color: ${this.isDark ? `#c5c8c6` : `#24292e`};
+      color: ${forceDarkTheme ? `#c5c8c6` : `#24292e`};
       white-space: pre;
       word-wrap: normal;
       min-height: 60px;
@@ -182,20 +185,60 @@ export class BlockRenderer {
       display: block;
     `
 
-    // 先处理原始代码的缩进，保留前导空格
+    // 先处理原始代码，保留缩进并限制行长度
     let processedCode = code
     processedCode = processedCode.replace(/\t/g, `    `) // 制表符转换为4个空格
+
+    // 限制每行字符数不超过88字符
+    const lines = processedCode.split(`\n`)
+    const wrappedLines = lines.map((line) => {
+      if (line.length <= 88)
+        return line
+
+      // 如果行太长，进行智能换行
+      const chunks = []
+      let currentChunk = ``
+      const words = line.split(` `)
+
+      for (const word of words) {
+        if ((`${currentChunk} ${word}`).length <= 88) {
+          currentChunk = currentChunk ? `${currentChunk} ${word}` : word
+        }
+        else {
+          if (currentChunk)
+            chunks.push(currentChunk)
+          currentChunk = word
+        }
+      }
+      if (currentChunk)
+        chunks.push(currentChunk)
+
+      return chunks.join(`\n    `) // 续行增加4个空格缩进
+    })
+    processedCode = wrappedLines.join(`\n`)
 
     // 使用highlight.js进行语法高亮
     const language = hljs.getLanguage(_lang) ? _lang : `plaintext`
     let highlighted = hljs.highlight(processedCode, { language }).value
 
-    // 在高亮后的HTML中保留行首空格
-    // 处理换行符后的空格（包括第一行）
-    highlighted = highlighted.replace(/(^|\n)( +)/g, (_match, lineStart, spaces) => {
-      // 将行首的空格转换为不间断空格
-      return lineStart + `&nbsp;`.repeat(spaces.length)
-    })
+    // 更强力的缩进处理：直接在HTML中查找并替换空格
+    // 处理行首空格，包括第一行和换行后的空格
+    console.log(`Original code lines:`, processedCode.split(`\n`).map((line, i) => `${i}: "${line}"`))
+    console.log(`Highlighted before indent processing:`, highlighted.substring(0, 200))
+
+    highlighted = highlighted.split(`\n`).map((line, index) => {
+      // 匹配行首的空格
+      const match = line.match(/^( +)/)
+      if (match) {
+        const spaces = match[1]
+        const restOfLine = line.substring(spaces.length)
+        console.log(`Line ${index}: Found ${spaces.length} leading spaces`)
+        return `&nbsp;`.repeat(spaces.length) + restOfLine
+      }
+      return line
+    }).join(`\n`)
+
+    console.log(`Highlighted after indent processing:`, highlighted.substring(0, 200))
 
     // 应用内联样式替换CSS类
     const styledHighlighted = this.applyInlineStyles(highlighted)
@@ -238,9 +281,9 @@ export class BlockRenderer {
       console.log(`Container innerHTML length: ${container.innerHTML.length}`)
 
       const dataUrl = await toPng(container, {
-        backgroundColor: this.isDark ? `#1e1e1e` : `#ffffff`,
+        backgroundColor: `#1e1e1e`, // 强制深色背景
         pixelRatio: 2,
-        width: 800,
+        width: Math.min(800, container.offsetWidth || 800), // 限制最大宽度800px
         height: container.offsetHeight || 200,
         style: {
           transform: `scale(1)`,
