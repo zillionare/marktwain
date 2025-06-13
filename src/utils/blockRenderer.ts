@@ -56,6 +56,7 @@ export class BlockRenderer {
           transform: `scale(1)`,
           transformOrigin: `top left`,
         },
+        skipFonts: true,
       })
 
       // 将dataUrl转换为base64并上传到GitHub
@@ -103,6 +104,7 @@ export class BlockRenderer {
           transform: `scale(1)`,
           transformOrigin: `top left`,
         },
+        skipFonts: true,
       })
 
       const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
@@ -166,6 +168,7 @@ export class BlockRenderer {
           transform: `scale(1)`,
           transformOrigin: `top left`,
         },
+        skipFonts: true,
       })
 
       const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
@@ -231,6 +234,7 @@ export class BlockRenderer {
           transform: `scale(1)`,
           transformOrigin: `top left`,
         },
+        skipFonts: true,
       })
 
       const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀

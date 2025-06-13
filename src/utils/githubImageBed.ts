@@ -184,7 +184,10 @@ export async function uploadImageToGitHub(
         throw new Error(`GitHub authentication failed. Please check your VITE_GITHUB_IMAGE_TOKEN environment variable.`)
       }
       if (error.message.includes(`403`)) {
-        throw new Error(`GitHub access forbidden. Please check repository permissions.`)
+        throw new Error(`GitHub access forbidden. Your token needs "Contents: Write" permission. Please regenerate your token with proper permissions.`)
+      }
+      if (error.message.includes(`Resource not accessible by personal access token`)) {
+        throw new Error(`Token permission insufficient. Please ensure your GitHub token has "repo" or "Contents: Write" permission.`)
       }
       if (error.message.includes(`404`)) {
         throw new Error(`GitHub repository not found. Please check VITE_GITHUB_IMAGE_REPO configuration.`)

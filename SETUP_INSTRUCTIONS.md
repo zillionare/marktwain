@@ -23,12 +23,43 @@ VITE_GITHUB_IMAGE_BASE_URL=https://images.jieyu.ai
 
 ### 2. 获取GitHub Token
 
+#### 创建Personal Access Token
+
 1. 访问 [GitHub Personal Access Tokens](https://github.com/settings/tokens)
 2. 点击 "Generate new token" → "Generate new token (classic)"
-3. 设置以下权限：
-   - `repo` - 完整的仓库访问权限
-   - `workflow` - 工作流权限（用于触发GitHub Pages）
-4. 复制生成的token到 `VITE_GITHUB_IMAGE_TOKEN`
+3. 设置Token信息：
+   - **Token名称**: `MD Editor Image Bed`
+   - **过期时间**: 建议选择 "No expiration" 或较长时间
+
+#### 必需权限设置
+
+⚠️ **重要**: 必须选择正确的权限，否则会出现403错误
+
+**方式一：完整仓库权限（推荐）**
+
+```
+✅ repo (完整仓库访问权限)
+  ✅ repo:status
+  ✅ repo_deployment
+  ✅ public_repo
+  ✅ repo:invite
+  ✅ security_events
+```
+
+**方式二：精确权限**
+
+```
+✅ Contents: Write (写入文件权限)
+✅ Metadata: Read (读取仓库信息)
+✅ Pull requests: Write (可选，用于触发构建)
+```
+
+4. 点击 "Generate token"
+5. **立即复制Token**（只显示一次！）
+6. 将Token添加到 `.env.local` 文件：
+   ```bash
+   VITE_GITHUB_IMAGE_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   ```
 
 ### 3. 启动应用
 
