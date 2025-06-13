@@ -5,15 +5,20 @@ import { Separator } from '@/components/ui/separator'
 import { getConfigInfo, testGitHubConnection } from '@/utils/githubImageBed'
 import { imageCache } from '@/utils/imageCache'
 import { Database, Image, Settings, TestTube, Trash2 } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 
 // 获取GitHub图床配置信息
 const githubConfig = getConfigInfo()
 const isTestingConnection = ref(false)
 
-// 缓存统计信息
-const cacheStats = computed(() => imageCache.getCacheStats())
+// 缓存统计信息（响应式）
+const cacheStats = ref(imageCache.getCacheStats())
+
+// 更新缓存统计
+function updateCacheStats() {
+  cacheStats.value = imageCache.getCacheStats()
+}
 
 // 测试GitHub连接
 async function handleTestConnection() {
@@ -38,6 +43,7 @@ async function handleTestConnection() {
 // 清理过期缓存
 function cleanExpiredCache() {
   const cleanedCount = imageCache.cleanExpired()
+  updateCacheStats() // 更新统计
   if (cleanedCount > 0) {
     toast.success(`已清理 ${cleanedCount} 个过期缓存项`)
   }
@@ -48,9 +54,38 @@ function cleanExpiredCache() {
 
 // 清空所有缓存
 function clearAllCache() {
+  console.log(`Before clear - cache stats:`, imageCache.getCacheStats())
   imageCache.clearCache()
+  console.log(`After clear - cache stats:`, imageCache.getCacheStats())
+  updateCacheStats() // 更新统计
+  console.log(`After update - cache stats:`, cacheStats.value)
   toast.success(`已清空所有图片缓存`)
 }
+
+// 强制刷新缓存统计
+function forceRefreshCache() {
+  imageCache.forceReload()
+  updateCacheStats()
+  toast.info(`已强制刷新缓存统计`)
+}
+
+// 定时器引用
+let statsUpdateTimer: number | null = null
+
+// 组件挂载时启动定时更新
+onMounted(() => {
+  updateCacheStats()
+  // 每5秒更新一次统计（用于实时显示缓存变化）
+  statsUpdateTimer = window.setInterval(updateCacheStats, 5000)
+})
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  if (statsUpdateTimer) {
+    clearInterval(statsUpdateTimer)
+    statsUpdateTimer = null
+  }
+})
 </script>
 
 <template>
@@ -124,24 +159,35 @@ function clearAllCache() {
           </div>
         </div>
 
-        <div class="flex gap-2">
+        <div class="space-y-2">
+          <div class="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              class="flex-1"
+              @click="cleanExpiredCache"
+            >
+              <Database class="mr-2 h-4 w-4" />
+              清理过期
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              class="flex-1"
+              @click="clearAllCache"
+            >
+              <Trash2 class="mr-2 h-4 w-4" />
+              清空缓存
+            </Button>
+          </div>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            class="flex-1"
-            @click="cleanExpiredCache"
+            class="w-full"
+            @click="forceRefreshCache"
           >
             <Database class="mr-2 h-4 w-4" />
-            清理过期
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            class="flex-1"
-            @click="clearAllCache"
-          >
-            <Trash2 class="mr-2 h-4 w-4" />
-            清空缓存
+            刷新统计
           </Button>
         </div>
       </div>

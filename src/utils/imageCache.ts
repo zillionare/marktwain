@@ -199,7 +199,21 @@ class ImageCacheManager {
   public clearCache(): void {
     this.cache.clear()
     localStorage.removeItem(this.CACHE_KEY)
-    console.log(`Image cache cleared`)
+    // 强制清空localStorage中的所有相关项
+    try {
+      localStorage.removeItem(this.CACHE_KEY)
+      // 清空所有可能的缓存键变体
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.includes(`github_image_cache`)) {
+          localStorage.removeItem(key)
+        }
+      }
+    }
+    catch (error) {
+      console.warn(`Failed to clear localStorage cache:`, error)
+    }
+    console.log(`Image cache cleared, total items now: ${this.cache.size}`)
   }
 
   /**
@@ -209,6 +223,15 @@ class ImageCacheManager {
     const initialSize = this.cache.size
     this.cleanExpiredCache()
     return initialSize - this.cache.size
+  }
+
+  /**
+   * 强制重新加载缓存
+   */
+  public forceReload(): void {
+    this.cache.clear()
+    this.loadCache()
+    console.log(`Cache force reloaded, total items: ${this.cache.size}`)
   }
 }
 
