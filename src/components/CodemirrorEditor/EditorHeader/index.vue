@@ -10,7 +10,7 @@ import {
 import { useStore } from '@/stores'
 import { addPrefix, processClipboardContent } from '@/utils'
 import { copyPlain } from '@/utils/clipboard'
-import { ChevronDownIcon, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun } from 'lucide-vue-next'
+import { ChevronDownIcon, Image, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun } from 'lucide-vue-next'
 
 const emit = defineEmits([`addFormat`, `formatContent`, `startCopy`, `endCopy`])
 
@@ -64,9 +64,9 @@ const formatItems = [
 
 const store = useStore()
 
-const { isDark, isCiteStatus, isCountStatus, output, primaryColor, isOpenPostSlider, editor } = storeToRefs(store)
+const { isDark, isCiteStatus, isCountStatus, output, primaryColor, isOpenPostSlider, editor, isBlockRenderingEnabled, isImageMode } = storeToRefs(store)
 
-const { toggleDark, editorRefresh, citeStatusChanged, countStatusChanged } = store
+const { toggleDark, editorRefresh, citeStatusChanged, countStatusChanged, toggleImageMode } = store
 
 const copyMode = useStorage(addPrefix(`copyMode`), `txt`)
 const source = ref(``)
@@ -193,7 +193,7 @@ function copy() {
       </Button>
 
       <!-- 复制按钮组 -->
-      <div class="bg-background space-x-1 text-background-foreground mx-2 flex items-center border rounded-md">
+      <div class="space-x-1 bg-background text-background-foreground mx-2 flex items-center border rounded-md">
         <Button variant="ghost" class="shadow-none" @click="copy">
           复制
         </Button>
@@ -223,6 +223,18 @@ function copy() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <!-- 转图按钮 -->
+      <Button
+        v-if="isBlockRenderingEnabled"
+        variant="outline"
+        size="sm"
+        :class="{ 'bg-primary text-primary-foreground': isImageMode }"
+        @click="toggleImageMode"
+      >
+        <Image class="mr-1 size-4" />
+        {{ isImageMode ? '原文' : '转图' }}
+      </Button>
 
       <!-- 文章信息（移动端隐藏） -->
       <PostInfo class="hidden sm:inline-flex" />

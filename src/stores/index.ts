@@ -356,6 +356,12 @@ export const useStore = defineStore(`store`, () => {
   const isBlockRenderingEnabled = useStorage(addPrefix(`block_rendering_enabled`), false)
   const toggleBlockRendering = useToggle(isBlockRenderingEnabled)
 
+  // 转图状态管理
+  const isImageMode = ref(false) // 当前是否处于图片模式
+  const originalContent = ref(``) // 原始内容缓存
+  const imageContent = ref(``) // 图片内容缓存
+  const contentHash = ref(``) // 内容哈希，用于检测变化
+
   // 初始化Markdown处理器
   const initMarkdownProcessor = () => {
     const currentTheme = customCssWithTemplate(
@@ -367,6 +373,18 @@ export const useStore = defineStore(`store`, () => {
       }),
     ) as unknown as ThemeStyles
     markdownProcessor.value = new MarkdownProcessor(currentTheme, isDark.value)
+  }
+
+  // 生成内容哈希
+  const generateContentHash = (content: string): string => {
+    // 简单的哈希函数，用于检测内容变化
+    let hash = 0
+    for (let i = 0; i < content.length; i++) {
+      const char = content.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash // 转换为32位整数
+    }
+    return hash.toString()
   }
 
   // 处理特殊语法块
@@ -382,6 +400,62 @@ export const useStore = defineStore(`store`, () => {
       console.error(`Failed to process special blocks:`, error)
       toast.error(`处理特殊语法块时出错`)
       return content
+    }
+  }
+
+  // 转图功能 - 手动触发
+  const toggleImageMode = async (): Promise<void> => {
+    if (!isBlockRenderingEnabled.value) {
+      toast.warning(`请先启用特殊语法块渲染功能`)
+      return
+    }
+
+    const currentContent = editor.value?.getValue() || ``
+    const currentHash = generateContentHash(currentContent)
+
+    if (isImageMode.value) {
+      // 当前是图片模式，切换回原始模式
+      if (originalContent.value) {
+        editor.value?.setValue(originalContent.value)
+        isImageMode.value = false
+        toast.success(`已切换回原始内容`)
+        console.log(`Switched back to original content`)
+      }
+    }
+    else {
+      // 当前是原始模式，切换到图片模式
+      originalContent.value = currentContent
+
+      // 检查是否需要重新生成图片
+      if (imageContent.value && contentHash.value === currentHash) {
+        // 内容没有变化，使用缓存的图片内容
+        editor.value?.setValue(imageContent.value)
+        isImageMode.value = true
+        toast.success(`已切换到图片模式（使用缓存）`)
+        console.log(`Using cached image content`)
+      }
+      else {
+        // 内容有变化或首次转换，重新生成图片
+        try {
+          toast.info(`正在转换特殊语法块为图片...`)
+          console.log(`Converting special blocks to images...`)
+
+          const processedContent = await processSpecialBlocks(currentContent)
+
+          imageContent.value = processedContent
+          contentHash.value = currentHash
+
+          editor.value?.setValue(processedContent)
+          isImageMode.value = true
+          toast.success(`已成功转换为图片模式`)
+          console.log(`Successfully converted to image mode`)
+        }
+        catch (error) {
+          console.error(`Failed to convert to image mode:`, error)
+          toast.error(`转换图片模式失败`)
+          // 转换失败，保持原始状态
+        }
+      }
     }
   }
 
@@ -410,12 +484,10 @@ export const useStore = defineStore(`store`, () => {
       isMacCodeBlock: isMacCodeBlock.value,
     })
 
-    let content = editor.value!.getValue()
+    const content = editor.value!.getValue()
 
-    // 如果启用了特殊语法块渲染，先处理特殊语法块
-    if (isBlockRenderingEnabled.value) {
-      content = await processSpecialBlocks(content)
-    }
+    // 不再自动处理特殊语法块，只在手动转图时处理
+    // 这样可以避免响应慢的问题
 
     output.value = modifyHtmlContent(content, renderer)
 
@@ -814,6 +886,10 @@ export const useStore = defineStore(`store`, () => {
     hasSpecialBlocks,
     previewSpecialBlocks,
     initMarkdownProcessor,
+
+    // 转图功能
+    isImageMode,
+    toggleImageMode,
   }
 })
 
