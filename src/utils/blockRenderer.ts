@@ -22,25 +22,26 @@ export class BlockRenderer {
   // 内联语法高亮样式映射
   private getInlineHighlightStyles(): Record<string, string> {
     if (this.isDark) {
+      // 暗色主题 - 类似Mac终端的配色
       return {
-        'hljs-keyword': `color: #569cd6; font-weight: bold;`,
-        'hljs-string': `color: #ce9178;`,
-        'hljs-comment': `color: #6a9955; font-style: italic;`,
-        'hljs-number': `color: #b5cea8;`,
-        'hljs-function': `color: #dcdcaa;`,
-        'hljs-variable': `color: #9cdcfe;`,
-        'hljs-type': `color: #4ec9b0;`,
-        'hljs-literal': `color: #569cd6;`,
-        'hljs-built_in': `color: #4ec9b0;`,
-        'hljs-operator': `color: #d4d4d4;`,
-        'hljs-punctuation': `color: #d4d4d4;`,
-        'hljs-property': `color: #9cdcfe;`,
-        'hljs-attr': `color: #92c5f8;`,
-        'hljs-title': `color: #dcdcaa; font-weight: bold;`,
-        'hljs-meta': `color: #569cd6;`,
-        'hljs-tag': `color: #569cd6;`,
-        'hljs-name': `color: #4fc1ff;`,
-        'hljs-attribute': `color: #9cdcfe;`,
+        'hljs-keyword': `color: #cc7832; font-weight: bold;`, // 橙色关键字
+        'hljs-string': `color: #6a8759;`, // 绿色字符串
+        'hljs-comment': `color: #808080; font-style: italic;`, // 灰色注释
+        'hljs-number': `color: #6897bb;`, // 蓝色数字
+        'hljs-function': `color: #ffc66d;`, // 黄色函数
+        'hljs-variable': `color: #c5c8c6;`, // 白色变量
+        'hljs-type': `color: #8888c6;`, // 紫色类型
+        'hljs-literal': `color: #cc7832;`, // 橙色字面量
+        'hljs-built_in': `color: #8888c6;`, // 紫色内置函数
+        'hljs-operator': `color: #c5c8c6;`, // 白色操作符
+        'hljs-punctuation': `color: #c5c8c6;`, // 白色标点
+        'hljs-property': `color: #9876aa;`, // 紫色属性
+        'hljs-attr': `color: #bababa;`, // 浅灰色属性
+        'hljs-title': `color: #ffc66d; font-weight: bold;`, // 黄色标题
+        'hljs-meta': `color: #bbb529;`, // 黄绿色元数据
+        'hljs-tag': `color: #e8bf6a;`, // 黄色标签
+        'hljs-name': `color: #e8bf6a;`, // 黄色名称
+        'hljs-attribute': `color: #bababa;`, // 浅灰色属性
       }
     }
     else {
@@ -84,35 +85,37 @@ export class BlockRenderer {
   private createMacStyleContainer(): HTMLElement {
     const macContainer = document.createElement(`div`)
     macContainer.style.cssText = `
-      background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
+      background: ${this.isDark ? `#1d1f21` : `#ffffff`};
       border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
       overflow: hidden;
       font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
+      border: 1px solid ${this.isDark ? `#333` : `#e1e1e1`};
     `
 
     // Mac样式的标题栏
     const titleBar = document.createElement(`div`)
     titleBar.style.cssText = `
-      background: ${this.isDark ? `#2d2d2d` : `#f6f6f6`};
-      height: 28px;
+      background: linear-gradient(180deg, ${this.isDark ? `#3c3c3c` : `#f8f8f8`} 0%, ${this.isDark ? `#2c2c2c` : `#e8e8e8`} 100%);
+      height: 32px;
       display: flex;
       align-items: center;
-      padding: 0 12px;
+      padding: 0 16px;
       border-bottom: 1px solid ${this.isDark ? `#404040` : `#e1e1e1`};
     `
 
     // 三个圆点
     const dots = [`#ff5f56`, `#ffbd2e`, `#27ca3f`]
-    dots.forEach((color) => {
+    dots.forEach((color, index) => {
       const dot = document.createElement(`div`)
       dot.style.cssText = `
         width: 12px;
         height: 12px;
         border-radius: 50%;
         background: ${color};
-        margin-right: 8px;
+        margin-right: ${index < 2 ? `8px` : `0`};
         display: inline-block;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 1px 1px rgba(0,0,0,0.3);
       `
       titleBar.appendChild(dot)
     })
@@ -159,15 +162,16 @@ export class BlockRenderer {
     const codeElement = document.createElement(`pre`)
     codeElement.style.cssText = `
       margin: 0;
-      padding: 16px;
-      background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
+      padding: 16px 20px;
+      background: ${this.isDark ? `#1d1f21` : `#ffffff`};
       overflow: visible;
       font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
       font-size: 13px;
-      line-height: 1.45;
-      color: ${this.isDark ? `#e1e4e8` : `#24292e`};
-      white-space: pre-wrap;
-      word-wrap: break-word;
+      line-height: 1.5;
+      color: ${this.isDark ? `#c5c8c6` : `#24292e`};
+      white-space: pre;
+      word-wrap: normal;
+      min-height: 60px;
     `
 
     const codeInner = document.createElement(`code`)
@@ -181,7 +185,13 @@ export class BlockRenderer {
     // 使用highlight.js进行语法高亮，然后应用内联样式
     const language = hljs.getLanguage(_lang) ? _lang : `plaintext`
     let highlighted = hljs.highlight(code, { language }).value
-    highlighted = highlighted.replace(/\t/g, `    `)
+
+    // 保留所有空白字符，包括前导空格和制表符
+    highlighted = highlighted.replace(/\t/g, `    `) // 制表符转换为4个空格
+    highlighted = highlighted.replace(/^ +/gm, (match) => {
+      // 保留行首的空格，转换为不间断空格以防止HTML压缩
+      return `&nbsp;`.repeat(match.length)
+    })
 
     // 应用内联样式替换CSS类
     const styledHighlighted = this.applyInlineStyles(highlighted)
