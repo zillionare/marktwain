@@ -187,42 +187,42 @@ export class BlockRenderer {
       display: block;
     `
 
-    // 先处理原始代码，保留缩进
+    // 彻底重写缩进处理逻辑
     let processedCode = code
     processedCode = processedCode.replace(/\t/g, `    `) // 制表符转换为4个空格
 
     console.log(`Original code:`, JSON.stringify(processedCode))
 
-    // 分析每行的缩进
+    // 直接在原始代码中处理缩进，不依赖highlight.js后处理
+    // 将所有前导空格替换为特殊标记，这样highlight.js不会破坏它们
+    const INDENT_MARKER = `__INDENT_SPACE__`
     const lines = processedCode.split(`\n`)
-    const lineIndents = lines.map((line) => {
-      const match = line.match(/^( *)/)
-      return match ? match[1].length : 0
-    })
 
-    console.log(`Line indents:`, lineIndents)
-
-    // 使用highlight.js进行语法高亮
-    const language = hljs.getLanguage(_lang) ? _lang : `plaintext`
-    let highlighted = hljs.highlight(processedCode, { language }).value
-
-    console.log(`Highlighted HTML:`, highlighted.substring(0, 300))
-
-    // 重新应用缩进：将高亮后的每行与原始缩进匹配
-    const highlightedLines = highlighted.split(`\n`)
-    const finalLines = highlightedLines.map((line, index) => {
-      if (index < lineIndents.length && lineIndents[index] > 0) {
-        // 移除可能存在的前导空格，然后添加正确的缩进
-        const trimmedLine = line.replace(/^&nbsp;+|^ +/, ``)
-        const indentSpaces = `&nbsp;`.repeat(lineIndents[index])
-        console.log(`Line ${index}: Adding ${lineIndents[index]} spaces to "${trimmedLine.substring(0, 20)}..."`)
-        return indentSpaces + trimmedLine
+    // 记录每行的缩进并用标记替换
+    const processedLines = lines.map((line, index) => {
+      const match = line.match(/^( +)(.*)/)
+      if (match) {
+        const [, spaces, content] = match
+        const indentMarkers = INDENT_MARKER.repeat(spaces.length)
+        console.log(`Line ${index}: Found ${spaces.length} leading spaces, replacing with markers`)
+        return indentMarkers + content
       }
       return line
     })
 
-    highlighted = finalLines.join(`\n`)
-    console.log(`Final highlighted with indents:`, highlighted.substring(0, 300))
+    const markedCode = processedLines.join(`\n`)
+    console.log(`Code with indent markers:`, markedCode.substring(0, 200))
+
+    // 使用highlight.js进行语法高亮
+    const language = hljs.getLanguage(_lang) ? _lang : `plaintext`
+    let highlighted = hljs.highlight(markedCode, { language }).value
+
+    console.log(`Highlighted with markers:`, highlighted.substring(0, 300))
+
+    // 将标记替换回不间断空格
+    highlighted = highlighted.replace(new RegExp(INDENT_MARKER, `g`), `&nbsp;`)
+
+    console.log(`Final highlighted with spaces:`, highlighted.substring(0, 300))
 
     // 应用内联样式替换CSS类
     const styledHighlighted = this.applyInlineStyles(highlighted)
@@ -264,10 +264,17 @@ export class BlockRenderer {
       console.log(`Container dimensions: ${container.offsetWidth}x${container.offsetHeight}`)
       console.log(`Container innerHTML length: ${container.innerHTML.length}`)
 
+      // 添加调试信息
+      console.log(`Image width setting: ${this.imageWidth}px`)
+      console.log(`Container actual width: ${container.offsetWidth}px`)
+
+      const targetWidth = Math.min(this.imageWidth, container.offsetWidth || this.imageWidth)
+      console.log(`Target image width: ${targetWidth}px`)
+
       const dataUrl = await toPng(container, {
         backgroundColor: `#1e1e1e`, // 强制深色背景
-        pixelRatio: 2,
-        width: Math.min(this.imageWidth, container.offsetWidth || this.imageWidth), // 使用设置的图片宽度
+        pixelRatio: 1, // 修复：使用1而不是2，避免图片宽度翻倍
+        width: targetWidth, // 使用设置的图片宽度
         height: container.offsetHeight || 200,
         style: {
           transform: `scale(1)`,
@@ -327,7 +334,7 @@ export class BlockRenderer {
       position: fixed;
       top: 50px;
       left: 50px;
-      width: 800px;
+      width: ${this.imageWidth}px;
       padding: 20px;
       background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
       z-index: 9999;
@@ -359,8 +366,8 @@ export class BlockRenderer {
 
       const dataUrl = await toPng(container, {
         backgroundColor: this.isDark ? `#1e1e1e` : `#ffffff`,
-        pixelRatio: 2,
-        width: 800,
+        pixelRatio: 1, // 修复：使用1而不是2
+        width: this.imageWidth, // 使用设置的图片宽度
         height: container.offsetHeight || 400,
         style: {
           transform: `scale(1)`,
@@ -407,7 +414,7 @@ export class BlockRenderer {
       position: fixed;
       top: 50px;
       left: 50px;
-      width: 800px;
+      width: ${this.imageWidth}px;
       padding: 20px;
       background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
       z-index: 9999;
@@ -452,8 +459,8 @@ export class BlockRenderer {
 
       const dataUrl = await toPng(container, {
         backgroundColor: this.isDark ? `#1e1e1e` : `#ffffff`,
-        pixelRatio: 2,
-        width: 800,
+        pixelRatio: 1, // 修复：使用1而不是2
+        width: this.imageWidth, // 使用设置的图片宽度
         height: container.offsetHeight || 150,
         style: {
           transform: `scale(1)`,
@@ -500,7 +507,7 @@ export class BlockRenderer {
       position: fixed;
       top: 50px;
       left: 50px;
-      width: 800px;
+      width: ${this.imageWidth}px;
       padding: 20px;
       background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
       font-size: 16px;
@@ -548,8 +555,8 @@ export class BlockRenderer {
 
       const dataUrl = await toPng(container, {
         backgroundColor: this.isDark ? `#1e1e1e` : `#ffffff`,
-        pixelRatio: 2,
-        width: 800,
+        pixelRatio: 1, // 修复：使用1而不是2
+        width: this.imageWidth, // 使用设置的图片宽度
         height: container.offsetHeight || 100,
         style: {
           transform: `scale(1)`,
