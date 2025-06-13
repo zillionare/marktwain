@@ -1,4 +1,5 @@
 import type { ThemeStyles } from '@/types'
+import hljs from 'highlight.js'
 import { toPng } from 'html-to-image'
 import mermaid from 'mermaid'
 import { getStyleString } from '.'
@@ -16,6 +17,108 @@ export class BlockRenderer {
   constructor(styles: ThemeStyles, isDark: boolean = false) {
     this.styles = styles
     this.isDark = isDark
+  }
+
+  // 内联语法高亮样式映射
+  private getInlineHighlightStyles(): Record<string, string> {
+    if (this.isDark) {
+      return {
+        'hljs-keyword': `color: #569cd6; font-weight: bold;`,
+        'hljs-string': `color: #ce9178;`,
+        'hljs-comment': `color: #6a9955; font-style: italic;`,
+        'hljs-number': `color: #b5cea8;`,
+        'hljs-function': `color: #dcdcaa;`,
+        'hljs-variable': `color: #9cdcfe;`,
+        'hljs-type': `color: #4ec9b0;`,
+        'hljs-literal': `color: #569cd6;`,
+        'hljs-built_in': `color: #4ec9b0;`,
+        'hljs-operator': `color: #d4d4d4;`,
+        'hljs-punctuation': `color: #d4d4d4;`,
+        'hljs-property': `color: #9cdcfe;`,
+        'hljs-attr': `color: #92c5f8;`,
+        'hljs-title': `color: #dcdcaa; font-weight: bold;`,
+        'hljs-meta': `color: #569cd6;`,
+        'hljs-tag': `color: #569cd6;`,
+        'hljs-name': `color: #4fc1ff;`,
+        'hljs-attribute': `color: #9cdcfe;`,
+      }
+    }
+    else {
+      return {
+        'hljs-keyword': `color: #0000ff; font-weight: bold;`,
+        'hljs-string': `color: #a31515;`,
+        'hljs-comment': `color: #008000; font-style: italic;`,
+        'hljs-number': `color: #098658;`,
+        'hljs-function': `color: #795e26;`,
+        'hljs-variable': `color: #001080;`,
+        'hljs-type': `color: #267f99;`,
+        'hljs-literal': `color: #0000ff;`,
+        'hljs-built_in': `color: #267f99;`,
+        'hljs-operator': `color: #000000;`,
+        'hljs-punctuation': `color: #000000;`,
+        'hljs-property': `color: #001080;`,
+        'hljs-attr': `color: #0451a5;`,
+        'hljs-title': `color: #795e26; font-weight: bold;`,
+        'hljs-meta': `color: #0000ff;`,
+        'hljs-tag': `color: #800000;`,
+        'hljs-name': `color: #800000;`,
+        'hljs-attribute': `color: #ff0000;`,
+      }
+    }
+  }
+
+  // 应用内联样式到高亮的HTML
+  private applyInlineStyles(highlightedHtml: string): string {
+    const styles = this.getInlineHighlightStyles()
+    let result = highlightedHtml
+
+    for (const [className, style] of Object.entries(styles)) {
+      const regex = new RegExp(`<span class="${className}">`, `g`)
+      result = result.replace(regex, `<span style="${style}">`)
+    }
+
+    return result
+  }
+
+  // 创建Mac样式的代码块容器
+  private createMacStyleContainer(): HTMLElement {
+    const macContainer = document.createElement(`div`)
+    macContainer.style.cssText = `
+      background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
+    `
+
+    // Mac样式的标题栏
+    const titleBar = document.createElement(`div`)
+    titleBar.style.cssText = `
+      background: ${this.isDark ? `#2d2d2d` : `#f6f6f6`};
+      height: 28px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      border-bottom: 1px solid ${this.isDark ? `#404040` : `#e1e1e1`};
+    `
+
+    // 三个圆点
+    const dots = [`#ff5f56`, `#ffbd2e`, `#27ca3f`]
+    dots.forEach((color) => {
+      const dot = document.createElement(`div`)
+      dot.style.cssText = `
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: ${color};
+        margin-right: 8px;
+        display: inline-block;
+      `
+      titleBar.appendChild(dot)
+    })
+
+    macContainer.appendChild(titleBar)
+    return macContainer
   }
 
   /**
@@ -49,35 +152,44 @@ export class BlockRenderer {
       line-height: 1.5;
     `
 
-    // 创建代码块HTML - 使用纯文本避免highlight.js的跨域CSS问题
+    // 创建Mac样式的代码块容器
+    const macContainer = this.createMacStyleContainer()
+
+    // 创建代码内容区域
     const codeElement = document.createElement(`pre`)
     codeElement.style.cssText = `
       margin: 0;
       padding: 16px;
-      background: ${this.isDark ? `#2d2d2d` : `#f6f8fa`};
-      border-radius: 6px;
+      background: ${this.isDark ? `#1e1e1e` : `#ffffff`};
       overflow: visible;
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      font-size: 14px;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
+      font-size: 13px;
       line-height: 1.45;
       color: ${this.isDark ? `#e1e4e8` : `#24292e`};
       white-space: pre-wrap;
       word-wrap: break-word;
-      border: 1px solid ${this.isDark ? `#444` : `#d1d9e0`};
     `
 
     const codeInner = document.createElement(`code`)
     codeInner.style.cssText = `
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      font-size: 14px;
+      font-family: inherit;
+      font-size: inherit;
       color: inherit;
       display: block;
     `
-    // 使用纯文本，不使用highlight.js避免跨域CSS问题
-    codeInner.textContent = code
+
+    // 使用highlight.js进行语法高亮，然后应用内联样式
+    const language = hljs.getLanguage(_lang) ? _lang : `plaintext`
+    let highlighted = hljs.highlight(code, { language }).value
+    highlighted = highlighted.replace(/\t/g, `    `)
+
+    // 应用内联样式替换CSS类
+    const styledHighlighted = this.applyInlineStyles(highlighted)
+    codeInner.innerHTML = styledHighlighted
 
     codeElement.appendChild(codeInner)
-    container.appendChild(codeElement)
+    macContainer.appendChild(codeElement)
+    container.appendChild(macContainer)
     renderContainer.appendChild(container)
     document.body.appendChild(renderContainer)
 
