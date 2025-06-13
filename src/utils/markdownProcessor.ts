@@ -17,7 +17,7 @@ export class MarkdownProcessor {
    * 处理markdown内容，将特殊语法块转换为图片
    * 使用并发处理提高性能
    */
-  async processMarkdown(content: string): Promise<string> {
+  async processMarkdown(content: string, isPreview: boolean = false): Promise<string> {
     // 收集所有需要处理的块
     const allBlocks = this.collectAllBlocks(content)
 
@@ -38,7 +38,7 @@ export class MarkdownProcessor {
       }
 
       // 创建异步处理Promise
-      const processingPromise = this.processBlockAsync(block).then(result => ({
+      const processingPromise = this.processBlockAsync(block, isPreview).then(result => ({
         block,
         imageUrl: result.imageUrl,
       }))
@@ -154,6 +154,7 @@ export class MarkdownProcessor {
    */
   private async processBlockAsync(
     block: { id: string, type: string, content: string, lang?: string },
+    isPreview: boolean = false,
   ): Promise<{ blockId: string, imageUrl: string }> {
     try {
       console.log(`Processing ${block.type} block...`)
@@ -162,16 +163,16 @@ export class MarkdownProcessor {
 
       switch (block.type) {
         case `mermaid`:
-          imageUrl = await this.blockRenderer.renderMermaidChart(block.content)
+          imageUrl = await this.blockRenderer.renderMermaidChart(block.content, isPreview)
           break
         case `code`:
-          imageUrl = await this.blockRenderer.renderCodeBlock(block.content, block.lang || `text`)
+          imageUrl = await this.blockRenderer.renderCodeBlock(block.content, block.lang || `text`, isPreview)
           break
         case `admonition`:
-          imageUrl = await this.blockRenderer.renderAdmonitionBlock(block.content, block.lang || `note`)
+          imageUrl = await this.blockRenderer.renderAdmonitionBlock(block.content, block.lang || `note`, isPreview)
           break
         case `math`:
-          imageUrl = await this.blockRenderer.renderMathBlock(block.content, false)
+          imageUrl = await this.blockRenderer.renderMathBlock(block.content, false, isPreview)
           break
         default:
           throw new Error(`Unknown block type: ${block.type}`)

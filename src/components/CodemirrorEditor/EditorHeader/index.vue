@@ -10,7 +10,7 @@ import {
 import { useStore } from '@/stores'
 import { addPrefix, processClipboardContent } from '@/utils'
 import { copyPlain } from '@/utils/clipboard'
-import { ChevronDownIcon, Image, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun } from 'lucide-vue-next'
+import { ChevronDownIcon, Eye, Image, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun } from 'lucide-vue-next'
 
 const emit = defineEmits([`addFormat`, `formatContent`, `startCopy`, `endCopy`])
 
@@ -64,9 +64,9 @@ const formatItems = [
 
 const store = useStore()
 
-const { isDark, isCiteStatus, isCountStatus, output, primaryColor, isOpenPostSlider, editor, isImageMode } = storeToRefs(store)
+const { isDark, isCiteStatus, isCountStatus, output, primaryColor, isOpenPostSlider, editor, isImageMode, isPreviewMode } = storeToRefs(store)
 
-const { toggleDark, editorRefresh, citeStatusChanged, countStatusChanged, toggleImageMode } = store
+const { toggleDark, editorRefresh, citeStatusChanged, countStatusChanged, toggleImageMode, togglePreviewMode } = store
 
 const copyMode = useStorage(addPrefix(`copyMode`), `txt`)
 const source = ref(``)
@@ -228,11 +228,23 @@ function copy() {
       <Button
         variant="outline"
         size="sm"
-        :class="{ 'bg-primary text-primary-foreground': isImageMode }"
+        :class="{ 'bg-primary text-primary-foreground': isImageMode && !isPreviewMode }"
         @click="toggleImageMode"
       >
         <Image class="mr-1 size-4" />
-        {{ isImageMode ? '原文' : '转图' }}
+        {{ isImageMode && !isPreviewMode ? '原文' : '转图' }}
+      </Button>
+
+      <!-- 预览按钮 -->
+      <Button
+        variant="outline"
+        size="sm"
+        :class="{ 'bg-secondary text-secondary-foreground': isPreviewMode }"
+        title="使用dataURL预览，不上传GitHub"
+        @click="togglePreviewMode"
+      >
+        <Eye class="mr-1 size-4" />
+        {{ isPreviewMode ? '退出预览' : '预览' }}
       </Button>
 
       <!-- 文章信息（移动端隐藏） -->

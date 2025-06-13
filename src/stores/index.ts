@@ -358,6 +358,7 @@ export const useStore = defineStore(`store`, () => {
 
   // 转图状态管理（持久化）
   const isImageMode = useStorage(addPrefix(`image_mode`), false) // 当前是否处于图片模式
+  const isPreviewMode = ref(false) // 预览模式（使用dataURL，不上传GitHub）
   const originalContent = useStorage(addPrefix(`original_content`), ``) // 原始内容缓存
   const imageContent = useStorage(addPrefix(`image_content`), ``) // 图片内容缓存（副本）
   const contentHash = useStorage(addPrefix(`content_hash`), ``) // 内容哈希，用于检测变化
@@ -389,13 +390,13 @@ export const useStore = defineStore(`store`, () => {
   }
 
   // 处理特殊语法块
-  const processSpecialBlocks = async (content: string): Promise<string> => {
+  const processSpecialBlocks = async (content: string, isPreview: boolean = false): Promise<string> => {
     if (!isBlockRenderingEnabled.value || !markdownProcessor.value) {
       return content
     }
 
     try {
-      return await markdownProcessor.value.processMarkdown(content)
+      return await markdownProcessor.value.processMarkdown(content, isPreview)
     }
     catch (error) {
       console.error(`Failed to process special blocks:`, error)
@@ -529,11 +530,53 @@ export const useStore = defineStore(`store`, () => {
   const clearImageModeState = (): void => {
     console.log(`Clearing image mode state...`)
     isImageMode.value = false
+    isPreviewMode.value = false
     originalContent.value = ``
     imageContent.value = ``
     contentHash.value = ``
     stopImageRefreshTimer()
     console.log(`Image mode state cleared`)
+  }
+
+  // 预览模式转图 - 使用dataURL，不上传GitHub
+  const togglePreviewMode = async (): Promise<void> => {
+    const currentContent = editor.value?.getValue() || ``
+
+    if (isPreviewMode.value) {
+      // 当前是预览模式，切换回原始模式
+      isPreviewMode.value = false
+      isImageMode.value = false
+      toast.success(`已退出预览模式`)
+      console.log(`Exited preview mode`)
+      await editorRefresh()
+    }
+    else {
+      // 当前是原始模式，切换到预览模式
+      originalContent.value = currentContent
+
+      try {
+        toast.info(`正在生成预览图片...`)
+        console.log(`Generating preview images using dataURL...`)
+
+        // 使用预览模式处理特殊语法块
+        const processedContent = await processSpecialBlocks(currentContent, true) // true表示预览模式
+
+        imageContent.value = processedContent
+        contentHash.value = generateContentHash(currentContent)
+        isPreviewMode.value = true
+        isImageMode.value = true
+
+        toast.success(`预览图片生成完成`)
+        console.log(`Preview images generated successfully using dataURL`)
+        await editorRefresh()
+      }
+      catch (error) {
+        console.error(`Failed to generate preview:`, error)
+        toast.error(`预览生成失败`)
+        isPreviewMode.value = false
+        isImageMode.value = false
+      }
+    }
   }
 
   // 转图功能 - 手动触发（生成副本，不替换原文）
@@ -989,7 +1032,9 @@ export const useStore = defineStore(`store`, () => {
 
     // 转图功能
     isImageMode,
+    isPreviewMode,
     toggleImageMode,
+    togglePreviewMode,
     clearImageModeState,
     restoreImageModeState,
     startImageRefreshTimer,

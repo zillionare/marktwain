@@ -127,7 +127,7 @@ export class BlockRenderer {
   /**
    * 渲染代码块为图片
    */
-  async renderCodeBlock(code: string, _lang: string): Promise<string> {
+  async renderCodeBlock(code: string, _lang: string, isPreview: boolean = false): Promise<string> {
     // 创建一个临时的渲染容器
     const renderContainer = document.createElement(`div`)
     renderContainer.style.cssText = `
@@ -263,6 +263,12 @@ export class BlockRenderer {
         throw new Error(`Generated image is too small or empty. DataURL length: ${dataUrl.length}`)
       }
 
+      // 预览模式：直接返回dataURL
+      if (isPreview) {
+        console.log(`Preview mode: returning dataURL for code block`)
+        return dataUrl
+      }
+
       // 检查缓存
       const cachedUrl = imageCache.getImageUrl(base64Content)
       if (cachedUrl) {
@@ -284,7 +290,7 @@ export class BlockRenderer {
   /**
    * 渲染Mermaid图表为图片
    */
-  async renderMermaidChart(code: string): Promise<string> {
+  async renderMermaidChart(code: string, isPreview: boolean = false): Promise<string> {
     const container = document.createElement(`div`)
     container.style.cssText = `
       position: fixed;
@@ -337,6 +343,12 @@ export class BlockRenderer {
       // 将dataUrl转换为base64
       const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
 
+      // 预览模式：直接返回dataURL
+      if (isPreview) {
+        console.log(`Preview mode: returning dataURL for mermaid chart`)
+        return dataUrl
+      }
+
       // 检查缓存
       const cachedUrl = imageCache.getImageUrl(base64Content)
       if (cachedUrl) {
@@ -358,7 +370,7 @@ export class BlockRenderer {
   /**
    * 渲染Admonition块为图片
    */
-  async renderAdmonitionBlock(content: string, type: string): Promise<string> {
+  async renderAdmonitionBlock(content: string, type: string, isPreview: boolean = false): Promise<string> {
     const container = document.createElement(`div`)
     container.style.cssText = `
       position: fixed;
@@ -424,6 +436,12 @@ export class BlockRenderer {
       // 将dataUrl转换为base64
       const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
 
+      // 预览模式：直接返回dataURL
+      if (isPreview) {
+        console.log(`Preview mode: returning dataURL for admonition block`)
+        return dataUrl
+      }
+
       // 检查缓存
       const cachedUrl = imageCache.getImageUrl(base64Content)
       if (cachedUrl) {
@@ -445,7 +463,7 @@ export class BlockRenderer {
   /**
    * 渲染数学公式为图片
    */
-  async renderMathBlock(formula: string, isInline: boolean = false): Promise<string> {
+  async renderMathBlock(formula: string, isInline: boolean = false, isPreview: boolean = false): Promise<string> {
     const container = document.createElement(`div`)
     container.style.cssText = `
       position: fixed;
@@ -513,6 +531,12 @@ export class BlockRenderer {
 
       // 将dataUrl转换为base64
       const base64Content = dataUrl.split(`,`)[1] // 移除data:image/png;base64,前缀
+
+      // 预览模式：直接返回dataURL
+      if (isPreview) {
+        console.log(`Preview mode: returning dataURL for math block`)
+        return dataUrl
+      }
 
       // 检查缓存
       const cachedUrl = imageCache.getImageUrl(base64Content)
