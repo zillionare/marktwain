@@ -69,6 +69,31 @@ function forceRefreshCache() {
   toast.info(`已强制刷新缓存统计`)
 }
 
+// 强力清空所有缓存
+function forceClearAllCache() {
+  console.log(`Before force clear - cache stats:`, imageCache.getCacheStats())
+  imageCache.forceClearAll()
+  console.log(`After force clear - cache stats:`, imageCache.getCacheStats())
+  updateCacheStats()
+  console.log(`After update - cache stats:`, cacheStats.value)
+  toast.success(`已强力清空所有缓存`)
+}
+
+// 验证缓存状态
+function verifyCacheState() {
+  const memoryStats = imageCache.getCacheStats()
+  const localStorageData = localStorage.getItem(`github_image_cache`)
+  const localStorageSize = localStorageData ? Object.keys(JSON.parse(localStorageData)).length : 0
+
+  console.log(`=== Cache State Verification ===`)
+  console.log(`Memory cache size:`, memoryStats.totalItems)
+  console.log(`LocalStorage cache size:`, localStorageSize)
+  console.log(`LocalStorage raw data:`, `${localStorageData?.substring(0, 200)}...`)
+  console.log(`All localStorage keys:`, Object.keys(localStorage))
+
+  toast.info(`内存缓存: ${memoryStats.totalItems}, 本地存储: ${localStorageSize}`)
+}
+
 // 定时器引用
 let statsUpdateTimer: number | null = null
 
@@ -180,14 +205,34 @@ onUnmounted(() => {
               清空缓存
             </Button>
           </div>
+          <div class="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              class="flex-1"
+              @click="forceRefreshCache"
+            >
+              <Database class="mr-2 h-4 w-4" />
+              刷新统计
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              class="flex-1"
+              @click="forceClearAllCache"
+            >
+              <Trash2 class="mr-2 h-4 w-4" />
+              强力清空
+            </Button>
+          </div>
           <Button
-            variant="ghost"
+            variant="secondary"
             size="sm"
             class="w-full"
-            @click="forceRefreshCache"
+            @click="verifyCacheState"
           >
             <Database class="mr-2 h-4 w-4" />
-            刷新统计
+            验证缓存状态
           </Button>
         </div>
       </div>

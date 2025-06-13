@@ -197,22 +197,34 @@ class ImageCacheManager {
    * 清空所有缓存
    */
   public clearCache(): void {
+    console.log(`Clearing cache, current size: ${this.cache.size}`)
+
+    // 清空内存缓存
     this.cache.clear()
-    localStorage.removeItem(this.CACHE_KEY)
-    // 强制清空localStorage中的所有相关项
+
+    // 清空localStorage缓存
     try {
-      localStorage.removeItem(this.CACHE_KEY)
-      // 清空所有可能的缓存键变体
+      // 先收集所有需要删除的键
+      const keysToDelete: string[] = []
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)
-        if (key && key.includes(`github_image_cache`)) {
-          localStorage.removeItem(key)
+        if (key && (key === this.CACHE_KEY || key.includes(`github_image_cache`))) {
+          keysToDelete.push(key)
         }
       }
+
+      // 删除收集到的键
+      keysToDelete.forEach((key) => {
+        localStorage.removeItem(key)
+        console.log(`Removed localStorage key: ${key}`)
+      })
+
+      console.log(`Cleared ${keysToDelete.length} localStorage keys`)
     }
     catch (error) {
       console.warn(`Failed to clear localStorage cache:`, error)
     }
+
     console.log(`Image cache cleared, total items now: ${this.cache.size}`)
   }
 
@@ -232,6 +244,51 @@ class ImageCacheManager {
     this.cache.clear()
     this.loadCache()
     console.log(`Cache force reloaded, total items: ${this.cache.size}`)
+  }
+
+  /**
+   * 彻底清空所有缓存（包括强制刷新）
+   */
+  public forceClearAll(): void {
+    console.log(`Force clearing all cache, current size: ${this.cache.size}`)
+
+    // 清空内存缓存
+    this.cache.clear()
+
+    // 彻底清空localStorage
+    try {
+      // 方法1: 直接删除主键
+      localStorage.removeItem(this.CACHE_KEY)
+
+      // 方法2: 遍历所有localStorage键并删除相关的
+      const allKeys = Object.keys(localStorage)
+      const cacheKeys = allKeys.filter(key =>
+        key === this.CACHE_KEY
+        || key.includes(`github_image_cache`)
+        || key.includes(`image_cache`)
+        || key.includes(`cache`),
+      )
+
+      cacheKeys.forEach((key) => {
+        localStorage.removeItem(key)
+        console.log(`Force removed key: ${key}`)
+      })
+
+      console.log(`Force cleared ${cacheKeys.length} localStorage keys`)
+
+      // 方法3: 如果还有问题，清空所有localStorage（谨慎使用）
+      if (this.cache.size > 0) {
+        console.warn(`Memory cache still has items, performing nuclear clear...`)
+        this.cache = new Map()
+      }
+    }
+    catch (error) {
+      console.error(`Failed to force clear cache:`, error)
+      // 最后手段：重新创建缓存实例
+      this.cache = new Map()
+    }
+
+    console.log(`Force clear completed, final size: ${this.cache.size}`)
   }
 }
 
