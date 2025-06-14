@@ -111,9 +111,9 @@ export class MarkdownProcessor {
       match = codeBlockRegex.exec(content)
     }
 
-    // 收集admonition块
-    const admonitionRegex = /^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n((?:^>.*\n?)*)/gm
-    match = admonitionRegex.exec(content)
+    // 收集GMF admonition块 (> [!NOTE])
+    const gmfAdmonitionRegex = /^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n((?:^>.*\n?)*)/gm
+    match = gmfAdmonitionRegex.exec(content)
     while (match !== null) {
       const [fullMatch, type, contentLines] = match
       const blockId = this.generateBlockId(fullMatch)
@@ -132,7 +132,35 @@ export class MarkdownProcessor {
         lang: type.toLowerCase(),
       })
 
-      match = admonitionRegex.exec(content)
+      match = gmfAdmonitionRegex.exec(content)
+    }
+
+    // 收集CommonMark admonition块 (!!! note)
+    const commonMarkAdmonitionRegex = /^!!!\s+(note|tip|important|warning|caution|info|success|failure|danger|bug|example|quote)(?:\s+"([^"]*)")?\s*\n((?: {4}.*\n)*)/gm
+    match = commonMarkAdmonitionRegex.exec(content)
+    while (match !== null) {
+      const [fullMatch, type, title, contentLines] = match
+      const blockId = this.generateBlockId(fullMatch)
+
+      // 处理缩进内容
+      const admonitionContent = contentLines
+        .split(`\n`)
+        .map(line => line.replace(/^ {4}/, ``)) // 移除4个空格的缩进
+        .join(`\n`)
+        .trim()
+
+      // 如果有自定义标题，将其添加到内容前面
+      const finalContent = title ? `**${title}**\n\n${admonitionContent}` : admonitionContent
+
+      blocks.push({
+        id: blockId,
+        type: `admonition`,
+        fullMatch,
+        content: finalContent,
+        lang: type.toLowerCase(),
+      })
+
+      match = commonMarkAdmonitionRegex.exec(content)
     }
 
     // 收集数学公式块
@@ -229,11 +257,13 @@ export class MarkdownProcessor {
    */
   hasSpecialBlocks(content: string): boolean {
     const codeBlockRegex = /```\w*\n[\s\S]*?```/
-    const admonitionRegex = /^>\s*\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n(?:^>.*\n?)*/m
+    const gmfAdmonitionRegex = /^>\s*\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n(?:^>.*\n?)*/m
+    const commonMarkAdmonitionRegex = /^!!!\s+(?:note|tip|important|warning|caution|info|success|failure|danger|bug|example|quote)/m
     const mathBlockRegex = /\$\$[\s\S]*?\$\$/
 
     return codeBlockRegex.test(content)
-      || admonitionRegex.test(content)
+      || gmfAdmonitionRegex.test(content)
+      || commonMarkAdmonitionRegex.test(content)
       || mathBlockRegex.test(content)
   }
 
@@ -255,16 +285,37 @@ export class MarkdownProcessor {
       match = codeBlockRegex.exec(content)
     }
 
-    // Admonition块
-    const admonitionRegex = /^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n((?:^>.*\n?)*)/gm
-    match = admonitionRegex.exec(content)
+    // GMF Admonition块
+    const gmfAdmonitionRegex = /^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n((?:^>.*\n?)*)/gm
+    match = gmfAdmonitionRegex.exec(content)
     while (match !== null) {
       blocks.push({
         type: `admonition`,
         content: match[2].split(`\n`).map(line => line.replace(/^>\s?/, ``)).join(`\n`).trim(),
         lang: match[1].toLowerCase(),
       })
-      match = admonitionRegex.exec(content)
+      match = gmfAdmonitionRegex.exec(content)
+    }
+
+    // CommonMark Admonition块
+    const commonMarkAdmonitionRegex = /^!!!\s+(note|tip|important|warning|caution|info|success|failure|danger|bug|example|quote)(?:\s+"([^"]*)")?\s*\n((?: {4}.*\n)*)/gm
+    match = commonMarkAdmonitionRegex.exec(content)
+    while (match !== null) {
+      const [, type, title, contentLines] = match
+      const admonitionContent = contentLines
+        .split(`\n`)
+        .map(line => line.replace(/^ {4}/, ``))
+        .join(`\n`)
+        .trim()
+
+      const finalContent = title ? `**${title}**\n\n${admonitionContent}` : admonitionContent
+
+      blocks.push({
+        type: `admonition`,
+        content: finalContent,
+        lang: type.toLowerCase(),
+      })
+      match = commonMarkAdmonitionRegex.exec(content)
     }
 
     // 数学公式块

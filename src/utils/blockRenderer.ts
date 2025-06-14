@@ -391,6 +391,27 @@ export class BlockRenderer {
   }
 
   /**
+   * 获取admonition类型对应的默认标题
+   */
+  private getAdmonitionTitle(type: string): string {
+    const titleMap: Record<string, string> = {
+      note: `Note`,
+      tip: `Tip`,
+      important: `Important`,
+      warning: `Warning`,
+      caution: `Caution`,
+      info: `Info`,
+      success: `Success`,
+      failure: `Failure`,
+      danger: `Danger`,
+      bug: `Bug`,
+      example: `Example`,
+      quote: `Quote`,
+    }
+    return titleMap[type.toLowerCase()] || type.charAt(0).toUpperCase() + type.slice(1)
+  }
+
+  /**
    * 渲染Admonition块为图片
    */
   async renderAdmonitionBlock(content: string, type: string, isPreview: boolean = false): Promise<string> {
@@ -416,6 +437,17 @@ export class BlockRenderer {
       ...this.styles[`blockquote_${type}` as keyof ThemeStyles],
     } as any)
 
+    // 处理内容，检查是否有自定义标题
+    let titleText = this.getAdmonitionTitle(type)
+    let actualContent = content
+
+    // 检查内容是否以粗体标题开始（CommonMark自定义标题）
+    const customTitleMatch = content.match(/^\*\*(.*?)\*\*\n\n([\s\S]*)$/)
+    if (customTitleMatch) {
+      titleText = customTitleMatch[1]
+      actualContent = customTitleMatch[2]
+    }
+
     // 添加标题
     const title = document.createElement(`p`)
     title.className = `markdown-alert-title`
@@ -423,7 +455,7 @@ export class BlockRenderer {
       ...this.styles.blockquote_title,
       ...this.styles[`blockquote_title_${type}` as keyof ThemeStyles],
     } as any)
-    title.textContent = type.charAt(0).toUpperCase() + type.slice(1)
+    title.textContent = titleText
 
     // 添加内容
     const contentElement = document.createElement(`p`)
@@ -431,7 +463,7 @@ export class BlockRenderer {
       ...this.styles.blockquote_p,
       ...this.styles[`blockquote_p_${type}` as keyof ThemeStyles],
     } as any)
-    contentElement.textContent = content
+    contentElement.textContent = actualContent
 
     blockquote.appendChild(title)
     blockquote.appendChild(contentElement)
