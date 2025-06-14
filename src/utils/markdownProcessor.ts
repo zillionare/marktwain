@@ -28,12 +28,16 @@ export class MarkdownProcessor {
     console.log(`Found ${allBlocks.length} blocks to process, starting concurrent processing...`)
 
     let processedContent = content
-    const processingPromises: Promise<{ block: any, imageUrl: string }>[] = []
+    const processingPromises: Promise<{ block: any, imageUrl: string, cacheKey: string }>[] = []
 
     for (const block of allBlocks) {
+      // 生成包含模式信息的缓存键
+      const cacheKey = `${block.id}_${isPreview ? `preview` : `upload`}`
+
       // 检查缓存
-      if (this.processedBlocks.has(block.id)) {
-        processedContent = processedContent.replace(block.fullMatch, this.processedBlocks.get(block.id)!)
+      if (this.processedBlocks.has(cacheKey)) {
+        console.log(`Using cached result for ${block.type} block (${isPreview ? `preview` : `upload`} mode)`)
+        processedContent = processedContent.replace(block.fullMatch, this.processedBlocks.get(cacheKey)!)
         continue
       }
 
@@ -41,6 +45,7 @@ export class MarkdownProcessor {
       const processingPromise = this.processBlockAsync(block, isPreview).then(result => ({
         block,
         imageUrl: result.imageUrl,
+        cacheKey,
       }))
 
       processingPromises.push(processingPromise)
@@ -52,10 +57,11 @@ export class MarkdownProcessor {
         const results = await Promise.all(processingPromises)
 
         // 替换所有处理完成的块
-        for (const { block, imageUrl } of results) {
+        for (const { block, imageUrl, cacheKey } of results) {
           const imageMarkdown = `![${block.type} ${block.lang || ``}](${imageUrl})`
           processedContent = processedContent.replace(block.fullMatch, imageMarkdown)
-          this.processedBlocks.set(block.id, imageMarkdown)
+          this.processedBlocks.set(cacheKey, imageMarkdown)
+          console.log(`Cached result for ${block.type} block with key: ${cacheKey}`)
         }
 
         console.log(`All ${results.length} blocks processed successfully`)
