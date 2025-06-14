@@ -7,7 +7,7 @@ import { testGitHubConnection } from '@/utils/githubImageBed'
 import { imageCache } from '@/utils/imageCache'
 import { Database, Image, Settings, TestTube, Trash2 } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 
 // 获取store
@@ -19,9 +19,10 @@ const {
   githubImageToken,
   githubImageBasePath,
   githubImageBaseUrl,
+  isBlockRenderingEnabled,
 } = storeToRefs(store)
 
-const { clearImageModeState } = store
+const { clearImageModeState, toggleBlockRendering } = store
 
 // 获取GitHub图床配置信息
 const isTestingConnection = ref(false)
@@ -33,6 +34,8 @@ const cacheStats = ref(imageCache.getCacheStats())
 function updateCacheStats() {
   cacheStats.value = imageCache.getCacheStats()
 }
+
+
 
 // 测试GitHub连接
 async function handleTestConnection() {
@@ -125,7 +128,9 @@ let statsUpdateTimer: number | null = null
 onMounted(() => {
   updateCacheStats()
   // 每5秒更新一次统计（用于实时显示缓存变化）
-  statsUpdateTimer = window.setInterval(updateCacheStats, 5000)
+  statsUpdateTimer = window.setInterval(() => {
+    updateCacheStats()
+  }, 5000)
 })
 
 // 组件卸载时清理定时器
@@ -149,6 +154,41 @@ onUnmounted(() => {
       </CardDescription>
     </CardHeader>
     <CardContent class="space-y-4">
+      <!-- 特殊语法块渲染控制 -->
+      <div class="space-y-3">
+        <h4 class="flex items-center gap-2 text-sm font-medium">
+          <Settings class="h-4 w-4" />
+          特殊语法块渲染
+        </h4>
+
+        <!-- 启用开关 -->
+        <div class="flex items-center justify-between">
+          <span class="text-sm">启用特殊语法块渲染</span>
+          <Button
+            variant="outline"
+            size="sm"
+            :class="{ 'bg-primary text-primary-foreground': isBlockRenderingEnabled }"
+            @click="toggleBlockRendering()"
+          >
+            {{ isBlockRenderingEnabled ? '已启用' : '已禁用' }}
+          </Button>
+        </div>
+
+        <!-- 功能说明 -->
+        <div class="text-xs text-muted-foreground">
+          <p>支持的CommonMark admonition类型：</p>
+          <div class="mt-1 space-y-1">
+            <div>• !!! note - 笔记提示框</div>
+            <div>• !!! tip "标题" - 技巧提示框</div>
+            <div>• !!! warning - 警告提示框</div>
+            <div>• !!! info - 信息提示框</div>
+            <div>• 以及其他类型：important, caution, success, failure, danger, bug, example, quote</div>
+          </div>
+        </div>
+      </div>
+
+      <Separator />
+
       <!-- GitHub图床设置表单 -->
       <div class="space-y-3">
         <h4 class="flex items-center gap-2 text-sm font-medium">
@@ -355,7 +395,8 @@ onUnmounted(() => {
           <li>代码块：```language 语法的代码块</li>
           <li>Mermaid图表：```mermaid 语法的图表</li>
           <li>数学公式：$$ 包围的块级数学公式</li>
-          <li>提示框：> [!NOTE] 等 GitHub 风格的提示框</li>
+          <li>GitHub风格提示框：> [!NOTE] 等语法</li>
+          <li>CommonMark风格提示框：!!! note 等语法</li>
         </ul>
 
         <p class="mt-3">

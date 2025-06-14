@@ -109,6 +109,28 @@ const defaultTheme: Theme = {
     blockquote_caution: {
     },
 
+    // CommonMark admonition 扩展类型样式
+    blockquote_info: {
+    },
+
+    blockquote_success: {
+    },
+
+    blockquote_failure: {
+    },
+
+    blockquote_danger: {
+    },
+
+    blockquote_bug: {
+    },
+
+    blockquote_example: {
+    },
+
+    blockquote_quote: {
+    },
+
     // GFM 警告块标题
     blockquote_title: {
       'display': `flex`,
@@ -135,6 +157,35 @@ const defaultTheme: Theme = {
 
     blockquote_title_caution: {
       color: `#e5534b`,
+    },
+
+    // CommonMark admonition 扩展类型标题样式
+    blockquote_title_info: {
+      color: `#478be6`,
+    },
+
+    blockquote_title_success: {
+      color: `#57ab5a`,
+    },
+
+    blockquote_title_failure: {
+      color: `#e5534b`,
+    },
+
+    blockquote_title_danger: {
+      color: `#e5534b`,
+    },
+
+    blockquote_title_bug: {
+      color: `#c69026`,
+    },
+
+    blockquote_title_example: {
+      color: `#986ee2`,
+    },
+
+    blockquote_title_quote: {
+      color: `#656d76`,
     },
 
     blockquote_p_note: {
@@ -517,6 +568,35 @@ const simpleTheme = toMerged(defaultTheme, {
       'font-style': `italic`,
     },
 
+    // CommonMark admonition 扩展类型样式
+    blockquote_info: {
+      'font-style': `italic`,
+    },
+
+    blockquote_success: {
+      'font-style': `italic`,
+    },
+
+    blockquote_failure: {
+      'font-style': `italic`,
+    },
+
+    blockquote_danger: {
+      'font-style': `italic`,
+    },
+
+    blockquote_bug: {
+      'font-style': `italic`,
+    },
+
+    blockquote_example: {
+      'font-style': `italic`,
+    },
+
+    blockquote_quote: {
+      'font-style': `italic`,
+    },
+
     blockquote_title: {
     },
 
@@ -536,6 +616,28 @@ const simpleTheme = toMerged(defaultTheme, {
     blockquote_title_caution: {
     },
 
+    // CommonMark admonition 扩展类型标题样式
+    blockquote_title_info: {
+    },
+
+    blockquote_title_success: {
+    },
+
+    blockquote_title_failure: {
+    },
+
+    blockquote_title_danger: {
+    },
+
+    blockquote_title_bug: {
+    },
+
+    blockquote_title_example: {
+    },
+
+    blockquote_title_quote: {
+    },
+
     blockquote_p_note: {
     },
 
@@ -549,6 +651,28 @@ const simpleTheme = toMerged(defaultTheme, {
     },
 
     blockquote_p_caution: {
+    },
+
+    // CommonMark admonition 扩展类型段落样式
+    blockquote_p_info: {
+    },
+
+    blockquote_p_success: {
+    },
+
+    blockquote_p_failure: {
+    },
+
+    blockquote_p_danger: {
+    },
+
+    blockquote_p_bug: {
+    },
+
+    blockquote_p_example: {
+    },
+
+    blockquote_p_quote: {
     },
 
     code_pre: {

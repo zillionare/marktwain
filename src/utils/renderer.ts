@@ -1,9 +1,9 @@
 import type { ExtendedProperties, IOpts, ThemeStyles } from '@/types'
 import type { PropertiesHyphen } from 'csstype'
-import type { RendererObject, Tokens } from 'marked'
-import type { ReadTimeResults } from 'reading-time'
 import { cloneDeep, toMerged } from 'es-toolkit'
 import frontMatter from 'front-matter'
+import type { RendererObject, Tokens } from 'marked'
+import type { ReadTimeResults } from 'reading-time'
 
 import hljs from 'highlight.js'
 import { marked } from 'marked'
@@ -12,6 +12,7 @@ import readingTime from 'reading-time'
 
 import { getStyleString } from '.'
 import markedAlert from './MDAlert'
+import markedCommonMarkAlert from './MDCommonMarkAlert'
 import markedFootnotes from './MDFootnotes'
 import { MDKatex } from './MDKatex'
 import markedSlider from './MDSlider'
@@ -184,6 +185,7 @@ export function initRenderer(opts: IOpts) {
     const newStyle = JSON.stringify(styleMapping)
     if (oldStyle !== newStyle) {
       marked.use(markedAlert({ styles: styleMapping }))
+      marked.use(markedCommonMarkAlert({ styles: styleMapping }))
       marked.use(
         MDKatex({ nonStandard: true }, styles(`inline_katex`, `;vertical-align: middle; line-height: 1;`), styles(`block_katex`, `;text-align: center;`),
         ),
@@ -378,6 +380,7 @@ export function initRenderer(opts: IOpts) {
   marked.use({ renderer })
   marked.use(markedSlider({ styles: styleMapping }))
   marked.use(markedAlert({ styles: styleMapping }))
+  marked.use(markedCommonMarkAlert({ styles: styleMapping }))
   marked.use(
     MDKatex({ nonStandard: true }, styles(`inline_katex`, `;vertical-align: middle; line-height: 1;`), styles(`block_katex`, `;text-align: center;`),
     ),

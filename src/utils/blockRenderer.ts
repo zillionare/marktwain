@@ -23,6 +23,13 @@ export class BlockRenderer {
     this.githubConfig = githubConfig
   }
 
+  /**
+   * 获取图片宽度设置
+   */
+  getImageWidth(): number {
+    return this.imageWidth
+  }
+
   // 内联语法高亮样式映射
   private getInlineHighlightStyles(): Record<string, string> {
     if (this.isDark) {
@@ -395,20 +402,20 @@ export class BlockRenderer {
    */
   private getAdmonitionTitle(type: string): string {
     const titleMap: Record<string, string> = {
-      note: `Note`,
-      tip: `Tip`,
-      important: `Important`,
-      warning: `Warning`,
-      caution: `Caution`,
-      info: `Info`,
-      success: `Success`,
-      failure: `Failure`,
-      danger: `Danger`,
-      bug: `Bug`,
-      example: `Example`,
-      quote: `Quote`,
+      note: `📝 Note`,
+      tip: `💡 Tip`,
+      important: `❗ Important`,
+      warning: `⚠️ Warning`,
+      caution: `🚨 Caution`,
+      info: `ℹ️ Info`,
+      success: `✅ Success`,
+      failure: `❌ Failure`,
+      danger: `⚡ Danger`,
+      bug: `🐛 Bug`,
+      example: `📋 Example`,
+      quote: `💬 Quote`,
     }
-    return titleMap[type.toLowerCase()] || type.charAt(0).toUpperCase() + type.slice(1)
+    return titleMap[type.toLowerCase()] || `📌 ${type.charAt(0).toUpperCase() + type.slice(1)}`
   }
 
   /**

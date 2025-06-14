@@ -1,106 +1,182 @@
 # 特殊语法块渲染功能使用指南
 
 ## 📖 功能概述
+import { Separator } from '@/components/ui/separator'
+import { getConfigInfo, testGitHubConnection } from '@/utils/githubImageBed'
+import { imageCache } from '@/utils/imageCache'
+import { Database, Image, Settings, TestTube, Trash2 } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+import { toast } from 'vue-sonner'
 
-特殊语法块渲染功能可以将Markdown中的特殊语法块（代码块、Mermaid图表、数学公式、提示框等）自动转换为图片，并上传到GitHub图床，以提高跨平台兼容性。
+// 获取GitHub图床配置信息
+const githubConfig = getConfigInfo()
+const isTestingConnection = ref(false)
 
-## 🎯 支持的语法块类型
+// 缓存统计信息
+const cacheStats = computed(() => imageCache.getCacheStats())
 
-### 1. 代码块
-
-```javascript
-function hello() {
-  console.log(`Hello, World!`)
+// 测试GitHub连接
+async function handleTestConnection() {
+  isTestingConnection.value = true
+  try {
+    const result = await testGitHubConnection()
+    if (result.success) {
+      toast.success(`连接测试成功: ${result.message}`)
+    }
+    else {
+      toast.error(`连接测试失败: ${result.message}`)
+    }
+  }
+  catch (error) {
+    toast.error(`连接测试出错: ${error instanceof Error ? error.message : `未知错误`}`)
+  }
+  finally {
+    isTestingConnection.value = false
+  }
 }
-```
 
-### 2. Mermaid图表
+// 清理过期缓存
+function cleanExpiredCache() {
+  const cleanedCount = imageCache.cleanExpired()
+  if (cleanedCount > 0) {
+    toast.success(`已清理 ${cleanedCount} 个过期缓存项`)
+  }
+  else {
+    toast.info(`没有过期的缓存项`)
+  }
+}
 
-```mermaid
-graph TD
-    A[开始] --> B{是否启用功能}
-    B -->|是| C[检测语法块]
-    B -->|否| D[正常显示]
-    C --> E[渲染为图片]
-    E --> F[上传到GitHub]
-    F --> G[替换为图片链接]
-```
+// 清空所有缓存
+function clearAllCache() {
+  imageCache.clearCache()
+  toast.success(`已清空所有图片缓存`)
+}
+</script>
 
-### 3. 数学公式
+<template>
+  <Card class="w-full">
+    <CardHeader>
+      <CardTitle class="flex items-center gap-2">
+        <Image class="h-5 w-5" />
+        GitHub图床配置
+      </CardTitle>
+      <CardDescription>
+        配置GitHub图床用于存储转换后的图片，使用工具栏的"转图"按钮进行转换
+      </CardDescription>
+    </CardHeader>
+    <CardContent class="space-y-4">
+      <!-- GitHub图床配置信息 -->
+      <div class="space-y-2">
+        <h4 class="flex items-center gap-2 text-sm font-medium">
+          <Settings class="h-4 w-4" />
+          GitHub图床配置
+        </h4>
+        <div class="space-y-1 bg-muted/30 rounded-lg p-3 text-xs">
+          <div><strong>仓库:</strong> {{ githubConfig.repo }}</div>
+          <div><strong>分支:</strong> {{ githubConfig.branch }}</div>
+          <div><strong>存储路径:</strong> {{ githubConfig.basePath }}</div>
+          <div><strong>访问地址:</strong> {{ githubConfig.baseUrl }}</div>
+          <div><strong>Token:</strong> {{ githubConfig.token }}</div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          :disabled="isTestingConnection"
+          class="w-full"
+          @click="handleTestConnection"
+        >
+          <TestTube class="mr-2 h-4 w-4" />
+          {{ isTestingConnection ? '测试中...' : '测试GitHub连接' }}
+        </Button>
+      </div>
 
-$$
-E = mc^2
-$$
+      <Separator />
 
-### 4. GitHub风格提示框
+      <!-- 图片缓存管理 -->
+      <div class="space-y-2">
+        <h4 class="flex items-center gap-2 text-sm font-medium">
+          <Database class="h-4 w-4" />
+          图片缓存管理
+        </h4>
 
-> [!NOTE]
-> 这是一个提示信息
+        <div class="space-y-2 bg-muted/30 rounded-lg p-3 text-xs">
+          <div class="grid grid-cols-2 gap-2">
+            <div><strong>缓存项数:</strong> {{ cacheStats.totalItems }}</div>
+            <div><strong>有效期:</strong> 2天</div>
+          </div>
 
-> [!WARNING]
-> 这是一个警告信息
+          <div v-if="cacheStats.totalItems > 0" class="space-y-1">
+            <div><strong>类型分布:</strong></div>
+            <div class="space-y-1 ml-2">
+              <div v-for="(count, type) in cacheStats.typeBreakdown" :key="type">
+                {{ type }}: {{ count }}个
+              </div>
+            </div>
 
-> [!TIP]
-> 这是一个小贴士
+            <div v-if="cacheStats.oldestItem" class="space-y-1">
+              <div><strong>最早:</strong> {{ cacheStats.oldestItem.toLocaleString() }}</div>
+              <div><strong>最新:</strong> {{ cacheStats.newestItem?.toLocaleString() }}</div>
+            </div>
+          </div>
 
-## 🚀 如何使用
+          <div v-else class="text-muted-foreground">
+            暂无缓存项
+          </div>
+        </div>
 
-### 步骤1：启用功能
+        <div class="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            class="flex-1"
+            @click="cleanExpiredCache"
+          >
+            <Database class="mr-2 h-4 w-4" />
+            清理过期
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            class="flex-1"
+            @click="clearAllCache"
+          >
+            <Trash2 class="mr-2 h-4 w-4" />
+            清空缓存
+          </Button>
+        </div>
+      </div>
 
-1. 打开编辑器右侧面板
-2. 找到 "特殊语法块渲染" 部分
-3. 点击开关启用功能
+      <!-- 使用说明 -->
+      <div class="space-y-2 text-muted-foreground text-xs">
+        <p><strong>使用方法：</strong></p>
+        <ol class="space-y-1 list-decimal list-inside ml-2">
+          <li>确保GitHub Token配置正确并测试连接成功</li>
+          <li>在编辑器中编写包含特殊语法块的Markdown内容</li>
+          <li>点击工具栏中的"转图"按钮进行转换</li>
+          <li>转换完成后可点击"原文"按钮切换回原始内容</li>
+        </ol>
 
-### 步骤2：编写内容
+        <p class="mt-3">
+          <strong>支持的语法块类型：</strong>
+        </p>
+        <ul class="space-y-1 list-inside list-disc ml-2">
+          <li>代码块：```language
+语法的代码块</li>
+          <li>Mermaid图表：
+```mermaid 语法的图表</li>
+          <li>数学公式：$$ 包围的块级数学公式</li>
+          <li>提示框：> [!NOTE] 等 GitHub 风格的提示框</li>
+        </ul>
 
-在编辑器中正常编写包含特殊语法块的Markdown内容。
+        <p class="mt-3">
+          <strong>注意：</strong>转图功能会生成内容副本用于预览和复制，不会修改原始编辑器内容。
+          图片将上传到配置的GitHub仓库中。
+        </p>
 
-### 步骤3：手动转图
-
-使用新的手动转图功能，避免自动触发导致的响应慢问题：
-
-#### 转图按钮位置
-
-- 📍 **位置**：编辑器顶部工具栏，复制按钮组后面
-- 🎯 **显示条件**：只有启用"特殊语法块渲染"功能后才显示
-- 🔄 **状态切换**：点击可在"转图"和"原文"模式间切换
-
-#### 使用方法
-
-1. **编写内容** - 在编辑器中正常编写包含特殊语法块的Markdown
-2. **点击转图** - 点击工具栏中的"转图"按钮
-3. **等待处理** - 系统会自动检测并转换所有特殊语法块为图片
-4. **查看结果** - 原始语法块被替换为图片，按钮变为"原文"
-5. **切换回原文** - 再次点击按钮可切换回原始内容
-
-#### 智能缓存机制
-
-- ✅ **内容检测** - 系统会检测内容是否发生变化
-- ✅ **缓存复用** - 内容未变化时直接使用缓存的图片
-- ✅ **避免重复** - 不会重复生成和上传相同的图片
-- ✅ **性能优化** - 显著提高后续切换速度
-
-### 步骤4：查看结果
-
-1. **处理过程**：
-
-   - 系统检测到特殊语法块
-   - 在浏览器控制台显示处理日志
-   - 渲染语法块为高质量图片
-   - 上传图片到GitHub仓库
-
-2. **完成标志**：
-   - 原始语法块被替换为图片
-   - 图片正确显示内容
-   - 控制台显示 "Image uploaded successfully"
-
-## 🔧 操作说明
-
-### 界面控制
-
-#### 右侧面板功能
-
-- **功能开关** - 启用/禁用特殊语法块渲染
+        <p class="mt-2">
+          <strong>缓存机制：</strong>系统会自动缓存生成的图片2天，相同内容的语法块会直接使用缓存，
+          避免重复上传，提高转换速度。
+禁用特殊语法块渲染
 - **GitHub配置显示** - 查看当前图床配置
 - **连接测试按钮** - 测试GitHub API连接
 - **语法块预览** - 显示当前文档中检测到的特殊语法块

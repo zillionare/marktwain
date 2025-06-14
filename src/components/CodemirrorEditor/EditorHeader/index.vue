@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { Toaster } from '@/components/ui/sonner'
 import {
-  altSign,
-  ctrlKey,
-  ctrlSign,
-  shiftSign,
+    altSign,
+    ctrlKey,
+    ctrlSign,
+    shiftSign,
 } from '@/config'
 
 import { useStore } from '@/stores'
 import { addPrefix, processClipboardContent } from '@/utils'
 import { copyPlain } from '@/utils/clipboard'
-import { ChevronDownIcon, Eye, Image, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun } from 'lucide-vue-next'
+import { ChevronDownIcon, Image, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun } from 'lucide-vue-next'
 
 const emit = defineEmits([`addFormat`, `formatContent`, `startCopy`, `endCopy`])
 
@@ -64,9 +64,9 @@ const formatItems = [
 
 const store = useStore()
 
-const { isDark, isCiteStatus, isCountStatus, output, primaryColor, isOpenPostSlider, editor, isImageMode, isPreviewMode } = storeToRefs(store)
+const { isDark, isCiteStatus, isCountStatus, output, primaryColor, isOpenPostSlider, editor, isImageMode } = storeToRefs(store)
 
-const { toggleDark, editorRefresh, citeStatusChanged, countStatusChanged, toggleImageMode, togglePreviewMode } = store
+const { toggleDark, editorRefresh, citeStatusChanged, countStatusChanged, toggleImageMode } = store
 
 const copyMode = useStorage(addPrefix(`copyMode`), `txt`)
 const source = ref(``)
@@ -136,26 +136,20 @@ function copy() {
   }, 350)
 }
 
-// 获取上传按钮文本
-function getUploadButtonText() {
-  if (isImageMode.value && !isPreviewMode.value) {
+// 获取转图按钮文本
+function getImageButtonText() {
+  if (isImageMode.value) {
     return `原文`
   }
-  if (isPreviewMode.value) {
-    return `上传图床`
-  }
-  return `上传图床`
+  return `转图`
 }
 
-// 获取上传按钮提示
-function getUploadButtonTitle() {
-  if (isImageMode.value && !isPreviewMode.value) {
+// 获取转图按钮提示
+function getImageButtonTitle() {
+  if (isImageMode.value) {
     return `切换回原始内容`
   }
-  if (isPreviewMode.value) {
-    return `将预览图片上传到GitHub图床`
-  }
-  return `转换语法块为图片并上传到GitHub图床`
+  return `截图特殊语法块并上传到GitHub`
 }
 </script>
 
@@ -246,28 +240,16 @@ function getUploadButtonTitle() {
         </DropdownMenu>
       </div>
 
-      <!-- 转图预览按钮 -->
+      <!-- 转图按钮 -->
       <Button
         variant="outline"
         size="sm"
-        :class="{ 'bg-secondary text-secondary-foreground': isPreviewMode }"
-        title="使用dataURL预览，不上传GitHub"
-        @click="togglePreviewMode"
-      >
-        <Eye class="mr-1 size-4" />
-        {{ isPreviewMode ? '退出预览' : '转图预览' }}
-      </Button>
-
-      <!-- 上传图床按钮 -->
-      <Button
-        variant="outline"
-        size="sm"
-        :class="{ 'bg-primary text-primary-foreground': isImageMode && !isPreviewMode }"
-        :title="getUploadButtonTitle()"
+        :class="{ 'bg-primary text-primary-foreground': isImageMode }"
+        :title="getImageButtonTitle()"
         @click="toggleImageMode"
       >
         <Image class="mr-1 size-4" />
-        {{ getUploadButtonText() }}
+        {{ getImageButtonText() }}
       </Button>
 
       <!-- 文章信息（移动端隐藏） -->

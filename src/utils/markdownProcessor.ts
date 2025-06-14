@@ -1,5 +1,8 @@
 import type { ThemeStyles } from '@/types'
+import html2canvas from 'html2canvas'
 import { BlockRenderer } from './blockRenderer'
+import { uploadImageToGitHub } from './githubImageBed'
+import { imageCache } from './imageCache'
 
 /**
  * Markdown处理器
@@ -163,23 +166,6 @@ export class MarkdownProcessor {
       match = commonMarkAdmonitionRegex.exec(content)
     }
 
-    // 收集数学公式块
-    const mathBlockRegex = /\$\$([\s\S]*?)\$\$/g
-    match = mathBlockRegex.exec(content)
-    while (match !== null) {
-      const [fullMatch, formula] = match
-      const blockId = this.generateBlockId(fullMatch)
-
-      blocks.push({
-        id: blockId,
-        type: `math`,
-        fullMatch,
-        content: formula.trim(),
-      })
-
-      match = mathBlockRegex.exec(content)
-    }
-
     return blocks
   }
 
@@ -253,18 +239,430 @@ export class MarkdownProcessor {
   }
 
   /**
+   * 新的处理方法：截图预览区的特殊语法块并上传到GitHub
+   */
+  async processMarkdownWithScreenshot(content: string): Promise<string> {
+    // 收集所有需要处理的块
+    const allBlocks = this.collectAllBlocks(content)
+
+    if (allBlocks.length === 0) {
+      return content
+    }
+
+    console.log(`Found ${allBlocks.length} blocks to process with screenshot...`)
+
+    // 给预览区的元素添加ID，以便精确匹配
+    this.addBlockIdsToPreviewElements(allBlocks)
+
+    // 收集所有需要上传的图片
+    const imagesToUpload: Array<{ block: any, base64Content: string, filename: string }> = []
+    let processedContent = content
+
+    for (const block of allBlocks) {
+      try {
+        // 生成缓存键
+        const cacheKey = `${block.id}_screenshot`
+
+        // 检查缓存
+        if (this.processedBlocks.has(cacheKey)) {
+          console.log(`Using cached result for ${block.type} block`)
+          processedContent = processedContent.replace(block.fullMatch, this.processedBlocks.get(cacheKey)!)
+          continue
+        }
+
+        // 截图预览区的对应元素
+        const base64Content = await this.screenshotBlock(block)
+        const filename = `${block.type}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}.png`
+
+        imagesToUpload.push({ block, base64Content, filename })
+      }
+      catch (error) {
+        console.error(`Failed to process ${block.type} block:`, error)
+        // 继续处理其他块
+      }
+    }
+
+    // 批量上传所有图片
+    if (imagesToUpload.length > 0) {
+      console.log(`Uploading ${imagesToUpload.length} images to GitHub...`)
+      const uploadResults = await this.batchUploadImages(imagesToUpload)
+
+      // 替换原始内容
+      for (const result of uploadResults) {
+        const imageMarkdown = `![${result.block.type} ${result.block.lang || ``}](${result.imageUrl})`
+        processedContent = processedContent.replace(result.block.fullMatch, imageMarkdown)
+
+        const cacheKey = `${result.block.id}_screenshot`
+        this.processedBlocks.set(cacheKey, imageMarkdown)
+        console.log(`Processed ${result.block.type} block with screenshot: ${result.imageUrl}`)
+      }
+    }
+
+    return processedContent
+  }
+
+  /**
+   * 给预览区的元素添加block ID，以便精确匹配
+   */
+  private addBlockIdsToPreviewElements(blocks: Array<{ id: string, type: string, content: string, lang?: string }>): void {
+    const previewContainer = document.querySelector(`#output`)
+    if (!previewContainer) {
+      console.warn(`Preview container not found`)
+      return
+    }
+
+    for (const block of blocks) {
+      try {
+        let targetElement: Element | null = null
+
+        switch (block.type) {
+          case `code`:
+          case `mermaid`: {
+            if (block.lang === `mermaid`) {
+              // Mermaid图表
+              const mermaidElements = previewContainer.querySelectorAll(`.mermaid, svg[id*="mermaid"]`)
+              targetElement = mermaidElements.length > 0 ? mermaidElements[0] : null
+            }
+            else {
+              // 代码块
+              const codeBlocks = previewContainer.querySelectorAll(`pre`)
+              targetElement = this.findMatchingCodeBlock(codeBlocks, block.content)
+            }
+            break
+          }
+          case `admonition`: {
+            // Admonition块
+            const admonitionBlocks = previewContainer.querySelectorAll(`blockquote`)
+            targetElement = this.findMatchingAdmonitionBlock(admonitionBlocks, block.content)
+            break
+          }
+        }
+
+        if (targetElement) {
+          // 添加ID属性
+          targetElement.setAttribute(`data-block-id`, block.id)
+
+          // 添加宽度限制，确保截图大小正常
+          const imageWidth = this.blockRenderer.getImageWidth()
+          const htmlElement = targetElement as HTMLElement
+          htmlElement.style.maxWidth = `${imageWidth}px`
+          htmlElement.style.width = `100%`
+          htmlElement.style.boxSizing = `border-box`
+
+          // 对于代码块，还需要处理内部的code元素
+          if (block.type === `code` || block.type === `mermaid`) {
+            const codeElement = htmlElement.querySelector(`code`)
+            if (codeElement) {
+              const codeHtmlElement = codeElement as HTMLElement
+              codeHtmlElement.style.maxWidth = `${imageWidth - 40}px` // 减去padding
+              codeHtmlElement.style.wordWrap = `break-word`
+              codeHtmlElement.style.whiteSpace = `pre-wrap`
+            }
+          }
+
+          console.log(`Added ID ${block.id} and width limit ${imageWidth}px to ${block.type} element`)
+        }
+      }
+      catch (error) {
+        console.warn(`Failed to add ID to ${block.type} element:`, error)
+      }
+    }
+  }
+
+  /**
+   * 截图单个块并返回base64内容
+   */
+  private async screenshotBlock(block: { id: string, type: string, content: string, lang?: string }): Promise<string> {
+    const previewContainer = document.querySelector(`#output`)
+    if (!previewContainer) {
+      throw new Error(`Preview container not found`)
+    }
+
+    // 首先尝试通过ID精确匹配
+    const targetElementById = previewContainer.querySelector(`[data-block-id="${block.id}"]`)
+    let targetElement: Element | null = targetElementById
+
+    if (!targetElement) {
+      console.log(`Could not find element by ID ${block.id}, falling back to content matching...`)
+
+      // 回退到内容匹配
+      switch (block.type) {
+        case `code`:
+        case `mermaid`: {
+          if (block.lang === `mermaid`) {
+            const mermaidElements = previewContainer.querySelectorAll(`.mermaid, svg[id*="mermaid"]`)
+            targetElement = mermaidElements.length > 0 ? mermaidElements[0] : null
+          }
+          else {
+            const codeBlocks = previewContainer.querySelectorAll(`pre`)
+            targetElement = this.findMatchingCodeBlock(codeBlocks, block.content)
+          }
+          break
+        }
+        case `admonition`: {
+          const admonitionBlocks = previewContainer.querySelectorAll(`blockquote`)
+          targetElement = this.findMatchingAdmonitionBlock(admonitionBlocks, block.content)
+          break
+        }
+      }
+    }
+
+    if (!targetElement) {
+      throw new Error(`Could not find matching element for ${block.type} block`)
+    }
+
+    console.log(`Found target element for ${block.type} (ID: ${block.id}):`, targetElement)
+
+    // 使用html2canvas截图
+    const canvas = await html2canvas(targetElement as HTMLElement, {
+      backgroundColor: null,
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      ignoreElements: (element) => {
+        return element.tagName === `SCRIPT` || element.tagName === `STYLE`
+      },
+      onclone: (clonedDoc) => {
+        const styleSheets = clonedDoc.querySelectorAll(`link[rel="stylesheet"]`)
+        styleSheets.forEach((sheet) => {
+          try {
+            if (sheet instanceof HTMLLinkElement && sheet.sheet) {
+              const _rules = sheet.sheet.cssRules
+            }
+          }
+          catch (_e) {
+            sheet.remove()
+          }
+        })
+      },
+      logging: false,
+    })
+
+    // 转换为base64
+    const dataUrl = canvas.toDataURL(`image/png`)
+    return dataUrl.split(`,`)[1] // 返回base64内容，不包含前缀
+  }
+
+  /**
+   * 批量上传图片到GitHub
+   */
+  private async batchUploadImages(imagesToUpload: Array<{ block: any, base64Content: string, filename: string }>): Promise<Array<{ block: any, imageUrl: string }>> {
+    const results: Array<{ block: any, imageUrl: string }> = []
+
+    for (const { block, base64Content, filename } of imagesToUpload) {
+      try {
+        // 检查缓存，避免重复上传
+        const imageStatus = imageCache.getImageStatus(base64Content)
+        if (imageStatus.isUploaded && imageStatus.url) {
+          console.log(`Using already uploaded image: ${imageStatus.url}`)
+          results.push({ block, imageUrl: imageStatus.url })
+          continue
+        }
+
+        // 上传到GitHub
+        const imageUrl = await uploadImageToGitHub(base64Content, filename, block.type)
+        imageCache.cacheImage(base64Content, imageUrl, block.type, true)
+
+        results.push({ block, imageUrl })
+        console.log(`Uploaded ${block.type} image: ${imageUrl}`)
+      }
+      catch (error) {
+        console.error(`Failed to upload ${block.type} image:`, error)
+        throw error
+      }
+    }
+
+    return results
+  }
+
+  /**
+   * 截图预览区的特殊语法块并上传到GitHub (旧方法，保留兼容性)
+   */
+  private async screenshotAndUploadBlock(block: { id: string, type: string, content: string, lang?: string }): Promise<string> {
+    // 查找预览区中对应的元素
+    const previewContainer = document.querySelector(`#output`)
+    if (!previewContainer) {
+      throw new Error(`Preview container not found`)
+    }
+
+    // 首先尝试通过ID精确匹配
+    const targetElementById = previewContainer.querySelector(`[data-block-id="${block.id}"]`)
+    let targetElement: Element | null = targetElementById
+
+    if (!targetElement) {
+      console.log(`Could not find element by ID ${block.id}, falling back to content matching...`)
+
+      // 回退到内容匹配
+      switch (block.type) {
+        case `code`:
+        case `mermaid`: {
+          if (block.lang === `mermaid`) {
+            // Mermaid图表
+            const mermaidElements = previewContainer.querySelectorAll(`.mermaid, svg[id*="mermaid"]`)
+            targetElement = mermaidElements.length > 0 ? mermaidElements[0] : null
+          }
+          else {
+            // 代码块
+            const codeBlocks = previewContainer.querySelectorAll(`pre`)
+            targetElement = this.findMatchingCodeBlock(codeBlocks, block.content)
+          }
+          break
+        }
+        case `admonition`: {
+          // Admonition块
+          const admonitionBlocks = previewContainer.querySelectorAll(`blockquote`)
+          targetElement = this.findMatchingAdmonitionBlock(admonitionBlocks, block.content)
+          break
+        }
+      }
+    }
+
+    if (!targetElement) {
+      console.warn(`Could not find matching element for ${block.type} block (ID: ${block.id})`)
+      console.warn(`Available elements:`, previewContainer.children)
+      throw new Error(`Could not find matching element for ${block.type} block`)
+    }
+
+    console.log(`Found target element for ${block.type} (ID: ${block.id}):`, targetElement)
+
+    // 使用html2canvas截图
+    const canvas = await html2canvas(targetElement as HTMLElement, {
+      backgroundColor: null,
+      scale: 2, // 提高分辨率
+      useCORS: true,
+      allowTaint: true,
+      ignoreElements: (element) => {
+        // 忽略可能导致问题的元素
+        return element.tagName === `SCRIPT` || element.tagName === `STYLE`
+      },
+      onclone: (clonedDoc) => {
+        // 在克隆的文档中移除可能导致跨域问题的样式表
+        const styleSheets = clonedDoc.querySelectorAll(`link[rel="stylesheet"]`)
+        styleSheets.forEach((sheet) => {
+          try {
+            // 尝试访问样式表，如果失败就移除
+            if (sheet instanceof HTMLLinkElement && sheet.sheet) {
+              const _rules = sheet.sheet.cssRules // 尝试访问规则
+            }
+          }
+          catch (_e) {
+            sheet.remove()
+          }
+        })
+      },
+      logging: false, // 禁用日志以减少控制台噪音
+    })
+
+    // 转换为base64
+    const dataUrl = canvas.toDataURL(`image/png`)
+    const base64Content = dataUrl.split(`,`)[1]
+
+    // 检查缓存，避免重复上传
+    const imageStatus = imageCache.getImageStatus(base64Content)
+    if (imageStatus.isUploaded && imageStatus.url) {
+      console.log(`Using already uploaded image: ${imageStatus.url}`)
+      return imageStatus.url
+    }
+
+    // 上传到GitHub
+    const imageUrl = await uploadImageToGitHub(base64Content, `${block.type}-${Date.now()}.png`, block.type)
+    imageCache.cacheImage(base64Content, imageUrl, block.type, true)
+
+    return imageUrl
+  }
+
+  /**
+   * 查找匹配的代码块元素
+   */
+  private findMatchingCodeBlock(elements: NodeListOf<Element>, content: string): Element | null {
+    const cleanContent = content.trim()
+
+    // 首先尝试精确匹配
+    for (const element of elements) {
+      const elementText = (element.textContent || ``).trim()
+
+      // 精确匹配
+      if (elementText === cleanContent) {
+        return element
+      }
+    }
+
+    // 如果精确匹配失败，尝试部分匹配
+    for (const element of elements) {
+      const elementText = (element.textContent || ``).trim()
+
+      // 部分匹配：检查是否包含代码的关键部分
+      if (cleanContent.length > 10) {
+        // 取代码的前30个字符和后30个字符进行匹配
+        const startPart = cleanContent.substring(0, Math.min(30, cleanContent.length))
+        const endPart = cleanContent.length > 30 ? cleanContent.substring(cleanContent.length - 30) : ``
+
+        if (elementText.includes(startPart) && (endPart === `` || elementText.includes(endPart))) {
+          return element
+        }
+      }
+    }
+
+    // 最后的回退：返回第一个未被使用的元素
+    for (const element of elements) {
+      if (!element.hasAttribute(`data-block-id`)) {
+        return element
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * 查找匹配的admonition块元素
+   */
+  private findMatchingAdmonitionBlock(elements: NodeListOf<Element>, content: string): Element | null {
+    const cleanContent = content.replace(/^\*\*.*?\*\*\n\n/, ``).trim()
+
+    // 首先尝试精确匹配
+    for (const element of elements) {
+      const elementText = (element.textContent || ``).trim()
+
+      // 精确匹配：检查是否包含完整内容
+      if (elementText.includes(cleanContent)) {
+        return element
+      }
+    }
+
+    // 如果精确匹配失败，尝试部分匹配
+    for (const element of elements) {
+      const elementText = (element.textContent || ``).trim()
+
+      // 部分匹配：检查是否包含内容的关键部分
+      if (cleanContent.length > 10) {
+        const keyPart = cleanContent.substring(0, Math.min(30, cleanContent.length))
+        if (elementText.includes(keyPart)) {
+          return element
+        }
+      }
+    }
+
+    // 最后的回退：返回第一个未被使用的元素
+    for (const element of elements) {
+      if (!element.hasAttribute(`data-block-id`)) {
+        return element
+      }
+    }
+
+    return null
+  }
+
+  /**
    * 检查是否包含需要处理的特殊语法块
    */
   hasSpecialBlocks(content: string): boolean {
     const codeBlockRegex = /```\w*\n[\s\S]*?```/
     const gmfAdmonitionRegex = /^>\s*\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n(?:^>.*\n?)*/m
     const commonMarkAdmonitionRegex = /^!!!\s+(?:note|tip|important|warning|caution|info|success|failure|danger|bug|example|quote)/m
-    const mathBlockRegex = /\$\$[\s\S]*?\$\$/
 
     return codeBlockRegex.test(content)
       || gmfAdmonitionRegex.test(content)
       || commonMarkAdmonitionRegex.test(content)
-      || mathBlockRegex.test(content)
   }
 
   /**
@@ -298,13 +696,24 @@ export class MarkdownProcessor {
     }
 
     // CommonMark Admonition块
-    const commonMarkAdmonitionRegex = /^!!!\s+(note|tip|important|warning|caution|info|success|failure|danger|bug|example|quote)(?:\s+"([^"]*)")?\s*\n((?: {4}.*(?:\n|$))*)/gm
+    const commonMarkAdmonitionRegex = /^!!!\s+(note|tip|important|warning|caution|info|success|failure|danger|bug|example|quote)(?:\s+"([^"]*)")?\s*\n((?:(?: {4}|\t).*(?:\n|$)|[ \t]*\n)*)/gm
     match = commonMarkAdmonitionRegex.exec(content)
     while (match !== null) {
       const [, type, title, contentLines] = match
       const admonitionContent = contentLines
         .split(`\n`)
-        .map(line => line.replace(/^ {4}/, ``))
+        .map((line) => {
+          if (line.startsWith(`    `)) {
+            return line.slice(4)
+          }
+          else if (line.startsWith(`\t`)) {
+            return line.slice(1)
+          }
+          else if (line.trim() === ``) {
+            return ``
+          }
+          return line
+        })
         .join(`\n`)
         .trim()
 
@@ -316,17 +725,6 @@ export class MarkdownProcessor {
         lang: type.toLowerCase(),
       })
       match = commonMarkAdmonitionRegex.exec(content)
-    }
-
-    // 数学公式块
-    const mathBlockRegex = /\$\$([\s\S]*?)\$\$/g
-    match = mathBlockRegex.exec(content)
-    while (match !== null) {
-      blocks.push({
-        type: `math`,
-        content: match[1].trim(),
-      })
-      match = mathBlockRegex.exec(content)
     }
 
     return blocks
