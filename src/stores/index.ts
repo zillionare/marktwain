@@ -353,8 +353,24 @@ export const useStore = defineStore(`store`, () => {
   const markdownProcessor = ref<MarkdownProcessor | null>(null)
 
   // 是否启用特殊语法块渲染
-  const isBlockRenderingEnabled = useStorage(addPrefix(`block_rendering_enabled`), false)
+  const isBlockRenderingEnabled = useStorage(addPrefix(`block_rendering_enabled`), true)
   const toggleBlockRendering = useToggle(isBlockRenderingEnabled)
+
+  // 转图状态管理（持久化）
+  const isImageMode = useStorage(addPrefix(`image_mode`), false) // 当前是否处于图片模式
+  const isPreviewMode = ref(false) // 预览模式（使用dataURL，不上传GitHub）
+  const imageWidth = useStorage(addPrefix(`image_width`), 800) // 图片宽度设置（像素）
+  const originalContent = useStorage(addPrefix(`original_content`), ``) // 原始内容缓存
+  const imageContent = useStorage(addPrefix(`image_content`), ``) // 图片内容缓存（副本）
+  const contentHash = useStorage(addPrefix(`content_hash`), ``) // 内容哈希，用于检测变化
+  const imageRefreshTimer = ref<number | null>(null) // 定时器引用
+
+  // GitHub图床设置（持久化）
+  const githubImageRepo = useStorage(addPrefix(`github_image_repo`), `zillionare/images`) // GitHub仓库
+  const githubImageBranch = useStorage(addPrefix(`github_image_branch`), `main`) // 分支名
+  const githubImageToken = useStorage(addPrefix(`github_image_token`), ``) // 访问令牌
+  const githubImageBasePath = useStorage(addPrefix(`github_image_base_path`), `images/{year}/{month}/`) // 存储路径
+  const githubImageBaseUrl = useStorage(addPrefix(`github_image_base_url`), `https://images.jieyu.ai`) // 访问URL
 
   // 初始化Markdown处理器
   const initMarkdownProcessor = () => {
@@ -366,17 +382,39 @@ export const useStore = defineStore(`store`, () => {
         color: primaryColor.value,
       }),
     ) as unknown as ThemeStyles
-    markdownProcessor.value = new MarkdownProcessor(currentTheme, isDark.value)
+    // 准备GitHub配置
+    const githubConfig = {
+      repo: githubImageRepo.value,
+      branch: githubImageBranch.value,
+      token: githubImageToken.value,
+      basePath: githubImageBasePath.value,
+      baseUrl: githubImageBaseUrl.value,
+    }
+
+    markdownProcessor.value = new MarkdownProcessor(currentTheme, isDark.value, imageWidth.value, githubConfig)
   }
 
-  // 处理特殊语法块
-  const processSpecialBlocks = async (content: string): Promise<string> => {
+  // 生成内容哈希
+  const generateContentHash = (content: string): string => {
+    // 简单的哈希函数，用于检测内容变化
+    let hash = 0
+    for (let i = 0; i < content.length; i++) {
+      const char = content.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash // 转换为32位整数
+    }
+    return hash.toString()
+  }
+
+  // 处理特殊语法块 - 截图预览区并上传
+  const processSpecialBlocks = async (content: string, _isPreview: boolean = false): Promise<string> => {
     if (!isBlockRenderingEnabled.value || !markdownProcessor.value) {
       return content
     }
 
     try {
-      return await markdownProcessor.value.processMarkdown(content)
+      // 使用新的截图方式处理特殊语法块
+      return await markdownProcessor.value.processMarkdownWithScreenshot(content)
     }
     catch (error) {
       console.error(`Failed to process special blocks:`, error)
@@ -410,11 +448,15 @@ export const useStore = defineStore(`store`, () => {
       isMacCodeBlock: isMacCodeBlock.value,
     })
 
-    let content = editor.value!.getValue()
-
-    // 如果启用了特殊语法块渲染，先处理特殊语法块
-    if (isBlockRenderingEnabled.value) {
-      content = await processSpecialBlocks(content)
+    // 根据当前模式决定渲染哪个内容
+    let content: string
+    if (isImageMode.value && imageContent.value) {
+      // 图片模式：渲染副本内容
+      content = imageContent.value
+    }
+    else {
+      // 原始模式：渲染编辑器内容
+      content = editor.value!.getValue()
     }
 
     output.value = modifyHtmlContent(content, renderer)
@@ -436,6 +478,138 @@ export const useStore = defineStore(`store`, () => {
       i++
     }
     output.value = div.innerHTML
+  }
+
+  // 启动图片刷新定时器
+  const startImageRefreshTimer = () => {
+    if (imageRefreshTimer.value) {
+      clearInterval(imageRefreshTimer.value)
+    }
+
+    imageRefreshTimer.value = window.setInterval(async () => {
+      if (isImageMode.value) {
+        console.log(`Auto-refreshing preview to check for image availability...`)
+        await editorRefresh()
+      }
+    }, 10000) // 每10秒刷新一次
+
+    console.log(`Started image refresh timer`)
+  }
+
+  // 停止图片刷新定时器
+  const stopImageRefreshTimer = () => {
+    if (imageRefreshTimer.value) {
+      clearInterval(imageRefreshTimer.value)
+      imageRefreshTimer.value = null
+      console.log(`Stopped image refresh timer`)
+    }
+  }
+
+  // 检查内容是否需要重新转图（内容变化或主题变化）
+  const shouldRegenerateImages = (_currentContent: string, currentHash: string): boolean => {
+    // 内容变化
+    if (contentHash.value !== currentHash) {
+      return true
+    }
+
+    // 主题变化（通过检查当前主题与缓存内容的主题是否匹配）
+    // 这里可以通过检查图片URL中的主题标识来判断
+    // 简化处理：如果缓存的内容为空，则需要重新生成
+    if (!imageContent.value) {
+      return true
+    }
+
+    return false
+  }
+
+  // 恢复转图状态（页面加载时调用）
+  const restoreImageModeState = async () => {
+    if (isImageMode.value && imageContent.value) {
+      console.log(`Restoring image mode state after page refresh`)
+      startImageRefreshTimer()
+
+      // 检查当前编辑器内容是否与原始内容匹配
+      const currentContent = editor.value?.getValue() || ``
+      const currentHash = generateContentHash(currentContent)
+
+      // 如果内容或主题发生变化，提示用户重新转图
+      if (shouldRegenerateImages(currentContent, currentHash)) {
+        toast.warning(`检测到内容或主题变化，建议重新转图`)
+        // 可以选择自动重新转图或保持当前状态
+        // 这里选择保持当前状态，让用户手动决定
+      }
+
+      // 触发预览更新以显示缓存的图片内容
+      await editorRefresh()
+    }
+  }
+
+  // 清空所有转图相关状态
+  const clearImageModeState = (): void => {
+    console.log(`Clearing image mode state...`)
+    isImageMode.value = false
+    isPreviewMode.value = false
+    originalContent.value = ``
+    imageContent.value = ``
+    contentHash.value = ``
+    stopImageRefreshTimer()
+    console.log(`Image mode state cleared`)
+  }
+
+  // 转图功能 - 截图预览区并上传到GitHub
+  const toggleImageMode = async (): Promise<void> => {
+    const currentContent = editor.value?.getValue() || ``
+    const currentHash = generateContentHash(currentContent)
+
+    if (isImageMode.value) {
+      // 当前是图片模式，切换回原始模式
+      isImageMode.value = false
+      isPreviewMode.value = false
+      stopImageRefreshTimer()
+      toast.success(`已切换回原始内容`)
+      console.log(`Switched back to original content`)
+      await editorRefresh()
+    }
+    else {
+      // 当前是原始模式，开始转图
+      originalContent.value = currentContent
+
+      // 检查是否需要重新生成图片
+      if (imageContent.value && !shouldRegenerateImages(currentContent, currentHash)) {
+        // 内容没有变化，使用缓存的图片内容
+        isImageMode.value = true
+        isPreviewMode.value = false
+        startImageRefreshTimer()
+        toast.success(`已切换到图片模式（使用缓存）`)
+        console.log(`Using cached image content`)
+        await editorRefresh()
+      }
+      else {
+        // 内容有变化或首次转换，截图并上传
+        try {
+          toast.info(`正在截图特殊语法块并上传到GitHub...`)
+          console.log(`Capturing special blocks from preview and uploading to GitHub...`)
+
+          const processedContent = await processSpecialBlocks(currentContent, false) // false = 上传到GitHub
+
+          imageContent.value = processedContent
+          contentHash.value = currentHash
+          isImageMode.value = true
+          isPreviewMode.value = false
+          startImageRefreshTimer()
+
+          toast.success(`图片转换完成并已上传到GitHub，将定期检查图片可用性`)
+          console.log(`Successfully converted to upload mode`)
+          await editorRefresh()
+        }
+        catch (error) {
+          console.error(`Failed to convert to upload mode:`, error)
+          toast.error(`转换图片模式失败`)
+          isImageMode.value = false
+          isPreviewMode.value = false
+        }
+      }
+    }
   }
 
   // 更新 CSS
@@ -500,6 +674,11 @@ export const useStore = defineStore(`store`, () => {
 
     // 初始化Markdown处理器
     initMarkdownProcessor()
+
+    // 恢复转图状态
+    nextTick(() => {
+      restoreImageModeState()
+    })
   })
 
   watch(isDark, () => {
@@ -507,11 +686,21 @@ export const useStore = defineStore(`store`, () => {
     toRaw(cssEditor.value)?.setOption?.(`theme`, theme)
     // 重新初始化Markdown处理器以应用新的主题
     initMarkdownProcessor()
+
+    // 如果当前处于图片模式，提示用户重新转图
+    if (isImageMode.value) {
+      toast.warning(`主题已切换，建议重新转图以应用新主题`)
+    }
   })
 
   // 监听主题变化，重新初始化处理器
   watch([theme, primaryColor, fontSize], () => {
     initMarkdownProcessor()
+
+    // 如果当前处于图片模式，提示用户重新转图
+    if (isImageMode.value) {
+      toast.warning(`主题设置已更改，建议重新转图以应用新设置`)
+    }
   })
 
   // 重置样式
@@ -665,7 +854,11 @@ export const useStore = defineStore(`store`, () => {
 
   // 导出编辑器内容到本地
   const exportEditorContent2MD = () => {
-    downloadMD(editor.value!.getValue(), posts.value[currentPostIndex.value].title)
+    // 根据当前模式决定导出哪个内容
+    const content = isImageMode.value && imageContent.value
+      ? imageContent.value
+      : editor.value!.getValue()
+    downloadMD(content, posts.value[currentPostIndex.value].title)
   }
 
   // 导入默认文档
@@ -814,6 +1007,23 @@ export const useStore = defineStore(`store`, () => {
     hasSpecialBlocks,
     previewSpecialBlocks,
     initMarkdownProcessor,
+
+    // 转图功能
+    isImageMode,
+    isPreviewMode,
+    imageWidth,
+    toggleImageMode,
+    clearImageModeState,
+    restoreImageModeState,
+    startImageRefreshTimer,
+    stopImageRefreshTimer,
+
+    // GitHub图床设置
+    githubImageRepo,
+    githubImageBranch,
+    githubImageToken,
+    githubImageBasePath,
+    githubImageBaseUrl,
   }
 })
 

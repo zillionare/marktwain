@@ -77,3 +77,69 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* CommonMark Admonition Styles */
+.admonition {
+  @apply border-l-4 rounded-r-lg p-4 my-4 bg-gray-50 dark:bg-gray-800;
+}
+
+.admonition-title {
+  @apply flex items-center gap-2 font-semibold mb-2;
+}
+
+.admonition-icon {
+  @apply text-lg;
+}
+
+.admonition-content {
+  @apply text-sm;
+}
+
+/* Admonition type styles */
+.admonition-note {
+  @apply border-l-blue-500 bg-blue-50 dark:bg-blue-900/20;
+}
+
+.admonition-tip {
+  @apply border-l-green-500 bg-green-50 dark:bg-green-900/20;
+}
+
+.admonition-important {
+  @apply border-l-purple-500 bg-purple-50 dark:bg-purple-900/20;
+}
+
+.admonition-warning {
+  @apply border-l-yellow-500 bg-yellow-50 dark:bg-yellow-900/20;
+}
+
+.admonition-caution {
+  @apply border-l-orange-500 bg-orange-50 dark:bg-orange-900/20;
+}
+
+.admonition-info {
+  @apply border-l-cyan-500 bg-cyan-50 dark:bg-cyan-900/20;
+}
+
+.admonition-success {
+  @apply border-l-emerald-500 bg-emerald-50 dark:bg-emerald-900/20;
+}
+
+.admonition-failure {
+  @apply border-l-red-500 bg-red-50 dark:bg-red-900/20;
+}
+
+.admonition-danger {
+  @apply border-l-red-600 bg-red-50 dark:bg-red-900/20;
+}
+
+.admonition-bug {
+  @apply border-l-pink-500 bg-pink-50 dark:bg-pink-900/20;
+}
+
+.admonition-example {
+  @apply border-l-indigo-500 bg-indigo-50 dark:bg-indigo-900/20;
+}
+
+.admonition-quote {
+  @apply border-l-gray-500 bg-gray-50 dark:bg-gray-900/20;
+}

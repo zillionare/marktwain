@@ -20,9 +20,9 @@ interface GitHubApiResponse {
 
 /**
  * 获取GitHub图床配置
- * 优先从环境变量读取，如果没有则使用默认配置
+ * 优先从store设置读取，如果没有则从环境变量读取，最后使用默认配置
  */
-function getGitHubImageBedConfig(): GitHubImageBedConfig {
+function getGitHubImageBedConfig(storeConfig?: Partial<GitHubImageBedConfig>): GitHubImageBedConfig {
   // 从环境变量读取配置
   const envRepo = import.meta.env.VITE_GITHUB_IMAGE_REPO
   const envBranch = import.meta.env.VITE_GITHUB_IMAGE_BRANCH
@@ -30,25 +30,21 @@ function getGitHubImageBedConfig(): GitHubImageBedConfig {
   const envBasePath = import.meta.env.VITE_GITHUB_IMAGE_BASE_PATH
   const envBaseUrl = import.meta.env.VITE_GITHUB_IMAGE_BASE_URL
 
-  // 如果环境变量存在，使用环境变量
-  if (envRepo && envBranch && envToken && envBasePath && envBaseUrl) {
-    return {
-      repo: envRepo,
-      branch: envBranch,
-      token: envToken,
-      basePath: envBasePath,
-      baseUrl: envBaseUrl,
-    }
+  // 优先级：store设置 > 环境变量 > 默认值
+  const config = {
+    repo: storeConfig?.repo || envRepo || `zillionare/images`,
+    branch: storeConfig?.branch || envBranch || `main`,
+    token: storeConfig?.token || envToken || ``, // 必须设置
+    basePath: storeConfig?.basePath || envBasePath || `images/{year}/{month}/`,
+    baseUrl: storeConfig?.baseUrl || envBaseUrl || `https://images.jieyu.ai`,
   }
 
-  // 否则使用默认配置（需要在环境变量中设置token）
-  return {
-    repo: `zillionare/images`,
-    branch: `main`,
-    token: ``, // 需要通过环境变量VITE_GITHUB_IMAGE_TOKEN设置
-    basePath: `images/{year}/{month}/`,
-    baseUrl: `https://images.jieyu.ai`,
+  // 验证token是否存在
+  if (!config.token || config.token === ``) {
+    throw new Error(`GitHub token is required. Please set it in settings or VITE_GITHUB_IMAGE_TOKEN environment variable.`)
   }
+
+  return config
 }
 
 /**
@@ -77,96 +73,67 @@ function generateUniqueFilename(prefix: string, extension: string = `png`): stri
 }
 
 /**
- * 上传图片到GitHub仓库
+ * 上传图片到GitHub仓库（带重试机制）
  */
 async function uploadToGitHub(
   config: GitHubImageBedConfig,
   content: string,
   path: string,
+  retryCount: number = 0,
 ): Promise<string> {
   const url = `https://api.github.com/repos/${config.repo}/contents/${path}`
 
-  const response = await fetch(url, {
-    method: `PUT`,
-    headers: {
-      'Authorization': `Bearer ${config.token}`,
-      'Accept': `application/vnd.github.v3+json`,
-      'Content-Type': `application/json`,
-    },
-    body: JSON.stringify({
-      message: `Upload image: ${path}`,
-      content,
-      branch: config.branch,
-    }),
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`GitHub API error: ${response.status} ${response.statusText} - ${errorText}`)
-  }
-
-  const result: GitHubApiResponse = await response.json()
-  return result.content.download_url
-}
-
-/**
- * 触发GitHub Pages构建
- * 通过创建一个空的commit来触发构建
- */
-async function triggerGitHubPagesBuild(config: GitHubImageBedConfig): Promise<void> {
   try {
-    // 获取最新的commit SHA
-    const refUrl = `https://api.github.com/repos/${config.repo}/git/refs/heads/${config.branch}`
-    const refResponse = await fetch(refUrl, {
-      headers: {
-        Authorization: `Bearer ${config.token}`,
-        Accept: `application/vnd.github.v3+json`,
-      },
-    })
-
-    if (!refResponse.ok) {
-      console.warn(`Failed to get latest commit SHA for Pages build trigger`)
-      return
-    }
-
-    const refData = await refResponse.json()
-    const latestSha = refData.object.sha
-
-    // 创建一个空的commit来触发构建
-    const commitUrl = `https://api.github.com/repos/${config.repo}/git/commits`
-    const commitResponse = await fetch(commitUrl, {
-      method: `POST`,
+    const response = await fetch(url, {
+      method: `PUT`,
       headers: {
         'Authorization': `Bearer ${config.token}`,
         'Accept': `application/vnd.github.v3+json`,
         'Content-Type': `application/json`,
       },
       body: JSON.stringify({
-        message: `Trigger GitHub Pages build`,
-        tree: latestSha,
-        parents: [latestSha],
+        message: `Upload image: ${path}`,
+        content,
+        branch: config.branch,
       }),
     })
 
-    if (commitResponse.ok) {
-      const commitData = await commitResponse.json()
+    if (!response.ok) {
+      const errorText = await response.text()
 
-      // 更新分支引用
-      await fetch(refUrl, {
-        method: `PATCH`,
-        headers: {
-          'Authorization': `Bearer ${config.token}`,
-          'Accept': `application/vnd.github.v3+json`,
-          'Content-Type': `application/json`,
-        },
-        body: JSON.stringify({
-          sha: commitData.sha,
-        }),
-      })
+      // 如果是409冲突错误且重试次数少于3次，则重试
+      if (response.status === 409 && retryCount < 3) {
+        console.warn(`GitHub API conflict (409), retrying in ${(retryCount + 1) * 1000}ms...`)
+        await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000))
+
+        // 生成新的文件名避免冲突
+        const timestamp = Date.now()
+        const randomSuffix = Math.random().toString(36).substring(2, 8)
+        const pathParts = path.split(`/`)
+        const fileName = pathParts.pop()!
+        const fileNameParts = fileName.split(`.`)
+        const extension = fileNameParts.pop()
+        const baseName = fileNameParts.join(`.`)
+        const newFileName = `${baseName}-${timestamp}-${randomSuffix}.${extension}`
+        const newPath = [...pathParts, newFileName].join(`/`)
+
+        console.log(`Retrying with new path: ${newPath}`)
+        return await uploadToGitHub(config, content, newPath, retryCount + 1)
+      }
+
+      throw new Error(`GitHub API error: ${response.status} ${response.statusText} - ${errorText}`)
     }
+
+    const result: GitHubApiResponse = await response.json()
+    return result.content.download_url
   }
   catch (error) {
-    console.warn(`Failed to trigger GitHub Pages build:`, error)
+    if (retryCount < 2 && !(error instanceof Error && error.message.includes(`409`))) {
+      console.warn(`Upload failed, retrying in ${(retryCount + 1) * 1000}ms...`, error)
+      await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000))
+      return await uploadToGitHub(config, content, path, retryCount + 1)
+    }
+    throw error
   }
 }
 
@@ -178,104 +145,104 @@ function generateAccessUrl(config: GitHubImageBedConfig, path: string): string {
 }
 
 /**
- * 等待图片可访问
- * GitHub Pages需要一些时间来构建和部署
+ * 从URL提取存储路径
  */
-async function waitForImageAvailable(url: string, maxAttempts: number = 12, interval: number = 10000): Promise<boolean> {
-  for (let i = 0; i < maxAttempts; i++) {
-    try {
-      const response = await fetch(url, { method: `HEAD` })
-      if (response.ok) {
-        return true
-      }
-    }
-    catch {
-      // 忽略网络错误，继续重试
-    }
-
-    if (i < maxAttempts - 1) {
-      await new Promise(resolve => setTimeout(resolve, interval))
-    }
-  }
-  return false
+function extractStoragePathFromUrl(url: string, baseUrl: string): string {
+  return url.replace(`${baseUrl}/`, ``)
 }
 
 /**
- * 验证图片内容
- * 通过比较图片大小来简单验证
+ * 预生成图片URL（不等待上传完成）
  */
-async function validateImageContent(url: string, originalSize: number): Promise<boolean> {
+export function generateImageUrl(prefix: string = `image`, storeConfig?: Partial<GitHubImageBedConfig>): string {
+  const config = getGitHubImageBedConfig(storeConfig)
+  const uniqueFilename = generateUniqueFilename(prefix)
+  const storagePath = generateStoragePath(config.basePath, uniqueFilename)
+  return generateAccessUrl(config, storagePath)
+}
+
+/**
+ * 异步上传图片到GitHub（不阻塞返回）
+ */
+export async function uploadImageToGitHubAsync(
+  base64Content: string,
+  targetUrl: string,
+): Promise<void> {
   try {
-    const response = await fetch(url, { method: `HEAD` })
-    if (!response.ok)
-      return false
+    const config = getGitHubImageBedConfig()
 
-    const contentLength = response.headers.get(`content-length`)
-    if (!contentLength)
-      return true // 如果无法获取大小，假设正确
+    // 验证base64内容
+    if (!base64Content || base64Content.length === 0) {
+      throw new Error(`Base64 content is empty`)
+    }
 
-    const remoteSize = Number.parseInt(contentLength, 10)
-    // 允许10%的大小差异（由于压缩等因素）
-    const sizeDiff = Math.abs(remoteSize - originalSize) / originalSize
-    return sizeDiff <= 0.1
+    // 从目标URL提取存储路径
+    const storagePath = extractStoragePathFromUrl(targetUrl, config.baseUrl)
+
+    // 异步上传到GitHub
+    console.log(`Uploading image to GitHub asynchronously: ${storagePath}`)
+    await uploadToGitHub(config, base64Content, storagePath)
+
+    console.log(`Image uploaded successfully: ${targetUrl}`)
   }
-  catch {
-    console.warn(`Failed to validate image content`)
-    return false
+  catch (error) {
+    console.error(`Failed to upload image to GitHub:`, error)
+    // 不抛出错误，避免影响用户体验
   }
 }
 
 /**
- * 主要的上传函数
+ * 主要的上传函数（修改为立即返回URL）
  */
 export async function uploadImageToGitHub(
   base64Content: string,
   _filename: string,
   prefix: string = `image`,
+  storeConfig?: Partial<GitHubImageBedConfig>,
 ): Promise<string> {
-  const config = getGitHubImageBedConfig()
-
-  // 生成唯一文件名
-  const uniqueFilename = generateUniqueFilename(prefix)
-
-  // 生成存储路径
-  const storagePath = generateStoragePath(config.basePath, uniqueFilename)
-
   try {
-    // 上传到GitHub
-    console.log(`Uploading image to GitHub: ${storagePath}`)
-    await uploadToGitHub(config, base64Content, storagePath)
+    const config = getGitHubImageBedConfig(storeConfig)
 
-    // 触发GitHub Pages构建
-    console.log(`Triggering GitHub Pages build...`)
-    await triggerGitHubPagesBuild(config)
+    // 验证base64内容
+    if (!base64Content || base64Content.length === 0) {
+      throw new Error(`Base64 content is empty`)
+    }
+
+    // 生成唯一文件名
+    const uniqueFilename = generateUniqueFilename(prefix)
+
+    // 生成存储路径
+    const storagePath = generateStoragePath(config.basePath, uniqueFilename)
 
     // 生成访问URL
     const accessUrl = generateAccessUrl(config, storagePath)
 
-    // 等待图片可访问
-    console.log(`Waiting for image to be available...`)
-    const isAvailable = await waitForImageAvailable(accessUrl)
-
-    if (!isAvailable) {
-      console.warn(`Image may not be immediately available, but upload was successful`)
-    }
-
-    // 验证图片内容（可选）
-    if (isAvailable) {
-      // 计算原始内容大小（base64解码后的大小）
-      const originalSize = Math.ceil(base64Content.length * 0.75)
-      const isValid = await validateImageContent(accessUrl, originalSize)
-      if (!isValid) {
-        console.warn(`Image content validation failed`)
-      }
-    }
+    // 同步上传（等待完成）
+    console.log(`Uploading image to GitHub: ${storagePath}`)
+    await uploadToGitHub(config, base64Content, storagePath)
 
     console.log(`Image uploaded successfully: ${accessUrl}`)
     return accessUrl
   }
   catch (error) {
     console.error(`Failed to upload image to GitHub:`, error)
+
+    // 提供更详细的错误信息
+    if (error instanceof Error) {
+      if (error.message.includes(`401`)) {
+        throw new Error(`GitHub authentication failed. Please check your VITE_GITHUB_IMAGE_TOKEN environment variable.`)
+      }
+      if (error.message.includes(`403`)) {
+        throw new Error(`GitHub access forbidden. Your token needs "Contents: Write" permission. Please regenerate your token with proper permissions.`)
+      }
+      if (error.message.includes(`Resource not accessible by personal access token`)) {
+        throw new Error(`Token permission insufficient. Please ensure your GitHub token has "repo" or "Contents: Write" permission.`)
+      }
+      if (error.message.includes(`404`)) {
+        throw new Error(`GitHub repository not found. Please check VITE_GITHUB_IMAGE_REPO configuration.`)
+      }
+    }
+
     throw error
   }
 }
@@ -283,13 +250,63 @@ export async function uploadImageToGitHub(
 /**
  * 获取配置信息（用于调试）
  */
-export function getConfigInfo(): Omit<GitHubImageBedConfig, `token`> {
-  const config = getGitHubImageBedConfig()
-  return {
-    repo: config.repo,
-    branch: config.branch,
-    basePath: config.basePath,
-    baseUrl: config.baseUrl,
-    token: `***`, // 隐藏token
-  } as any
+export function getConfigInfo(storeConfig?: Partial<GitHubImageBedConfig>): GitHubImageBedConfig & { token: string } {
+  try {
+    const config = getGitHubImageBedConfig(storeConfig)
+    return {
+      repo: config.repo,
+      branch: config.branch,
+      basePath: config.basePath,
+      baseUrl: config.baseUrl,
+      token: config.token ? `***` : `NOT_SET`,
+    }
+  }
+  catch (error) {
+    console.error(`Failed to get GitHub config:`, error)
+    return {
+      repo: `ERROR`,
+      branch: `ERROR`,
+      basePath: `ERROR`,
+      baseUrl: `ERROR`,
+      token: `ERROR`,
+    }
+  }
+}
+
+/**
+ * 测试GitHub API连接
+ */
+export async function testGitHubConnection(storeConfig?: Partial<GitHubImageBedConfig>): Promise<{ success: boolean, message: string }> {
+  try {
+    const config = getGitHubImageBedConfig(storeConfig)
+
+    // 测试仓库访问
+    const response = await fetch(`https://api.github.com/repos/${config.repo}`, {
+      headers: {
+        Authorization: `Bearer ${config.token}`,
+        Accept: `application/vnd.github.v3+json`,
+      },
+    })
+
+    if (response.ok) {
+      const repoData = await response.json()
+      return {
+        success: true,
+        message: `Successfully connected to ${repoData.full_name}`,
+      }
+    }
+    else {
+      const errorData = await response.json()
+      return {
+        success: false,
+        message: `GitHub API error: ${response.status} - ${errorData.message}`,
+      }
+    }
+  }
+  catch (error) {
+    return {
+      success: false,
+      message: `Connection failed: ${error instanceof Error ? error.message : `Unknown error`}`,
+    }
+  }
 }

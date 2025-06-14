@@ -10,7 +10,7 @@ import {
 import { useStore } from '@/stores'
 import { addPrefix, processClipboardContent } from '@/utils'
 import { copyPlain } from '@/utils/clipboard'
-import { ChevronDownIcon, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun } from 'lucide-vue-next'
+import { ChevronDownIcon, Image, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun } from 'lucide-vue-next'
 
 const emit = defineEmits([`addFormat`, `formatContent`, `startCopy`, `endCopy`])
 
@@ -64,9 +64,9 @@ const formatItems = [
 
 const store = useStore()
 
-const { isDark, isCiteStatus, isCountStatus, output, primaryColor, isOpenPostSlider, editor } = storeToRefs(store)
+const { isDark, isCiteStatus, isCountStatus, output, primaryColor, isOpenPostSlider, editor, isImageMode } = storeToRefs(store)
 
-const { toggleDark, editorRefresh, citeStatusChanged, countStatusChanged } = store
+const { toggleDark, editorRefresh, citeStatusChanged, countStatusChanged, toggleImageMode } = store
 
 const copyMode = useStorage(addPrefix(`copyMode`), `txt`)
 const source = ref(``)
@@ -134,6 +134,22 @@ function copy() {
       emit(`endCopy`)
     })
   }, 350)
+}
+
+// 获取转图按钮文本
+function getImageButtonText() {
+  if (isImageMode.value) {
+    return `原文`
+  }
+  return `转图`
+}
+
+// 获取转图按钮提示
+function getImageButtonTitle() {
+  if (isImageMode.value) {
+    return `切换回原始内容`
+  }
+  return `截图特殊语法块并上传到GitHub`
 }
 </script>
 
@@ -223,6 +239,18 @@ function copy() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <!-- 转图按钮 -->
+      <Button
+        variant="outline"
+        size="sm"
+        :class="{ 'bg-primary text-primary-foreground': isImageMode }"
+        :title="getImageButtonTitle()"
+        @click="toggleImageMode"
+      >
+        <Image class="mr-1 size-4" />
+        {{ getImageButtonText() }}
+      </Button>
 
       <!-- 文章信息（移动端隐藏） -->
       <PostInfo class="hidden sm:inline-flex" />
