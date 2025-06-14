@@ -136,7 +136,7 @@ export class MarkdownProcessor {
     }
 
     // 收集CommonMark admonition块 (!!! note)
-    const commonMarkAdmonitionRegex = /^!!!\s+(note|tip|important|warning|caution|info|success|failure|danger|bug|example|quote)(?:\s+"([^"]*)")?\s*\n((?: {4}.*\n)*)/gm
+    const commonMarkAdmonitionRegex = /^!!!\s+(note|tip|important|warning|caution|info|success|failure|danger|bug|example|quote)(?:\s+"([^"]*)")?\s*\n((?: {4}.*(?:\n|$))*)/gm
     match = commonMarkAdmonitionRegex.exec(content)
     while (match !== null) {
       const [fullMatch, type, title, contentLines] = match
@@ -298,7 +298,7 @@ export class MarkdownProcessor {
     }
 
     // CommonMark Admonition块
-    const commonMarkAdmonitionRegex = /^!!!\s+(note|tip|important|warning|caution|info|success|failure|danger|bug|example|quote)(?:\s+"([^"]*)")?\s*\n((?: {4}.*\n)*)/gm
+    const commonMarkAdmonitionRegex = /^!!!\s+(note|tip|important|warning|caution|info|success|failure|danger|bug|example|quote)(?:\s+"([^"]*)")?\s*\n((?: {4}.*(?:\n|$))*)/gm
     match = commonMarkAdmonitionRegex.exec(content)
     while (match !== null) {
       const [, type, title, contentLines] = match
