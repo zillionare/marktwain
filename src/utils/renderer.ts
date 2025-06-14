@@ -1,9 +1,9 @@
 import type { ExtendedProperties, IOpts, ThemeStyles } from '@/types'
 import type { PropertiesHyphen } from 'csstype'
-import { cloneDeep, toMerged } from 'es-toolkit'
-import frontMatter from 'front-matter'
 import type { RendererObject, Tokens } from 'marked'
 import type { ReadTimeResults } from 'reading-time'
+import { cloneDeep, toMerged } from 'es-toolkit'
+import frontMatter from 'front-matter'
 
 import hljs from 'highlight.js'
 import { marked } from 'marked'

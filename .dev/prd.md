@@ -1,4 +1,5 @@
 ## story
+
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { getConfigInfo, testGitHubConnection } from '@/utils/githubImageBed'
@@ -12,22 +13,22 @@ const isTestingConnection = ref(false)
 
 // 测试GitHub连接
 async function handleTestConnection() {
-  isTestingConnection.value = true
-  try {
-    const result = await testGitHubConnection()
-    if (result.success) {
-      toast.success(`连接测试成功: ${result.message}`)
-    }
-    else {
-      toast.error(`连接测试失败: ${result.message}`)
-    }
-  }
-  catch (error) {
-    toast.error(`连接测试出错: ${error instanceof Error ? error.message : `未知错误`}`)
-  }
-  finally {
-    isTestingConnection.value = false
-  }
+isTestingConnection.value = true
+try {
+const result = await testGitHubConnection()
+if (result.success) {
+toast.success(`连接测试成功: ${result.message}`)
+}
+else {
+toast.error(`连接测试失败: ${result.message}`)
+}
+}
+catch (error) {
+toast.error(`连接测试出错: ${error instanceof Error ? error.message : `未知错误`}`)
+}
+finally {
+isTestingConnection.value = false
+}
 }
 </script>
 
@@ -83,8 +84,11 @@ async function handleTestConnection() {
         </p>
         <ul class="space-y-1 list-inside list-disc ml-2">
           <li>代码块：```language
+
 语法的代码块</li>
-          <li>Mermaid图表：
+
+<li>Mermaid图表：
+
 ```mermaid 语法的图表</li>
           <li>数学公式：$$ 包围的块级数学公式</li>
           <li>提示框：> [!NOTE] 等 GitHub 风格的提示框</li>
@@ -93,3 +97,4 @@ async function handleTestConnection() {
         <p class="mt-3">
           <strong>注意：</strong>转图功能会生成内容副本用于预览和复制，不会修改原始编辑器内容。
           图片将上传到配置的GitHub仓库中。
+```

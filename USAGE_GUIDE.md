@@ -1,6 +1,7 @@
 # 特殊语法块渲染功能使用指南
 
 ## 📖 功能概述
+
 import { Separator } from '@/components/ui/separator'
 import { getConfigInfo, testGitHubConnection } from '@/utils/githubImageBed'
 import { imageCache } from '@/utils/imageCache'
@@ -17,39 +18,39 @@ const cacheStats = computed(() => imageCache.getCacheStats())
 
 // 测试GitHub连接
 async function handleTestConnection() {
-  isTestingConnection.value = true
-  try {
-    const result = await testGitHubConnection()
-    if (result.success) {
-      toast.success(`连接测试成功: ${result.message}`)
-    }
-    else {
-      toast.error(`连接测试失败: ${result.message}`)
-    }
-  }
-  catch (error) {
-    toast.error(`连接测试出错: ${error instanceof Error ? error.message : `未知错误`}`)
-  }
-  finally {
-    isTestingConnection.value = false
-  }
+isTestingConnection.value = true
+try {
+const result = await testGitHubConnection()
+if (result.success) {
+toast.success(`连接测试成功: ${result.message}`)
+}
+else {
+toast.error(`连接测试失败: ${result.message}`)
+}
+}
+catch (error) {
+toast.error(`连接测试出错: ${error instanceof Error ? error.message : `未知错误`}`)
+}
+finally {
+isTestingConnection.value = false
+}
 }
 
 // 清理过期缓存
 function cleanExpiredCache() {
-  const cleanedCount = imageCache.cleanExpired()
-  if (cleanedCount > 0) {
-    toast.success(`已清理 ${cleanedCount} 个过期缓存项`)
-  }
-  else {
-    toast.info(`没有过期的缓存项`)
-  }
+const cleanedCount = imageCache.cleanExpired()
+if (cleanedCount > 0) {
+toast.success(`已清理 ${cleanedCount} 个过期缓存项`)
+}
+else {
+toast.info(`没有过期的缓存项`)
+}
 }
 
 // 清空所有缓存
 function clearAllCache() {
-  imageCache.clearCache()
-  toast.success(`已清空所有图片缓存`)
+imageCache.clearCache()
+toast.success(`已清空所有图片缓存`)
 }
 </script>
 
@@ -161,8 +162,11 @@ function clearAllCache() {
         </p>
         <ul class="space-y-1 list-inside list-disc ml-2">
           <li>代码块：```language
+
 语法的代码块</li>
-          <li>Mermaid图表：
+
+<li>Mermaid图表：
+
 ```mermaid 语法的图表</li>
           <li>数学公式：$$ 包围的块级数学公式</li>
           <li>提示框：> [!NOTE] 等 GitHub 风格的提示框</li>
@@ -197,17 +201,21 @@ function clearAllCache() {
 ### 处理流程
 
 ```
+
 编写Markdown → 点击转图按钮 → 检测语法块 → 渲染图片 → 上传GitHub → 替换链接 → 完成
-     ↓              ↓              ↓           ↓          ↓          ↓         ↓
-   正常编辑      手动触发        识别语法块    生成PNG    API上传    更新内容   显示图片
+↓ ↓ ↓ ↓ ↓ ↓ ↓
+正常编辑 手动触发 识别语法块 生成PNG API上传 更新内容 显示图片
+
 ```
 
 #### 缓存流程
 
 ```
+
 再次点击转图 → 检查内容变化 → 使用缓存/重新生成 → 快速切换
-     ↓              ↓                ↓              ↓
-   用户操作      哈希对比          智能判断        提升性能
+↓ ↓ ↓ ↓
+用户操作 哈希对比 智能判断 提升性能
+
 ```
 
 ## 📋 注意事项
@@ -308,11 +316,13 @@ function clearAllCache() {
 打开浏览器开发者工具（F12），在Console标签页可以看到详细的处理日志：
 
 ```
+
 Starting GitHub image upload with config: ...
 Generated filename: code-1234567890-abc123.png
 Storage path: images/2024/06/code-1234567890-abc123.png
 Uploading image to GitHub: ...
 Image uploaded successfully: https://images.jieyu.ai/...
+
 ```
 
 ### 状态监控
@@ -331,3 +341,4 @@ Image uploaded successfully: https://images.jieyu.ai/...
 2. 使用"测试GitHub连接"功能验证配置
 3. 参考 `SETUP_INSTRUCTIONS.md` 进行配置检查
 4. 确认GitHub token权限设置正确
+```

@@ -7,7 +7,7 @@ import { testGitHubConnection } from '@/utils/githubImageBed'
 import { imageCache } from '@/utils/imageCache'
 import { Database, Image, Settings, TestTube, Trash2 } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
-import { nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 
 // 获取store
@@ -34,8 +34,6 @@ const cacheStats = ref(imageCache.getCacheStats())
 function updateCacheStats() {
   cacheStats.value = imageCache.getCacheStats()
 }
-
-
 
 // 测试GitHub连接
 async function handleTestConnection() {
@@ -175,9 +173,9 @@ onUnmounted(() => {
         </div>
 
         <!-- 功能说明 -->
-        <div class="text-xs text-muted-foreground">
+        <div class="text-muted-foreground text-xs">
           <p>支持的CommonMark admonition类型：</p>
-          <div class="mt-1 space-y-1">
+          <div class="space-y-1 mt-1">
             <div>• !!! note - 笔记提示框</div>
             <div>• !!! tip "标题" - 技巧提示框</div>
             <div>• !!! warning - 警告提示框</div>

@@ -1,3 +1,5 @@
+import type { ThemeStyles } from '@/types'
+import type { ReadTimeResults } from 'reading-time'
 import DEFAULT_CONTENT from '@/assets/example/markdown.md?raw'
 import DEFAULT_CSS_CONTENT from '@/assets/example/theme-css.txt?raw'
 import {
@@ -7,8 +9,6 @@ import {
   themeMap,
   widthOptions,
 } from '@/config'
-import type { ThemeStyles } from '@/types'
-import type { ReadTimeResults } from 'reading-time'
 
 import {
   addPrefix,
@@ -555,8 +555,6 @@ export const useStore = defineStore(`store`, () => {
     stopImageRefreshTimer()
     console.log(`Image mode state cleared`)
   }
-
-
 
   // 转图功能 - 截图预览区并上传到GitHub
   const toggleImageMode = async (): Promise<void> => {

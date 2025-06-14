@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { Toaster } from '@/components/ui/sonner'
 import {
-    altSign,
-    ctrlKey,
-    ctrlSign,
-    shiftSign,
+  altSign,
+  ctrlKey,
+  ctrlSign,
+  shiftSign,
 } from '@/config'
 
 import { useStore } from '@/stores'

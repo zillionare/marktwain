@@ -141,7 +141,7 @@ async function testConnection() {
 </script>
 
 <template>
-  <div class="custom-scroll space-y-4 max-h-[calc(100dvh-10rem)] overflow-y-auto pr-1 text-xs sm:max-h-none sm:text-sm">
+  <div class="space-y-4 custom-scroll max-h-[calc(100dvh-10rem)] overflow-y-auto pr-1 text-xs sm:max-h-none sm:text-sm">
     <div class="font-medium">
       AI 配置
     </div>

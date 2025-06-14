@@ -272,7 +272,7 @@ export class MarkdownProcessor {
 
         // 截图预览区的对应元素
         const base64Content = await this.screenshotBlock(block)
-        const filename = `${block.type}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}.png`
+        const filename = `${block.type}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.png`
 
         imagesToUpload.push({ block, base64Content, filename })
       }
@@ -427,10 +427,10 @@ export class MarkdownProcessor {
         styleSheets.forEach((sheet) => {
           try {
             if (sheet instanceof HTMLLinkElement && sheet.sheet) {
-              const _rules = sheet.sheet.cssRules
+              void sheet.sheet.cssRules // 尝试访问规则以检测跨域问题
             }
           }
-          catch (_e) {
+          catch {
             sheet.remove()
           }
         })
@@ -545,7 +545,7 @@ export class MarkdownProcessor {
               const _rules = sheet.sheet.cssRules // 尝试访问规则
             }
           }
-          catch (_e) {
+          catch {
             sheet.remove()
           }
         })
@@ -696,7 +696,7 @@ export class MarkdownProcessor {
     }
 
     // CommonMark Admonition块
-    const commonMarkAdmonitionRegex = /^!!!\s+(note|tip|important|warning|caution|info|success|failure|danger|bug|example|quote)(?:\s+"([^"]*)")?\s*\n((?:(?: {4}|\t).*(?:\n|$)|[ \t]*\n)*)/gm
+    const commonMarkAdmonitionRegex = /^!!!\s+(note|tip|important|warning|caution|info|success|failure|danger|bug|example|quote)(?:\s+"([^"]*)")?\s*\n((?:(?: {4}|\t).*(?:\n|$))*)/gm
     match = commonMarkAdmonitionRegex.exec(content)
     while (match !== null) {
       const [, type, title, contentLines] = match
