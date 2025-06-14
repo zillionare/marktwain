@@ -60,27 +60,33 @@ export default function markedCommonMarkAdmonition(options: CommonMarkAdmonition
       return match ? match.index : undefined
     },
     tokenizer(src: string) {
-      // 匹配 CommonMark admonition 语法
-      const rule = /^!!!\s+(note|tip|important|warning|caution|info|success|failure|danger|bug|example|quote)(?:\s+"([^"]*)")?\s*\n((?:(?: {4}|\t).*(?:\n|$))*)/
+      // 匹配 CommonMark admonition 语法 - 更宽松的匹配
+      const rule = /^!!!\s+(note|tip|important|warning|caution|info|success|failure|danger|bug|example|quote)(?:\s+"([^"]*)")?\s*\n([\s\S]*?)(?=\n\n|\n$|$)/
 
       const match = rule.exec(src)
       if (match) {
         const [raw, type, title, content] = match
 
-        // 处理缩进内容
-        const processedContent = content
-          .split(`\n`)
+        // 处理内容，移除最小公共缩进
+        const lines = content.split(`\n`)
+        const nonEmptyLines = lines.filter(line => line.trim() !== ``)
+
+        if (nonEmptyLines.length === 0) {
+          return undefined
+        }
+
+        // 找到最小缩进
+        const minIndent = Math.min(...nonEmptyLines.map((line) => {
+          const match = line.match(/^[ \t]*/)
+          return match ? match[0].length : 0
+        }))
+
+        // 移除最小缩进
+        const processedContent = lines
           .map((line) => {
-            if (line.startsWith(`    `)) {
-              return line.slice(4)
-            }
-            else if (line.startsWith(`\t`)) {
-              return line.slice(1)
-            }
-            else if (line.trim() === ``) {
+            if (line.trim() === ``)
               return ``
-            }
-            return line
+            return line.slice(minIndent)
           })
           .join(`\n`)
           .trim()
