@@ -766,37 +766,3 @@ export class MarkdownProcessor {
     return blocks
   }
 }
-
-export class BlockRenderer {
-  private styles: ThemeStyles
-  private isDark: boolean
-  private imageWidth: number
-  private githubConfig?: any
-
-  constructor(styles: ThemeStyles, isDark: boolean = false, imageWidth: number = 800, githubConfig?: any) {
-    this.styles = styles
-    this.isDark = isDark
-    this.imageWidth = imageWidth
-    this.githubConfig = githubConfig
-  }
-
-  getImageWidth(): number {
-    return this.imageWidth
-  }
-
-  async renderMermaidChart(content: string, _isPreview: boolean = false): Promise<string> {
-    return `data:image/png;base64,placeholder`
-  }
-
-  async renderCodeBlock(content: string, lang: string, _isPreview: boolean = false): Promise<string> {
-    return `data:image/png;base64,placeholder`
-  }
-
-  async renderAdmonitionBlock(content: string, type: string, _isPreview: boolean = false): Promise<string> {
-    return `data:image/png;base64,placeholder`
-  }
-
-  async renderMathBlock(content: string, inline: boolean, _isPreview: boolean = false): Promise<string> {
-    return `data:image/png;base64,placeholder`
-  }
-}

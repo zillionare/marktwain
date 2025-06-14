@@ -1,16 +1,28 @@
-## story
+## 1. story
 
 本项目(md)是一个markdown的渲染工具，它支持将markdown格式的文档渲染成html格式，从而适合发表到微信公众号。现在，我们将拓展该工具，使得它能更好地支持其它平台的渲染。主要方法是，把一些存在差异的功能，在本地渲染成图片，就能更好地适应各个平台。
 
-主要步骤是：
+## 定义
 
-1. 将特殊语法块在本地渲染成图片
-2. 将图片上传到github仓库
-3. 将特殊语法块替换成图片链接
-4. 将替换后的markdown文件，在预览窗口中渲染成html。
+markdown原文区： 显示和编辑markdown的区域
+markdown原文： 用户直接输入的markdown内容，不允许程序来修改它
+转图后的markdown: markdown原文在转图后，将特殊语法块内容替换为图片后的markdown
+预览区：显示渲染后的html
+设置区： 用来设置编辑器行为
 
-## 需要在本地渲染的语法块
+## 2. 新增加语法支持
 
-1. fenced block，比如python代码，mermaid等
-2. admonition块。支持commonmark的admonition块语法
-3. 块级公式
+支持commonmark的admonition块语法
+
+## 3. 需要在本地渲染的语法块
+
+1. fenced block，比如python代码，mermaid等。
+2. admonition块
+
+## 4. 用户接口
+
+1. 当用户在markdown输入区域，输入了common markdown的admonition块语法时，预览区会以admonition块的样式渲染它
+2. 在按钮『发布』左侧增加一个『转图』按钮，这是一个toggle button，初始状态为关闭，此时正常渲染markdown
+3. 点击『转图』按钮时，将3中提到的语法块转为图片，并上传到图床。转图需要异步执行，一次性上传所有图片
+4. 点击『转图』后，预览区会渲染『转图后的markdown』。此时要使用图床的图片，因此需要将3中的语法块替换为图片链接，但不得修改Markdown原文
+5. 点击『转图』后，转图按钮变为『直出』，即恢复为正常渲染markdown，再次点击将渲染"转图后的markdown"
