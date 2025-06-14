@@ -263,18 +263,34 @@ export class MarkdownProcessor {
     }
 
     // 收集CommonMark admonition块 (!!! note)
-    const commonMarkAdmonitionRegex = /^!!!\s+(note|tip|important|warning|caution|info|success|failure|danger|bug|example|quote)(?:\s+"([^"]*)")?\s*\n((?: {4}.*(?:\n|$))*)/gm
+    const commonMarkAdmonitionRegex = /^!!!\s+(note|tip|important|warning|caution|info|success|failure|danger|bug|example|quote)(?:\s+"([^"]*)")?\s*\n([\s\S]*?)(?=\n\n|\n$|$)/gm
     match = commonMarkAdmonitionRegex.exec(content)
     while (match !== null) {
       const [fullMatch, type, title, contentLines] = match
       const blockId = this.generateBlockId(fullMatch)
 
-      // 处理缩进内容
-      const admonitionContent = contentLines
-        .split(`\n`)
-        .map(line => line.replace(/^ {4}/, ``)) // 移除4个空格的缩进
-        .join(`\n`)
-        .trim()
+      // 处理内容，移除最小公共缩进
+      const lines = contentLines.split(`\n`)
+      const nonEmptyLines = lines.filter(line => line.trim() !== ``)
+
+      let admonitionContent = ``
+      if (nonEmptyLines.length > 0) {
+        // 找到最小缩进
+        const minIndent = Math.min(...nonEmptyLines.map((line) => {
+          const match = line.match(/^[ \t]*/)
+          return match ? match[0].length : 0
+        }))
+
+        // 移除最小缩进
+        admonitionContent = lines
+          .map((line) => {
+            if (line.trim() === ``)
+              return ``
+            return line.slice(minIndent)
+          })
+          .join(`\n`)
+          .trim()
+      }
 
       // 如果有自定义标题，将其添加到内容前面
       const finalContent = title ? `**${title}**\n\n${admonitionContent}` : admonitionContent
