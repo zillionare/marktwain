@@ -23,19 +23,107 @@ export class BlockRenderer {
     return this.imageWidth
   }
 
-  async renderMermaidChart(content: string, isPreview: boolean = false): Promise<string> {
+  async renderMermaidChart(content: string, _isPreview: boolean = false): Promise<string> {
     return `data:image/png;base64,placeholder`
   }
 
-  async renderCodeBlock(content: string, lang: string, isPreview: boolean = false): Promise<string> {
+  async renderCodeBlock(content: string, lang: string, _isPreview: boolean = false): Promise<string> {
     return `data:image/png;base64,placeholder`
   }
 
-  async renderAdmonitionBlock(content: string, type: string, isPreview: boolean = false): Promise<string> {
-    return `data:image/png;base64,placeholder`
+  async renderAdmonitionBlock(content: string, type: string, _isPreview: boolean = false): Promise<string> {
+    // 创建临时DOM元素来渲染admonition块
+    const tempContainer = document.createElement(`div`)
+    tempContainer.style.position = `absolute`
+    tempContainer.style.left = `-9999px`
+    tempContainer.style.top = `-9999px`
+    tempContainer.style.width = `${this.imageWidth}px`
+    tempContainer.style.backgroundColor = this.isDark ? `#1a1a1a` : `#ffffff`
+    tempContainer.style.padding = `20px`
+    tempContainer.style.fontFamily = `system-ui, -apple-system, sans-serif`
+
+    // 创建admonition HTML结构
+    const admonitionTypeMap: Record<string, { icon: string, color: string, bgColor: string }> = {
+      note: { icon: `📝`, color: `#0969da`, bgColor: this.isDark ? `#0d1117` : `#dbeafe` },
+      tip: { icon: `💡`, color: `#1a7f37`, bgColor: this.isDark ? `#0d1117` : `#dcfce7` },
+      important: { icon: `❗`, color: `#8250df`, bgColor: this.isDark ? `#0d1117` : `#f3e8ff` },
+      warning: { icon: `⚠️`, color: `#d1242f`, bgColor: this.isDark ? `#0d1117` : `#fef2f2` },
+      caution: { icon: `🚨`, color: `#d1242f`, bgColor: this.isDark ? `#0d1117` : `#fef2f2` },
+      info: { icon: `ℹ️`, color: `#0969da`, bgColor: this.isDark ? `#0d1117` : `#dbeafe` },
+      success: { icon: `✅`, color: `#1a7f37`, bgColor: this.isDark ? `#0d1117` : `#dcfce7` },
+      failure: { icon: `❌`, color: `#d1242f`, bgColor: this.isDark ? `#0d1117` : `#fef2f2` },
+      danger: { icon: `🚫`, color: `#d1242f`, bgColor: this.isDark ? `#0d1117` : `#fef2f2` },
+      bug: { icon: `🐛`, color: `#d1242f`, bgColor: this.isDark ? `#0d1117` : `#fef2f2` },
+      example: { icon: `📋`, color: `#8250df`, bgColor: this.isDark ? `#0d1117` : `#f3e8ff` },
+      quote: { icon: `💬`, color: `#656d76`, bgColor: this.isDark ? `#0d1117` : `#f6f8fa` },
+    }
+
+    const config = admonitionTypeMap[type] || admonitionTypeMap.note
+    const displayTitle = type.charAt(0).toUpperCase() + type.slice(1)
+
+    tempContainer.innerHTML = `
+      <div style="
+        border-left: 4px solid ${config.color};
+        background-color: ${config.bgColor};
+        padding: 16px;
+        border-radius: 6px;
+        margin: 16px 0;
+        color: ${this.isDark ? `#e6edf3` : `#24292f`};
+      ">
+        <div style="
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 600;
+          margin-bottom: 8px;
+          color: ${config.color};
+        ">
+          <span style="font-size: 16px;">${config.icon}</span>
+          <span>${displayTitle}</span>
+        </div>
+        <div style="
+          font-size: 14px;
+          line-height: 1.5;
+          white-space: pre-wrap;
+        ">${content}</div>
+      </div>
+    `
+
+    document.body.appendChild(tempContainer)
+
+    try {
+      // 使用html2canvas截图
+      const canvas = await html2canvas(tempContainer, {
+        backgroundColor: null,
+        scale: 2,
+        width: this.imageWidth,
+        height: tempContainer.offsetHeight,
+      })
+
+      // 转换为base64
+      const dataUrl = canvas.toDataURL(`image/png`)
+      const base64Content = dataUrl.split(`,`)[1]
+
+      // 检查缓存，避免重复上传
+      const imageStatus = imageCache.getImageStatus(base64Content)
+      if (imageStatus.isUploaded && imageStatus.url) {
+        console.log(`Using already uploaded admonition image: ${imageStatus.url}`)
+        return imageStatus.url
+      }
+
+      // 上传到GitHub
+      const imageUrl = await uploadImageToGitHub(base64Content, `admonition-${type}-${Date.now()}.png`, `admonition`)
+      imageCache.cacheImage(base64Content, imageUrl, `admonition`, true)
+
+      return imageUrl
+    }
+    finally {
+      // 清理临时元素
+      document.body.removeChild(tempContainer)
+    }
   }
 
-  async renderMathBlock(content: string, inline: boolean, isPreview: boolean = false): Promise<string> {
+  async renderMathBlock(content: string, inline: boolean, _isPreview: boolean = false): Promise<string> {
     return `data:image/png;base64,placeholder`
   }
 }
