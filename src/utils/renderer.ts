@@ -1,9 +1,9 @@
 import type { ExtendedProperties, IOpts, ThemeStyles } from '@/types'
 import type { PropertiesHyphen } from 'csstype'
-import type { RendererObject, Tokens } from 'marked'
-import type { ReadTimeResults } from 'reading-time'
 import { cloneDeep, toMerged } from 'es-toolkit'
 import frontMatter from 'front-matter'
+import type { RendererObject, Tokens } from 'marked'
+import type { ReadTimeResults } from 'reading-time'
 
 import hljs from 'highlight.js'
 import { marked } from 'marked'
@@ -380,7 +380,7 @@ export function initRenderer(opts: IOpts) {
   marked.use({ renderer })
   marked.use(markedSlider({ styles: styleMapping }))
   marked.use(markedAlert({ styles: styleMapping }))
-  marked.use(markedCommonMarkAlert({ styles: styleMapping }))
+  marked.use(markedCommonMarkAlert)
   marked.use(
     MDKatex({ nonStandard: true }, styles(`inline_katex`, `;vertical-align: middle; line-height: 1;`), styles(`block_katex`, `;text-align: center;`),
     ),
