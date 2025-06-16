@@ -34,12 +34,14 @@ Markdown 文档自动即时渲染为微信图文，让你不再为微信内容�
 
 - [x] 支持 Markdown 所有基础语法、数学公式
 - [x] 提供对 Mermaid 图表的渲染和 [GFM 警告块](https://github.com/orgs/community/discussions/16925)的支持
+- [x] **新增 CommonMark Admonition 支持**，提供更丰富的提示框样式（note, tip, warning, question, hint, example, abstract 等）
 - [x] 丰富的代码块高亮主题，提升代码可读性
 - [x] 允许自定义主题色和 CSS 样式，灵活定制展示效果
 - [x] 提供多图上传功能，并可自定义配置图床
 - [x] 便捷的文件导入、导出功能，提升工作效率
 - [x] 内置本地内容管理功能，支持草稿自动保存
 - [x] 集成主流 AI 模型（如 DeepSeek、OpenAI、通义千问、腾讯混元、火山方舟 等等），辅助内容创作
+- [x] **浏览器扩展支持**，可作为 Chrome、Firefox、Edge 扩展使用
 
 ## 目前支持哪些图床
 
@@ -68,6 +70,8 @@ Markdown 文档自动即时渲染为微信图文，让你不再为微信内容�
 
 ## 如何开发和部署
 
+### Web 版本
+
 ```sh
 # 安装 node 版本
 nvm i && nvm use
@@ -86,6 +90,21 @@ npm run build
 npm run build:h5-netlify
 # 访问 http://127.0.0.1:9000/
 ```
+
+### 浏览器扩展版本
+
+```sh
+# 启动扩展开发模式
+npm run ext:dev
+
+# 构建 Chrome/Edge 扩展包
+npm run ext:zip
+
+# 构建 Firefox 扩展包
+npm run firefox:zip
+```
+
+详细的浏览器扩展安装指南请查看 [BROWSER_EXTENSION_GUIDE.md](BROWSER_EXTENSION_GUIDE.md)。
 
 ## 快速搭建私有服务
 
