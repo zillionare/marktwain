@@ -1,83 +1,75 @@
 import type { AlertOptions, AlertVariantItem } from '@/types'
-import type { MarkedExtension, Tokens } from 'marked'
+import type { MarkedExtension } from 'marked'
 import { getStyleString } from '.'
 
 /**
- * https://github.com/bent10/marked-extensions/tree/main/packages/alert
- * To support theme, we need to modify the source code.
- * A [marked](https://marked.js.org/) extension to support [GFM alerts](https://github.com/orgs/community/discussions/16925).
+ * A marked extension to support CommonMark admonition syntax.
+ * Syntax: !!! type "Optional Title"
+ *         Content here
  */
-export default function markedAlert(options: AlertOptions = {}): MarkedExtension {
+export default function markedAdmonition(options: AlertOptions = {}): MarkedExtension {
   const { className = `markdown-alert`, variants = [] } = options
   const resolvedVariants = resolveVariants(variants)
 
   return {
-    walkTokens(token) {
-      if (token.type !== `blockquote`)
-        return
-
-      const matchedVariant = resolvedVariants.find(({ type }) =>
-        new RegExp(createSyntaxPattern(type), `i`).test(token.text),
-      )
-
-      if (matchedVariant) {
-        const {
-          type: variantType,
-          icon,
-          title = ucfirst(variantType),
-          titleClassName = `${className}-title`,
-        } = matchedVariant
-        const typeRegexp = new RegExp(createSyntaxPattern(variantType), `i`)
-
-        const { styles } = options
-
-        Object.assign(token, {
-          type: `alert`,
-          meta: {
-            className,
-            variant: variantType,
-            icon,
-            title,
-            titleClassName,
-            wrapperStyle: {
-              ...styles?.blockquote,
-              ...styles?.[`blockquote_${variantType}` as keyof typeof styles],
-            },
-            titleStyle: {
-              ...styles?.blockquote_title,
-              ...styles?.[`blockquote_title_${variantType}` as keyof typeof styles],
-            },
-            contentStyle: {
-              ...styles?.blockquote_p,
-              ...styles?.[`blockquote_p_${variantType}` as keyof typeof styles],
-            },
-          },
-        })
-
-        const firstLine = token.tokens?.[0] as Tokens.Paragraph
-        const firstLineText = firstLine.raw?.replace(typeRegexp, ``).trim()
-
-        if (firstLineText) {
-          const patternToken = firstLine.tokens[0] as Tokens.Text
-
-          Object.assign(patternToken, {
-            raw: patternToken.raw.replace(typeRegexp, ``),
-            text: patternToken.text.replace(typeRegexp, ``),
-          })
-
-          if (firstLine.tokens[1]?.type === `br`) {
-            firstLine.tokens.splice(1, 1)
-          }
-        }
-        else {
-          token.tokens?.shift()
-        }
-      }
-    },
     extensions: [
       {
-        name: `alert`,
+        name: `admonition`,
         level: `block`,
+        start(src: string) {
+          const match = src.match(/^!!!/)
+          return match ? match.index : undefined
+        },
+        tokenizer(src: string) {
+          const admonitionTypes = resolvedVariants.map(v => v.type).join(`|`)
+          // Updated regex to handle the CommonMark admonition syntax properly
+          // This regex matches: !!! type "optional title"
+          //                     content lines (indented with 4 spaces)
+          const rule = new RegExp(`^!!!(${admonitionTypes})(?:\\s+"([^"]*)")?\\s*\\n([\\s\\S]*?)(?=\\n(?!\\s)|$)`, `i`)
+          const match = src.match(rule)
+
+          if (match) {
+            const [fullMatch, type, title, content] = match
+            const variant = resolvedVariants.find(v => v.type.toLowerCase() === type.toLowerCase())
+
+            if (variant) {
+              const { styles } = options
+
+              // Process content - remove 4-space indentation from each line
+              const lines = content.split(`\n`)
+              const processedContent = lines
+                .map(line => line.replace(/^    /, ``)) // Remove exactly 4 spaces
+                .join(`\n`)
+                .trim()
+
+              return {
+                type: `admonition`,
+                raw: fullMatch,
+                meta: {
+                  className,
+                  variant: variant.type,
+                  icon: variant.icon,
+                  title: title || ucfirst(variant.type),
+                  titleClassName: `${className}-title`,
+                  wrapperStyle: {
+                    ...styles?.blockquote,
+                    ...styles?.[`blockquote_${variant.type}` as keyof typeof styles],
+                  },
+                  titleStyle: {
+                    ...styles?.blockquote_title,
+                    ...styles?.[`blockquote_title_${variant.type}` as keyof typeof styles],
+                  },
+                  contentStyle: {
+                    ...styles?.blockquote_p,
+                    ...styles?.[`blockquote_p_${variant.type}` as keyof typeof styles],
+                  },
+                },
+                tokens: this.lexer.blockTokens(processedContent),
+              }
+            }
+          }
+          return undefined
+        },
         renderer({ meta, tokens = [] }) {
           let text = this.parser.parse(tokens)
           text = text.replace(/<p .*?>/g, `<p style="${getStyleString(meta.contentStyle)}">`)
@@ -143,15 +135,6 @@ export function resolveVariants(variants: AlertVariantItem[]) {
     ),
   )
 }
-
-/**
- * Returns regex pattern to match alert syntax.
- */
-export function createSyntaxPattern(type: string) {
-  return `^(?:\\[!${type}])\\s*?\n*`
-}
-
-
 
 /**
  * Capitalizes the first letter of a string.

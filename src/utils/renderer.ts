@@ -1,10 +1,10 @@
 import type { ExtendedProperties, IOpts, ThemeStyles } from '@/types'
 import type { RendererAPI } from '@/types/renderer-types'
 import type { PropertiesHyphen } from 'csstype'
-import type { RendererObject, Tokens } from 'marked'
-import type { ReadTimeResults } from 'reading-time'
 import { cloneDeep, toMerged } from 'es-toolkit'
 import frontMatter from 'front-matter'
+import type { RendererObject, Tokens } from 'marked'
+import type { ReadTimeResults } from 'reading-time'
 
 import hljs from 'highlight.js'
 import { marked } from 'marked'
@@ -12,6 +12,7 @@ import mermaid from 'mermaid'
 import readingTime from 'reading-time'
 
 import { getStyleString } from '.'
+import markedAdmonition from './MDAdmonition'
 import markedAlert from './MDAlert'
 import markedFootnotes from './MDFootnotes'
 import { MDKatex } from './MDKatex'
@@ -185,6 +186,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
     const newStyle = JSON.stringify(styleMapping)
     if (oldStyle !== newStyle) {
       marked.use(markedAlert({ styles: styleMapping }))
+      marked.use(markedAdmonition({ styles: styleMapping }))
       marked.use(
         MDKatex({ nonStandard: true }, styles(`inline_katex`, `;vertical-align: middle; line-height: 1;`), styles(`block_katex`, `;text-align: center;`),
         ),
@@ -379,6 +381,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
   marked.use({ renderer })
   marked.use(markedSlider({ styles: styleMapping }))
   marked.use(markedAlert({ styles: styleMapping }))
+  marked.use(markedAdmonition({ styles: styleMapping }))
   marked.use(
     MDKatex({ nonStandard: true }, styles(`inline_katex`, `;vertical-align: middle; line-height: 1;`), styles(`block_katex`, `;text-align: center;`),
     ),
