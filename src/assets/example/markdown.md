@@ -266,7 +266,7 @@ CommonMark admonition 有两种结束方式：
 !!! note "方式二：HTML 注释标签"
     这个 admonition 会在遇到匹配的 HTML 注释时结束。
     这行还在 admonition 内部。
-<!--{note}-->
+<!--note-->
 
 这段文字在 HTML 注释后，已经在 admonition 外面了。
 

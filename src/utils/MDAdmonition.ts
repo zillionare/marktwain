@@ -27,9 +27,9 @@ export default function markedAdmonition(options: AlertOptions = {}): MarkedExte
           //                     content lines (indented with 4 spaces)
           // Stops at:
           // 1. Two consecutive blank lines (only whitespace + newlines)
-          // 2. HTML comment with matching tag: <!--{type}-->
+          // 2. HTML comment with matching tag: <!--type-->
           // 3. End of string
-          const rule = new RegExp(`^!!!\\s+(${admonitionTypes})(?:\\s+"([^"]*)")?\\s*\\n([\\s\\S]*?)(?=\\n\\s*\\n\\s*\\n|<!--\\{\\1\\}-->|$)`, `i`)
+          const rule = new RegExp(`^!!!\\s+(${admonitionTypes})(?:\\s+"([^"]*)")?\\s*\\n([\\s\\S]*?)(?=\\n\\s*\\n\\s*\\n|<!--\\1-->|$)`, `i`)
           const match = src.match(rule)
 
           if (match) {
