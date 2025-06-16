@@ -21,55 +21,55 @@ export default function markedAdmonition(options: AlertOptions = {}): MarkedExte
           return match ? match.index : undefined
         },
         tokenizer(src: string) {
-          const admonitionTypes = resolvedVariants.map(v => v.type).join(`|`)
           // Updated regex to handle the CommonMark admonition syntax properly
           // This regex matches: !!! type "optional title"
           //                     content lines (indented with 4 spaces)
-          // Stops at:
-          // 1. Two consecutive blank lines (only whitespace + newlines)
-          // 2. HTML comment with matching tag: <!--type-->
-          // 3. End of string
-          const rule = new RegExp(`^!!!\\s+(${admonitionTypes})(?:\\s+"([^"]*)")?\\s*\\n([\\s\\S]*?)(?=\\n\\s*\\n\\s*\\n|<!--\\1-->|$)`, `i`)
+          // Accepts any word after !!! and defaults unsupported types to 'note'
+          const rule = new RegExp(`^!!!\\s+(\\w+)(?:\\s+"([^"]*)")?\\s*\\n([\\s\\S]*?)(?=\\n\\s*\\n\\s*\\n|<!--\\1-->|$)`, `i`)
           const match = src.match(rule)
 
           if (match) {
             const [fullMatch, type, title, content] = match
-            const variant = resolvedVariants.find(v => v.type.toLowerCase() === type.toLowerCase())
+            // Find the variant, or default to 'note' if not found
+            let variant = resolvedVariants.find(v => v.type.toLowerCase() === type.toLowerCase())
 
-            if (variant) {
-              const { styles } = options
+            // If the type is not supported, default to 'note'
+            if (!variant) {
+              variant = resolvedVariants.find(v => v.type === 'note')!
+            }
 
-              // Process content - remove 4-space indentation from each line
-              const lines = content.split(`\n`)
-              const processedContent = lines
-                .map(line => line.replace(/^ {4}/, ``)) // Remove exactly 4 spaces
-                .join(`\n`)
-                .trim()
+            const { styles } = options
 
-              return {
-                type: `admonition`,
-                raw: fullMatch,
-                meta: {
-                  className,
-                  variant: variant.type,
-                  icon: variant.icon,
-                  title: title || ucfirst(variant.type),
-                  titleClassName: `${className}-title`,
-                  wrapperStyle: {
-                    ...styles?.blockquote,
-                    ...styles?.[`blockquote_${variant.type}` as keyof typeof styles],
-                  },
-                  titleStyle: {
-                    ...styles?.blockquote_title,
-                    ...styles?.[`blockquote_title_${variant.type}` as keyof typeof styles],
-                  },
-                  contentStyle: {
-                    ...styles?.blockquote_p,
-                    ...styles?.[`blockquote_p_${variant.type}` as keyof typeof styles],
-                  },
+            // Process content - remove 4-space indentation from each line
+            const lines = content.split(`\n`)
+            const processedContent = lines
+              .map(line => line.replace(/^ {4}/, ``)) // Remove exactly 4 spaces
+              .join(`\n`)
+              .trim()
+
+            return {
+              type: `admonition`,
+              raw: fullMatch,
+              meta: {
+                className,
+                variant: variant.type,
+                icon: variant.icon,
+                title: title || ucfirst(type), // Use original type for title, even if defaulted to note
+                titleClassName: `${className}-title`,
+                wrapperStyle: {
+                  ...styles?.blockquote,
+                  ...styles?.[`blockquote_${variant.type}` as keyof typeof styles],
                 },
-                tokens: this.lexer.blockTokens(processedContent),
-              }
+                titleStyle: {
+                  ...styles?.blockquote_title,
+                  ...styles?.[`blockquote_title_${variant.type}` as keyof typeof styles],
+                },
+                contentStyle: {
+                  ...styles?.blockquote_p,
+                  ...styles?.[`blockquote_p_${variant.type}` as keyof typeof styles],
+                },
+              },
+              tokens: this.lexer.blockTokens(processedContent),
             }
           }
           return undefined
