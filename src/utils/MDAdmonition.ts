@@ -9,7 +9,7 @@ import { getStyleString } from '.'
  */
 export default function markedAdmonition(options: AlertOptions = {}): MarkedExtension {
   const { className = `markdown-alert`, variants = [] } = options
-  const resolvedVariants = resolveVariants(variants)
+  const resolvedVariants = resolveAdmonitionVariants(variants)
 
   return {
     extensions: [
@@ -54,7 +54,7 @@ export default function markedAdmonition(options: AlertOptions = {}): MarkedExte
                 className,
                 variant: variant.type,
                 icon: variant.icon,
-                title: title || ucfirst(type), // Use original type for title, even if defaulted to note
+                title: title || ucfirstAdmonition(type), // Use original type for title, even if defaulted to note
                 titleClassName: `${className}-title`,
                 wrapperStyle: {
                   ...styles?.blockquote,
@@ -141,7 +141,7 @@ const defaultAlertVariant: AlertVariantItem[] = [
  * Resolves the variants configuration, combining the provided variants with
  * the default variants.
  */
-export function resolveVariants(variants: AlertVariantItem[]) {
+function resolveAdmonitionVariants(variants: AlertVariantItem[]) {
   if (!variants.length)
     return defaultAlertVariant
 
@@ -159,6 +159,6 @@ export function resolveVariants(variants: AlertVariantItem[]) {
 /**
  * Capitalizes the first letter of a string.
  */
-export function ucfirst(str: string) {
+function ucfirstAdmonition(str: string) {
   return str.slice(0, 1).toUpperCase() + str.slice(1).toLowerCase()
 }
