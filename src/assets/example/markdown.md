@@ -232,13 +232,43 @@ pie
 !!! caution "危险操作"
     请谨慎执行以下操作，可能会导致数据丢失。
 
-这段文字应该在 admonition 外面，不会被包含在提示框中。
+#### 更多 Admonition 类型
 
-!!! tip "正确的结束行为"
-    这个 admonition 会在遇到非缩进行时正确结束。
+我们支持更多的 admonition 类型：
+
+!!! question "常见问题"
+    这是一个问题类型的提示框，适合展示常见问题。
+
+!!! hint "小贴士"
+    这是一个提示类型，用于提供有用的建议和技巧。
+
+!!! example "示例代码"
+    这是示例类型，适合展示代码示例和演示。
+
+    ```javascript
+    console.log('Hello, World!');
+    ```
+
+!!! abstract "摘要"
+    这是摘要类型，适合展示文档摘要和概述信息。
+
+#### Admonition 结束条件
+
+CommonMark admonition 有两种结束方式：
+
+!!! tip "方式一：两个连续空行"
+    这个 admonition 会在遇到两个连续空行时结束。
     这行还在 admonition 内部。
 
-这段普通文字证明了 admonition 正确结束了。
+
+这段文字在两个空行后，已经在 admonition 外面了。
+
+!!! note "方式二：HTML 注释标签"
+    这个 admonition 会在遇到匹配的 HTML 注释时结束。
+    这行还在 admonition 内部。
+<!--{note}-->
+
+这段文字在 HTML 注释后，已经在 admonition 外面了。
 
 两种语法都能很好地突出重要信息，让你的文档更加专业和易读！
 

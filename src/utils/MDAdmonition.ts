@@ -25,8 +25,11 @@ export default function markedAdmonition(options: AlertOptions = {}): MarkedExte
           // Updated regex to handle the CommonMark admonition syntax properly
           // This regex matches: !!! type "optional title"
           //                     content lines (indented with 4 spaces)
-          // Stops at first non-indented line or double newline
-          const rule = new RegExp(`^!!!\\s+(${admonitionTypes})(?:\\s+"([^"]*)")?\\s*\\n([\\s\\S]*?)(?=\\n\\S|\\n\\n|$)`, `i`)
+          // Stops at:
+          // 1. Two consecutive blank lines (only whitespace + newlines)
+          // 2. HTML comment with matching tag: <!--{type}-->
+          // 3. End of string
+          const rule = new RegExp(`^!!!\\s+(${admonitionTypes})(?:\\s+"([^"]*)")?\\s*\\n([\\s\\S]*?)(?=\\n\\s*\\n\\s*\\n|<!--\\{\\1\\}-->|$)`, `i`)
           const match = src.match(rule)
 
           if (match) {
@@ -39,7 +42,7 @@ export default function markedAdmonition(options: AlertOptions = {}): MarkedExte
               // Process content - remove 4-space indentation from each line
               const lines = content.split(`\n`)
               const processedContent = lines
-                .map(line => line.replace(/^    /, ``)) // Remove exactly 4 spaces
+                .map(line => line.replace(/^ {4}/, ``)) // Remove exactly 4 spaces
                 .join(`\n`)
                 .trim()
 
@@ -115,6 +118,22 @@ const defaultAlertVariant: AlertVariantItem[] = [
   {
     type: `caution`,
     icon: `<svg class="octicon octicon-stop" style="margin-right: 0.25em;" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4.47.22A.749.749 0 0 1 5 0h6c.199 0 .389.079.53.22l4.25 4.25c.141.14.22.331.22.53v6a.749.749 0 0 1-.22.53l-4.25 4.25A.749.749 0 0 1 11 16H5a.749.749 0 0 1-.53-.22L.22 11.53A.749.749 0 0 1 0 11V5c0-.199.079-.389.22-.53Zm.84 1.28L1.5 5.31v5.38l3.81 3.81h5.38l3.81-3.81V5.31L10.69 1.5ZM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4Zm0 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>`,
+  },
+  {
+    type: `question`,
+    icon: `<svg class="octicon octicon-question" style="margin-right: 0.25em;" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.92 6.085c.081-.16.19-.299.327-.417.145-.129.32-.234.516-.314.204-.086.437-.129.698-.129.268 0 .108.043.327.129.219.086.402.203.55.35.152.143.272.31.36.5.092.196.138.400.138.614 0 .209-.045.403-.134.58a1.25 1.25 0 0 1-.366.448 2.45 2.45 0 0 1-.521.292c-.187.067-.37.100-.548.100-.178 0-.361-.033-.548-.1a2.45 2.45 0 0 1-.521-.292 1.25 1.25 0 0 1-.366-.448A1.17 1.17 0 0 1 6 7.614c0-.214.046-.418.138-.614.088-.19.208-.357.36-.5.148-.147.331-.264.55-.35.219-.086.327-.129.327-.129ZM8 11a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>`,
+  },
+  {
+    type: `hint`,
+    icon: `<svg class="octicon octicon-light-bulb" style="margin-right: 0.25em;" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 1.5c-2.363 0-4 1.69-4 3.75 0 .984.424 1.625.984 2.304l.214.253c.223.264.47.556.673.848.284.411.537.896.621 1.49a.75.75 0 0 1-1.484.211c-.04-.282-.163-.547-.37-.847a8.456 8.456 0 0 0-.542-.68c-.084-.1-.173-.205-.268-.32C3.201 7.75 2.5 6.766 2.5 5.25 2.5 2.31 4.863 0 8 0s5.5 2.31 5.5 5.25c0 1.516-.701 2.5-1.328 3.259-.095.115-.184.22-.268.319-.207.245-.383.453-.541.681-.208.3-.33.565-.37.847a.751.751 0 0 1-1.485-.212c.084-.593.337-1.078.621-1.489.203-.292.45-.584.673-.848.075-.088.147-.173.213-.253.561-.679.985-1.32.985-2.304 0-2.06-1.637-3.75-4-3.75ZM5.75 12h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM6 15.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1-.75-.75Z"></path></svg>`,
+  },
+  {
+    type: `example`,
+    icon: `<svg class="octicon octicon-code" style="margin-right: 0.25em;" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="m11.28 3.22 4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L13.94 8l-3.72-3.72a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215Zm-6.56 0a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042L2.06 8l3.72 3.72a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L.47 8.53a.75.75 0 0 1 0-1.06Z"></path></svg>`,
+  },
+  {
+    type: `abstract`,
+    icon: `<svg class="octicon octicon-book" style="margin-right: 0.25em;" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M0 1.75A.75.75 0 0 1 .75 1h4.253c1.227 0 2.317.59 3 1.501A3.743 3.743 0 0 1 11.006 1h4.245a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75h-4.507a2.25 2.25 0 0 0-1.591.659l-.622.621a.75.75 0 0 1-1.06 0l-.622-.621A2.25 2.25 0 0 0 5.258 13H.75a.75.75 0 0 1-.75-.75Zm7.251 10.324.004-5.073-.002-2.253A2.25 2.25 0 0 0 5.003 2.5H1.5v9h3.757a3.75 3.75 0 0 1 1.994.574ZM8.755 4.75l-.004 7.322a3.752 3.752 0 0 1 1.992-.572H14.5v-9h-3.495a2.25 2.25 0 0 0-2.25 2.25Z"></path></svg>`,
   },
 ]
 
