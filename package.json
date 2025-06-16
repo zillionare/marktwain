@@ -119,6 +119,6 @@
     "pre-commit": "npx lint-staged"
   },
   "lint-staged": {
-    "*": "npm run lint"
+    "*": "eslint . --fix"
   }
 }
