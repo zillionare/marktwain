@@ -25,7 +25,7 @@ export default function markedAdmonition(options: AlertOptions = {}): MarkedExte
           // Updated regex to handle the CommonMark admonition syntax properly
           // This regex matches: !!! type "optional title"
           //                     content lines (indented with 4 spaces)
-          const rule = new RegExp(`^!!!(${admonitionTypes})(?:\\s+"([^"]*)")?\\s*\\n([\\s\\S]*?)(?=\\n(?!\\s)|$)`, `i`)
+          const rule = new RegExp(`^!!!\\s+(${admonitionTypes})(?:\\s+"([^"]*)")?\\s*\\n([\\s\\S]*)$`, `i`)
           const match = src.match(rule)
 
           if (match) {
