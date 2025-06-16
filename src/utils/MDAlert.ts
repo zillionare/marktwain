@@ -16,9 +16,26 @@ export default function markedAlert(options: AlertOptions = {}): MarkedExtension
       if (token.type !== `blockquote`)
         return
 
-      const matchedVariant = resolvedVariants.find(({ type }) =>
+      // Check for GitHub-style alerts first
+      let matchedVariant = resolvedVariants.find(({ type }) =>
         new RegExp(createSyntaxPattern(type), `i`).test(token.text),
       )
+      let isAdmonitionStyle = false
+      let customTitle = ``
+
+      // If no GitHub-style alert found, check for CommonMark admonition style
+      if (!matchedVariant) {
+        for (const variant of resolvedVariants) {
+          const admonitionRegex = new RegExp(createAdmonitionSyntaxPattern(variant.type), `i`)
+          const match = token.text.match(admonitionRegex)
+          if (match) {
+            matchedVariant = variant
+            isAdmonitionStyle = true
+            customTitle = match[1] || ucfirst(variant.type)
+            break
+          }
+        }
+      }
 
       if (matchedVariant) {
         const {
@@ -27,7 +44,10 @@ export default function markedAlert(options: AlertOptions = {}): MarkedExtension
           title = ucfirst(variantType),
           titleClassName = `${className}-title`,
         } = matchedVariant
-        const typeRegexp = new RegExp(createSyntaxPattern(variantType), `i`)
+
+        const typeRegexp = isAdmonitionStyle
+          ? new RegExp(createAdmonitionSyntaxPattern(variantType), `i`)
+          : new RegExp(createSyntaxPattern(variantType), `i`)
 
         const { styles } = options
 
@@ -37,7 +57,7 @@ export default function markedAlert(options: AlertOptions = {}): MarkedExtension
             className,
             variant: variantType,
             icon,
-            title,
+            title: isAdmonitionStyle ? customTitle : title,
             titleClassName,
             wrapperStyle: {
               ...styles?.blockquote,
@@ -78,6 +98,75 @@ export default function markedAlert(options: AlertOptions = {}): MarkedExtension
       {
         name: `alert`,
         level: `block`,
+        renderer({ meta, tokens = [] }) {
+          let text = this.parser.parse(tokens)
+          text = text.replace(/<p .*?>/g, `<p style="${getStyleString(meta.contentStyle)}">`)
+          let tmpl = `<blockquote class="${meta.className} ${meta.className}-${meta.variant}" style="${getStyleString(meta.wrapperStyle)}">\n`
+          tmpl += `<p class="${meta.titleClassName}" style="${getStyleString(meta.titleStyle)}">`
+          tmpl += meta.icon.replace(
+            `<svg`,
+            `<svg style="fill: ${meta.titleStyle?.color ?? `inherit`}"`,
+          )
+          tmpl += meta.title
+          tmpl += `</p>\n`
+          tmpl += text
+          tmpl += `</blockquote>\n`
+
+          return tmpl
+        },
+      },
+      {
+        name: `admonition`,
+        level: `block`,
+        start(src: string) {
+          const match = src.match(/^!!!/)
+          return match ? match.index : undefined
+        },
+        tokenizer(src: string) {
+          const admonitionTypes = resolvedVariants.map(v => v.type).join(`|`)
+          const rule = new RegExp(`^!!!(${admonitionTypes})(?:\\s+"([^"]*)")?\\s*\\n([\\s\\S]*?)(?=\\n\\n|\\n!!!|$)`, `i`)
+          const match = src.match(rule)
+
+          if (match) {
+            const [, type, title, content] = match
+            const variant = resolvedVariants.find(v => v.type.toLowerCase() === type.toLowerCase())
+
+            if (variant) {
+              const { styles } = options
+              const lines = content.split(`\n`)
+              const processedContent = lines
+                .map(line => line.replace(/^ {4}/, ``)) // Remove 4-space indentation
+                .join(`\n`)
+                .trim()
+
+              return {
+                type: `alert`,
+                raw: match[0],
+                meta: {
+                  className,
+                  variant: variant.type,
+                  icon: variant.icon,
+                  title: title || ucfirst(variant.type),
+                  titleClassName: `${className}-title`,
+                  wrapperStyle: {
+                    ...styles?.blockquote,
+                    ...styles?.[`blockquote_${variant.type}` as keyof typeof styles],
+                  },
+                  titleStyle: {
+                    ...styles?.blockquote_title,
+                    ...styles?.[`blockquote_title_${variant.type}` as keyof typeof styles],
+                  },
+                  contentStyle: {
+                    ...styles?.blockquote_p,
+                    ...styles?.[`blockquote_p_${variant.type}` as keyof typeof styles],
+                  },
+                },
+                tokens: this.lexer.blockTokens(processedContent),
+              }
+            }
+          }
+          return undefined
+        },
         renderer({ meta, tokens = [] }) {
           let text = this.parser.parse(tokens)
           text = text.replace(/<p .*?>/g, `<p style="${getStyleString(meta.contentStyle)}">`)
@@ -149,6 +238,13 @@ export function resolveVariants(variants: AlertVariantItem[]) {
  */
 export function createSyntaxPattern(type: string) {
   return `^(?:\\[!${type}])\\s*?\n*`
+}
+
+/**
+ * Returns regex pattern to match CommonMark admonition syntax.
+ */
+export function createAdmonitionSyntaxPattern(type: string) {
+  return `^(?:!!!\\s+${type})(?:\\s+"([^"]*)")?\\s*?\n*`
 }
 
 /**
