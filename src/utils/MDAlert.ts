@@ -1,5 +1,6 @@
 import type { AlertOptions, AlertVariantItem } from '@/types'
-import type { MarkedExtension, Tokens, Token } from 'marked'
+import type { MarkedExtension, Token, Tokens } from 'marked'
+import { v4 as uuid } from 'uuid'
 import { getStyleString } from '.'
 
 /**
@@ -25,14 +26,25 @@ export default function markedAlert(options: AlertOptions = {}): MarkedExtension
 
     const { styles } = options
 
+    // 提取原始内容用于转图功能
+    let originalContent = ``
+    if ('text' in token && typeof token.text === 'string') {
+      // 移除类型标记，保留内容
+      originalContent = token.text.replace(typeRegexp, ``).trim()
+    }
+
+    const blockId = `alert-${uuid()}`
+
     Object.assign(token, {
       type: `alert`,
       meta: {
+        blockId,
         className,
         variant: variantType,
         icon,
         title,
         titleClassName,
+        originalContent,
         wrapperStyle: {
           ...styles?.blockquote,
           ...styles?.[`blockquote_${variantType}` as keyof typeof styles],
@@ -86,7 +98,7 @@ export default function markedAlert(options: AlertOptions = {}): MarkedExtension
           const matchedVariant = resolvedVariants.find(({ type }) =>
             new RegExp(`^\\[!${type}]\\s*?\\n*`, `i`).test(token.text),
           )
-          
+
           if (matchedVariant) {
             // 移除标签文本
             if ('tokens' in token && Array.isArray(token.tokens) && token.tokens.length > 0) {
@@ -103,7 +115,7 @@ export default function markedAlert(options: AlertOptions = {}): MarkedExtension
         }
         return;
       }
-      
+
       // 处理段落类型的 token (CommonMark 语法)
       if (token.type === `paragraph`) {
         // 确保 token 有 text 属性
@@ -112,7 +124,7 @@ export default function markedAlert(options: AlertOptions = {}): MarkedExtension
           const matchedVariant = resolvedVariants.find(({ type }) =>
             new RegExp(`^!!!\\s+${type}\\s*?\\n*`, `i`).test(text),
           )
-          
+
           if (matchedVariant) {
             processAlertToken(token, matchedVariant, options, className);
           }
@@ -126,7 +138,7 @@ export default function markedAlert(options: AlertOptions = {}): MarkedExtension
         renderer({ meta, tokens = [] }) {
           let text = this.parser.parse(tokens)
           text = text.replace(/<p .*?>/g, `<p style="${getStyleString(meta.contentStyle)}">`);
-          let tmpl = `<blockquote class="${meta.className} ${meta.className}-${meta.variant}" style="${getStyleString(meta.wrapperStyle)}">
+          let tmpl = `<blockquote id="${meta.blockId}" class="${meta.className} ${meta.className}-${meta.variant}" style="${getStyleString(meta.wrapperStyle)}" data-block-type="admonition" data-block-content="${encodeURIComponent(meta.originalContent)}">
 `;
           tmpl += `<p class="${meta.titleClassName}" style="${getStyleString(meta.titleStyle)}">`;
           tmpl += meta.icon.replace(
