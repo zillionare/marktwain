@@ -9,6 +9,7 @@
 - **用户反馈**: 通过 toast 提示用户操作结果
 
 **文件修改:**
+
 - `src/components/CodemirrorEditor/EditorHeader/index.vue`
   - 添加了转图按钮和相关逻辑
   - 导入了 Image 图标
@@ -21,6 +22,7 @@
 - **内容跟踪**: 保存原始内容用于后续处理
 
 **文件修改:**
+
 - `src/utils/renderer.ts`
   - 为 fenced block 添加唯一 ID 和数据属性
 - `src/utils/MDAdmonition.ts`
@@ -35,6 +37,7 @@
 - **测试功能**: 提供图床测试功能验证配置
 
 **文件修改:**
+
 - `src/components/CodemirrorEditor/RightSlider.vue`
   - 添加 GitHub 图床配置界面
   - 实现图床测试功能
@@ -48,6 +51,7 @@
 - **MD5 防重复**: 使用内容 MD5 避免重复上传
 
 **文件修改:**
+
 - `src/views/CodemirrorEditor.vue`
   - 实现 `convertToImages` 函数
   - 添加转换状态管理
@@ -59,6 +63,7 @@
 - **状态提示**: 明确提示用户使用的是转换后内容
 
 **文件修改:**
+
 - `src/components/CodemirrorEditor/EditorHeader/index.vue`
   - 修改复制逻辑，支持转换后内容
 
@@ -71,11 +76,13 @@
 ## 技术实现细节
 
 ### 依赖库使用
+
 - `html-to-image`: 用于截图功能
 - `crypto-js`: 用于 MD5 计算
 - `uuid`: 用于生成唯一 ID
 
 ### 数据流程
+
 1. 用户点击转图按钮
 2. 检查图床配置
 3. 查找所有特殊块（admonition、fenced、math）
@@ -85,6 +92,7 @@
 7. 保存转换后的内容到 localStorage
 
 ### 错误处理
+
 - 图床配置检查
 - 网络请求错误处理
 - 截图失败处理
@@ -93,37 +101,45 @@
 ## 测试方案
 
 ### 手动测试
+
 - 创建了 `manual-test.html` 提供完整的测试指南
 - 包含配置、测试内容、验证步骤
 
 ### 自动化测试
+
 - 创建了 `e2e-test.js` 进行端到端测试
 - 验证所有核心功能
 
 ### 测试内容
-```markdown
+
+````markdown
 # 转图功能测试
 
 ## Admonition 测试
+
 !!! note "重要提示"
-    这是一个测试 admonition 块。
+这是一个测试 admonition 块。
 
 ## 代码块测试
+
 ```javascript
 console.log("Hello World");
 ```
+````
 
 ## 数学公式测试
+
 $$
 E = mc^2
 $$
+
 ```
 
 ## 配置信息
 
 ### GitHub 图床配置
 - Repository: zillionare/marktwain
-- Access Token: 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
+- Access Token:
 - Branch: main
 
 ## 使用说明
@@ -165,3 +181,4 @@ $$
 ✅ **文档完整**: 包含使用说明和技术文档
 
 可以进行端到端测试验证功能正确性。
+```
