@@ -607,6 +607,20 @@ export const useStore = defineStore(`store`, () => {
     downloadMD(editor.value!.getValue(), posts.value[currentPostIndex.value].title)
   }
 
+  // 导出转图后的 MD 内容到本地
+  const exportConvertedMarkdown2MD = () => {
+    const convertedMarkdown = localStorage.getItem(`convertedMarkdown`)
+    if (!convertedMarkdown || convertedMarkdown.trim() === ``) {
+      toast.error(`没有转图后的内容，请先执行转图功能`)
+      return
+    }
+
+    const title = posts.value[currentPostIndex.value].title
+    const filename = title ? `${title}-converted` : `converted-markdown`
+    downloadMD(convertedMarkdown, filename)
+    toast.success(`转图后的 MD 文件已导出`)
+  }
+
   // 导入默认文档
   const importDefaultContent = () => {
     toRaw(editor.value!).setValue(DEFAULT_CONTENT)
@@ -711,6 +725,7 @@ export const useStore = defineStore(`store`, () => {
     formatContent,
     exportEditorContent2HTML,
     exportEditorContent2MD,
+    exportConvertedMarkdown2MD,
     downloadAsCardImage,
 
     importMarkdownContent,

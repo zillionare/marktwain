@@ -36,6 +36,7 @@ const {
   editorRefresh,
   exportEditorContent2HTML,
   exportEditorContent2MD,
+  exportConvertedMarkdown2MD,
   formatContent,
   importMarkdownContent,
   importDefaultContent,
@@ -1080,6 +1081,9 @@ async function convertToImages() {
                   </ContextMenuItem>
                   <ContextMenuItem inset @click="exportEditorContent2MD()">
                     导出 .md 文档
+                  </ContextMenuItem>
+                  <ContextMenuItem inset @click="exportConvertedMarkdown2MD()">
+                    导出转图后 .md
                   </ContextMenuItem>
                   <ContextMenuItem inset @click="exportEditorContent2HTML()">
                     导出 .html

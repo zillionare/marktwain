@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useStore } from '@/stores'
-import { Download, FileCode, FileCog, Upload } from 'lucide-vue-next'
+import { Download, FileCode, FileCog, Upload, ImageDown } from 'lucide-vue-next'
 
 const store = useStore()
 
@@ -12,6 +14,7 @@ const {
 const {
   exportEditorContent2HTML,
   exportEditorContent2MD,
+  exportConvertedMarkdown2MD,
   importMarkdownContent,
   downloadAsCardImage,
 } = store
@@ -32,6 +35,10 @@ const editorStateDialogVisible = ref(false)
       <MenubarItem @click="exportEditorContent2MD()">
         <Download class="mr-2 size-4" />
         导出 .md
+      </MenubarItem>
+      <MenubarItem @click="exportConvertedMarkdown2MD()">
+        <ImageDown class="mr-2 size-4" />
+        导出转图后 .md
       </MenubarItem>
       <MenubarItem @click="exportEditorContent2HTML()">
         <FileCode class="mr-2 size-4" />
