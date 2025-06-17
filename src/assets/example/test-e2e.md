@@ -7,11 +7,13 @@
 2. 点击右侧设置按钮（齿轮图标）
 3. 滚动到底部找到"GitHub 图床配置"
 4. 填入以下配置：
-   - Token: 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
+   - Token: [请使用环境变量 VITE_GITHUB_IMAGE_TOKEN 中的值]
    - Owner: zillionare
    - Repository: marktwain
    - 存储路径: images/{year}/{month}
 5. 点击"测试图床"按钮验证配置
+
+> **注意**: 出于安全考虑，GitHub token 已从代码中移除。请设置环境变量 `VITE_GITHUB_IMAGE_TOKEN` 或在配置界面手动输入有效的 GitHub Personal Access Token。
 
 ### 2. 测试内容
 在编辑器中输入以下测试内容：

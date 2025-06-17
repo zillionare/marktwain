@@ -46,7 +46,7 @@ const formatOptions = ref<Format[]>([`rgb`, `hex`, `hsl`, `hsv`])
 // 图床配置
 const githubImageBedConfig = useStorage(`githubConfig`, {
   repo: ``,
-  accessToken: ``,
+  accessToken: import.meta.env.VITE_GITHUB_IMAGE_TOKEN || ``,
   branch: `main`,
   path: `images/{year}/{month}`,
 })

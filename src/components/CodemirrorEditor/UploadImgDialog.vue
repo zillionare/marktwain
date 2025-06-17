@@ -19,7 +19,11 @@ const githubSchema = toTypedSchema(yup.object({
 
 const githubConfig = ref(localStorage.getItem(`githubConfig`)
   ? JSON.parse(localStorage.getItem(`githubConfig`)!)
-  : { repo: ``, branch: ``, accessToken: `` })
+  : {
+      repo: ``,
+      branch: ``,
+      accessToken: import.meta.env.VITE_GITHUB_IMAGE_TOKEN || ``
+    })
 
 function githubSubmit(formValues: any) {
   localStorage.setItem(`githubConfig`, JSON.stringify(formValues))

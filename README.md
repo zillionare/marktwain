@@ -103,7 +103,7 @@ npm run firefox:zip
 
 ## 🙏 致谢
 
-感谢 [zillionare](https://github.com/zillionare/md)项目！
+感谢 [zillionare](https://github.com/zillionare/marktwain)项目！
 
 ## 📞 联系我们
 
