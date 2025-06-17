@@ -2,7 +2,25 @@
 import { serviceOptions } from '@/config/ai-services'
 import { DEFAULT_SERVICE_TYPE } from '@/constants/AIConfig'
 import useAIConfigStore from '@/stores/AIConfig'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { Info } from 'lucide-vue-next'
+import { computed, reactive, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 
 /* -------------------------- 基础数据 -------------------------- */
 

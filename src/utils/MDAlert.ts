@@ -1,5 +1,5 @@
 import type { AlertOptions, AlertVariantItem } from '@/types'
-import type { MarkedExtension, Tokens } from 'marked'
+import type { MarkedExtension, Tokens, Token } from 'marked'
 import { getStyleString } from '.'
 
 /**
@@ -11,66 +11,111 @@ export default function markedAlert(options: AlertOptions = {}): MarkedExtension
   const { className = `markdown-alert`, variants = [] } = options
   const resolvedVariants = resolveVariants(variants)
 
-  return {
-    walkTokens(token) {
-      if (token.type !== `blockquote`)
-        return
+  /**
+   * Process a token and convert it to an alert token.
+   */
+  function processAlertToken(token: Token, matchedVariant: AlertVariantItem, options: AlertOptions, className: string) {
+    const {
+      type: variantType,
+      icon,
+      title = ucfirst(variantType),
+      titleClassName = `${className}-title`,
+    } = matchedVariant
+    const typeRegexp = new RegExp(createSyntaxPattern(variantType), `i`)
 
-      const matchedVariant = resolvedVariants.find(({ type }) =>
-        new RegExp(createSyntaxPattern(type), `i`).test(token.text),
-      )
+    const { styles } = options
 
-      if (matchedVariant) {
-        const {
-          type: variantType,
-          icon,
-          title = ucfirst(variantType),
-          titleClassName = `${className}-title`,
-        } = matchedVariant
-        const typeRegexp = new RegExp(createSyntaxPattern(variantType), `i`)
+    Object.assign(token, {
+      type: `alert`,
+      meta: {
+        className,
+        variant: variantType,
+        icon,
+        title,
+        titleClassName,
+        wrapperStyle: {
+          ...styles?.blockquote,
+          ...styles?.[`blockquote_${variantType}` as keyof typeof styles],
+        },
+        titleStyle: {
+          ...styles?.blockquote_title,
+          ...styles?.[`blockquote_title_${variantType}` as keyof typeof styles],
+        },
+        contentStyle: {
+          ...styles?.blockquote_p,
+          ...styles?.[`blockquote_p_${variantType}` as keyof typeof styles],
+        },
+      },
+    })
 
-        const { styles } = options
-
-        Object.assign(token, {
-          type: `alert`,
-          meta: {
-            className,
-            variant: variantType,
-            icon,
-            title,
-            titleClassName,
-            wrapperStyle: {
-              ...styles?.blockquote,
-              ...styles?.[`blockquote_${variantType}` as keyof typeof styles],
-            },
-            titleStyle: {
-              ...styles?.blockquote_title,
-              ...styles?.[`blockquote_title_${variantType}` as keyof typeof styles],
-            },
-            contentStyle: {
-              ...styles?.blockquote_p,
-              ...styles?.[`blockquote_p_${variantType}` as keyof typeof styles],
-            },
-          },
-        })
-
-        const firstLine = token.tokens?.[0] as Tokens.Paragraph
-        const firstLineText = firstLine.raw?.replace(typeRegexp, ``).trim()
+    // 处理 token 的 tokens 属性，如果存在的话
+    if ('tokens' in token && Array.isArray(token.tokens) && token.tokens.length > 0) {
+      const firstLine = token.tokens[0] as Tokens.Paragraph
+      if (firstLine && firstLine.raw) {
+        const firstLineText = firstLine.raw.replace(typeRegexp, ``).trim()
 
         if (firstLineText) {
-          const patternToken = firstLine.tokens[0] as Tokens.Text
+          if ('tokens' in firstLine && Array.isArray(firstLine.tokens) && firstLine.tokens.length > 0) {
+            const patternToken = firstLine.tokens[0] as Tokens.Text
+            if (patternToken && patternToken.raw && patternToken.text) {
+              Object.assign(patternToken, {
+                raw: patternToken.raw.replace(typeRegexp, ``),
+                text: patternToken.text.replace(typeRegexp, ``),
+              })
+            }
 
-          Object.assign(patternToken, {
-            raw: patternToken.raw.replace(typeRegexp, ``),
-            text: patternToken.text.replace(typeRegexp, ``),
-          })
-
-          if (firstLine.tokens[1]?.type === `br`) {
-            firstLine.tokens.splice(1, 1)
+            // 增加安全检查，确保firstLine.tokens[1]存在且类型为br
+            if (firstLine.tokens.length > 1 && firstLine.tokens[1] && firstLine.tokens[1].type === `br`) {
+              firstLine.tokens.splice(1, 1)
+            }
           }
         }
-        else {
-          token.tokens?.shift()
+        else if ('tokens' in token && Array.isArray(token.tokens)) {
+          token.tokens.shift()
+        }
+      }
+    }
+  }
+
+  return {
+    walkTokens(token) {
+      // 处理 blockquote 类型的 token (GFM 语法)
+      if (token.type === `blockquote`) {
+        // 确保 token 有 text 属性
+        if ('text' in token && typeof token.text === 'string') {
+          const matchedVariant = resolvedVariants.find(({ type }) =>
+            new RegExp(`^\\[!${type}]\\s*?\\n*`, `i`).test(token.text),
+          )
+          
+          if (matchedVariant) {
+            // 移除标签文本
+            if ('tokens' in token && Array.isArray(token.tokens) && token.tokens.length > 0) {
+              const firstParagraph = token.tokens[0];
+              if (firstParagraph && 'tokens' in firstParagraph && Array.isArray(firstParagraph.tokens) && firstParagraph.tokens.length > 0) {
+                const firstText = firstParagraph.tokens[0];
+                if (firstText && 'text' in firstText && typeof firstText.text === 'string') {
+                  firstText.text = firstText.text.replace(new RegExp(`^\\[!${matchedVariant.type}]\\s*`, 'i'), '');
+                }
+              }
+            }
+            processAlertToken(token, matchedVariant, options, className);
+          }
+        }
+        return;
+      }
+      
+      // 处理段落类型的 token (CommonMark 语法)
+      if (token.type === `paragraph`) {
+        // 确保 token 有 text 属性
+        const text = 'text' in token && typeof token.text === 'string' ? token.text : '';
+        if (text) {
+          const matchedVariant = resolvedVariants.find(({ type }) =>
+            new RegExp(`^!!!\\s+${type}\\s*?\\n*`, `i`).test(text),
+          )
+          
+          if (matchedVariant) {
+            processAlertToken(token, matchedVariant, options, className);
+          }
         }
       }
     },
@@ -80,19 +125,22 @@ export default function markedAlert(options: AlertOptions = {}): MarkedExtension
         level: `block`,
         renderer({ meta, tokens = [] }) {
           let text = this.parser.parse(tokens)
-          text = text.replace(/<p .*?>/g, `<p style="${getStyleString(meta.contentStyle)}">`)
-          let tmpl = `<blockquote class="${meta.className} ${meta.className}-${meta.variant}" style="${getStyleString(meta.wrapperStyle)}">\n`
-          tmpl += `<p class="${meta.titleClassName}" style="${getStyleString(meta.titleStyle)}">`
+          text = text.replace(/<p .*?>/g, `<p style="${getStyleString(meta.contentStyle)}">`);
+          let tmpl = `<blockquote class="${meta.className} ${meta.className}-${meta.variant}" style="${getStyleString(meta.wrapperStyle)}">
+`;
+          tmpl += `<p class="${meta.titleClassName}" style="${getStyleString(meta.titleStyle)}">`;
           tmpl += meta.icon.replace(
             `<svg`,
             `<svg style="fill: ${meta.titleStyle?.color ?? `inherit`}"`,
-          )
-          tmpl += meta.title
-          tmpl += `</p>\n`
-          tmpl += text
-          tmpl += `</blockquote>\n`
+          );
+          tmpl += meta.title;
+          tmpl += `</p>
+`;
+          tmpl += text;
+          tmpl += `</blockquote>
+`;
 
-          return tmpl
+          return tmpl;
         },
       },
     ],
@@ -146,12 +194,12 @@ export function resolveVariants(variants: AlertVariantItem[]) {
 
 /**
  * Returns regex pattern to match alert syntax.
+ * Supports both GFM ([!TYPE]) and CommonMark (!!! type) admonition syntax.
  */
 export function createSyntaxPattern(type: string) {
-  return `^(?:\\[!${type}])\\s*?\n*`
+  // Support both GFM ([!TYPE]) and CommonMark (!!! type) admonition syntax
+  return `^(?:\\[!${type}]|!!!\\s+${type})\\s*?\\n*`
 }
-
-
 
 /**
  * Capitalizes the first letter of a string.

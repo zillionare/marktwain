@@ -1,3 +1,5 @@
+import { v4 as uuid } from 'uuid'
+
 const inlineRule = /^(\${1,2})(?!\$)((?:\\.|[^\\\n])*?(?:\\.|[^\\\n$]))\1(?=[\s?!.,:？！。，：]|$)/
 const inlineRuleNonStandard = /^(\${1,2})(?!\$)((?:\\.|[^\\\n])*?(?:\\.|[^\\\n$]))\1/ // Non-standard, even if there are no spaces before and after $ or $$, try to parse
 
@@ -18,7 +20,8 @@ function createRenderer(display, inlineStyle, blockStyle) {
       return `<span ${inlineStyle}>${svg.outerHTML}</span>`
     }
 
-    return `<section ${blockStyle}>${svg.outerHTML}</section>`
+    const blockId = `math-${uuid()}`
+    return `<section id="${blockId}" ${blockStyle} data-block-type="math" data-block-content="${encodeURIComponent(token.text)}">${svg.outerHTML}</section>`
   }
 }
 

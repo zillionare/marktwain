@@ -47,15 +47,26 @@ function getConfig(useDefault: boolean, platform: string) {
 }
 
 /**
- * 获取 `年/月/日` 形式的目录
+ * 获取存储目录，支持模板变量
+ * @param pathTemplate 路径模板，支持 {year}、{month}、{day} 变量
  * @returns string
  */
-function getDir() {
+function getDir(pathTemplate?: string) {
   const date = new Date()
   const year = date.getFullYear()
   const month = (date.getMonth() + 1).toString().padStart(2, `0`)
   const day = date.getDate().toString().padStart(2, `0`)
-  return `${year}/${month}/${day}`
+
+  // 如果没有提供模板，使用默认的年/月/日格式
+  if (!pathTemplate) {
+    return `${year}/${month}/${day}`
+  }
+
+  // 替换模板变量
+  return pathTemplate
+    .replace(/\{year\}/g, year.toString())
+    .replace(/\{month\}/g, month)
+    .replace(/\{day\}/g, day)
 }
 
 /**
@@ -80,7 +91,12 @@ async function ghFileUpload(content: string, filename: string) {
     useDefault,
     `github`,
   )
-  const dir = getDir()
+
+  // 获取存储路径配置
+  const customConfig = JSON.parse(localStorage.getItem(`githubConfig`) || `{}`)
+  const pathTemplate = customConfig.path || `images/{year}/{month}`
+  const dir = getDir(pathTemplate)
+
   const url = `https://api.github.com/repos/${username}/${repo}/contents/${dir}/`
   const dateFilename = getDateFilename(filename)
   const res = await fetch<{ content: {

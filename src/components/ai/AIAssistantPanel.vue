@@ -30,6 +30,10 @@ import {
 import { Marked } from 'marked'
 import { markedHighlight } from 'marked-highlight'
 import { nextTick, onMounted, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useStore } from '@/stores'
+import AIConfig from './AIConfig.vue'
+import QuickCommandManager from './QuickCommandManager.vue'
 /* ---------- 组件属性 ---------- */
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits([`update:open`])
@@ -54,8 +58,36 @@ function renderMarkdown(text: string) {
   return aiMarked.parse(text)
 }
 
-const store = useStore()
-const { editor } = storeToRefs(store)
+// 直接初始化 stores，但添加错误处理
+let store: any = null
+let editor: any = null
+let AIConfigStore: any = null
+let apiKey: any = null
+let endpoint: any = null
+let model: any = null
+let temperature: any = null
+let maxToken: any = null
+let type: any = null
+let quickCmdStore: any = null
+
+try {
+  store = useStore()
+  const storeRefs = storeToRefs(store)
+  editor = storeRefs.editor
+
+  AIConfigStore = useAIConfigStore()
+  const configRefs = storeToRefs(AIConfigStore)
+  apiKey = configRefs.apiKey
+  endpoint = configRefs.endpoint
+  model = configRefs.model
+  temperature = configRefs.temperature
+  maxToken = configRefs.maxToken
+  type = configRefs.type
+
+  quickCmdStore = useQuickCommands()
+} catch (error) {
+  console.warn('Stores initialization failed, will retry later:', error)
+}
 
 /* ---------- 弹窗开关 ---------- */
 const dialogVisible = ref(props.open)
@@ -89,15 +121,10 @@ interface ChatMessage {
 }
 
 const messages = ref<ChatMessage[]>([])
-const AIConfigStore = useAIConfigStore()
-const { apiKey, endpoint, model, temperature, maxToken, type } = storeToRefs(AIConfigStore)
-
-/* ---------- 快捷指令 ---------- */
-const quickCmdStore = useQuickCommands()
 
 function getSelectedText(): string {
   try {
-    const cm: any = editor.value
+    const cm: any = editor?.value
     if (!cm)
       return ``
     if (typeof cm.getSelection === `function`)
@@ -257,6 +284,12 @@ async function sendMessage() {
   if (!input.value.trim() || loading.value)
     return
 
+  // 检查 stores 是否已初始化
+  if (!store || !AIConfigStore) {
+    console.warn('Stores not ready')
+    return
+  }
+
   /* 记录历史输入 */
   inputHistory.value.push(input.value.trim())
   historyIndex.value = null
@@ -298,7 +331,7 @@ async function sendMessage() {
     ? [{
         role: `system`,
         content:
-          `下面是一篇 Markdown 文章全文，请严格以此为主完成后续指令：\n\n${editor.value!.getValue()}`,
+          `下面是一篇 Markdown 文章全文，请严格以此为主完成后续指令：\n\n${editor?.value?.getValue() || ''}`,
       }]
     : []
 
@@ -312,21 +345,21 @@ async function sendMessage() {
   ]
 
   const payload = {
-    model: model.value,
+    model: model?.value,
     messages: payloadMessages,
-    temperature: temperature.value,
-    max_tokens: maxToken.value,
+    temperature: temperature?.value,
+    max_tokens: maxToken?.value,
     stream: true,
   }
   const headers: Record<string, string> = { 'Content-Type': `application/json` }
-  if (apiKey.value && type.value !== `default`)
+  if (apiKey?.value && type?.value !== `default`)
     headers.Authorization = `Bearer ${apiKey.value}`
 
   fetchController.value = new AbortController()
   const signal = fetchController.value.signal
 
   try {
-    const url = new URL(endpoint.value)
+    const url = new URL(endpoint?.value || '')
     if (!url.pathname.endsWith(`/chat/completions`))
       url.pathname = url.pathname.replace(/\/?$/, `/chat/completions`)
 
@@ -438,7 +471,7 @@ async function sendMessage() {
         v-if="!configVisible"
         class="mb-3 flex flex-wrap gap-2 overflow-x-auto pb-1"
       >
-        <template v-if="quickCmdStore.commands.length">
+        <template v-if="quickCmdStore?.commands?.length">
           <Button
             v-for="cmd in quickCmdStore.commands"
             :key="cmd.id"

@@ -11,6 +11,7 @@ import { marked } from 'marked'
 import mermaid from 'mermaid'
 import readingTime from 'reading-time'
 
+import { v4 as uuid } from 'uuid'
 import { getStyleString } from '.'
 import markedAdmonition from './MDAdmonition'
 import markedAlert from './MDAlert'
@@ -243,12 +244,13 @@ export function initRenderer(opts: IOpts): RendererAPI {
     },
 
     code({ text, lang = `` }: Tokens.Code): string {
+      const blockId = `fenced-${uuid()}`
       if (lang.startsWith(`mermaid`)) {
         clearTimeout(codeIndex)
         codeIndex = setTimeout(() => {
           mermaid.run()
         }, 0) as any as number
-        return `<pre class="mermaid">${text}</pre>`
+        return `<pre id="${blockId}" class="mermaid" data-block-type="fenced" data-block-content="${encodeURIComponent(text)}">${text}</pre>`
       }
       const langText = lang.split(` `)[0]
       const language = hljs.getLanguage(langText) ? langText : `plaintext`
@@ -261,7 +263,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
         .replace(/(>[^<]+)|(^[^<]+)/g, str => str.replace(/\s/g, `&nbsp;`))
       const span = `<span class="mac-sign" style="padding: 10px 14px 0;" hidden>${macCodeSvg}</span>`
       const code = `<code class="language-${lang}" ${styles(`code`)}>${highlighted}</code>`
-      return `<pre class="hljs code__pre" ${styles(`code_pre`)}>${span}${code}</pre>`
+      return `<pre id="${blockId}" class="hljs code__pre" ${styles(`code_pre`)} data-block-type="fenced" data-block-content="${encodeURIComponent(text)}">${span}${code}</pre>`
     },
 
     codespan({ text }: Tokens.Codespan): string {

@@ -9,8 +9,13 @@ import {
   widthOptions,
 } from '@/config'
 import { useDisplayStore, useStore } from '@/stores'
-import { Moon, Sun } from 'lucide-vue-next'
+import fileApi from '@/utils/file'
+import { Moon, Sun, TestTube } from 'lucide-vue-next'
 import PickColors, { type Format } from 'vue-pick-colors'
+import { ref, watch, useTemplateRef } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useStorage } from '@vueuse/core'
+import { toast } from 'vue-sonner'
 
 const store = useStore()
 const displayStore = useDisplayStore()
@@ -37,6 +42,77 @@ watch(isOpen, () => {
 const pickColorsContainer = useTemplateRef<HTMLElement | undefined>(`pickColorsContainer`)
 const format = ref<Format>(`rgb`)
 const formatOptions = ref<Format[]>([`rgb`, `hex`, `hsl`, `hsv`])
+
+// 图床配置
+const githubImageBedConfig = useStorage(`githubConfig`, {
+  repo: ``,
+  accessToken: ``,
+  branch: `main`,
+  path: `images/{year}/{month}`,
+})
+
+const isTestingImageBed = ref(false)
+
+// 测试图床
+async function testImageBed() {
+  if (!githubImageBedConfig.value.repo || !githubImageBedConfig.value.accessToken) {
+    toast.error(`请先完整配置 GitHub 图床参数`)
+    return
+  }
+
+  isTestingImageBed.value = true
+  try {
+    // 创建一个测试图片
+    const canvas = document.createElement(`canvas`)
+    canvas.width = 100
+    canvas.height = 50
+    const ctx = canvas.getContext(`2d`)!
+    ctx.fillStyle = `#f0f0f0`
+    ctx.fillRect(0, 0, 100, 50)
+    ctx.fillStyle = `#333`
+    ctx.font = `12px Arial`
+    ctx.fillText(`Test`, 35, 30)
+
+    const blob = await new Promise<Blob>((resolve) => {
+      canvas.toBlob(blob => resolve(blob!), `image/png`)
+    })
+
+    // 上传测试图片
+    const base64 = await new Promise<string>((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve((reader.result as string).split(`,`)[1])
+      reader.readAsDataURL(blob)
+    })
+
+    // 使用现有的文件上传 API
+    const testFile = new File([blob], `test.png`, { type: `image/png` })
+
+    // 临时设置图床为 GitHub
+    const originalImgHost = localStorage.getItem(`imgHost`)
+    localStorage.setItem(`imgHost`, `github`)
+
+    try {
+      const imageUrl = await fileApi.fileUpload(base64, testFile)
+      toast.success(`图床测试成功！图片已上传到：${imageUrl}`)
+    }
+    finally {
+      // 恢复原始图床设置
+      if (originalImgHost) {
+        localStorage.setItem(`imgHost`, originalImgHost)
+      }
+      else {
+        localStorage.removeItem(`imgHost`)
+      }
+    }
+  }
+  catch (error) {
+    console.error(`图床测试失败:`, error)
+    toast.error(`图床测试失败：${error instanceof Error ? error.message : `未知错误`}`)
+  }
+  finally {
+    isTestingImageBed.value = false
+  }
+}
 </script>
 
 <template>
@@ -285,6 +361,57 @@ const formatOptions = ref<Format[]>([`rgb`, `hex`, `hsl`, `hsv`])
           </Button>
         </div>
       </div>
+      <div class="space-y-2">
+        <h2>GitHub 图床配置</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="text-sm font-medium">Repository</label>
+            <Input
+              v-model="githubImageBedConfig.repo"
+              placeholder="owner/repo 格式，如：zillionare/marktwain"
+              class="mt-1"
+            />
+          </div>
+          <div>
+            <label class="text-sm font-medium">Access Token</label>
+            <Input
+              v-model="githubImageBedConfig.accessToken"
+              type="password"
+              placeholder="GitHub Personal Access Token"
+              class="mt-1"
+            />
+          </div>
+          <div>
+            <label class="text-sm font-medium">Branch</label>
+            <Input
+              v-model="githubImageBedConfig.branch"
+              placeholder="分支名，默认为 main"
+              class="mt-1"
+            />
+          </div>
+          <div>
+            <label class="text-sm font-medium">存储路径</label>
+            <Input
+              v-model="githubImageBedConfig.path"
+              placeholder="支持模板变量：images/{year}/{month}"
+              class="mt-1"
+            />
+            <p class="text-xs text-gray-500 mt-1">
+              支持模板变量：{year} - 年份，{month} - 月份
+            </p>
+          </div>
+          <Button
+            :disabled="isTestingImageBed"
+            class="w-full"
+            variant="outline"
+            @click="testImageBed"
+          >
+            <TestTube class="mr-1 size-4" />
+            {{ isTestingImageBed ? '测试中...' : '测试图床' }}
+          </Button>
+        </div>
+      </div>
+
       <div class="space-y-2">
         <h2>样式配置</h2>
         <Button variant="destructive" @click="store.resetStyleConfirm">

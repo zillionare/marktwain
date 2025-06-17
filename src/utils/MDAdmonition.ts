@@ -1,5 +1,6 @@
 import type { AlertOptions, AlertVariantItem } from '@/types'
 import type { MarkedExtension } from 'marked'
+import { v4 as uuid } from 'uuid'
 import { getStyleString } from '.'
 
 /**
@@ -47,10 +48,12 @@ export default function markedAdmonition(options: AlertOptions = {}): MarkedExte
               .join(`\n`)
               .trim()
 
+            const blockId = `admonition-${uuid()}`
             return {
               type: `admonition`,
               raw: fullMatch,
               meta: {
+                blockId,
                 className,
                 variant: variant.type,
                 icon: variant.icon,
@@ -68,6 +71,7 @@ export default function markedAdmonition(options: AlertOptions = {}): MarkedExte
                   ...styles?.blockquote_p,
                   ...styles?.[`blockquote_p_${variant.type}` as keyof typeof styles],
                 },
+                originalContent: content,
               },
               tokens: this.lexer.blockTokens(processedContent),
             }
@@ -77,7 +81,7 @@ export default function markedAdmonition(options: AlertOptions = {}): MarkedExte
         renderer({ meta, tokens = [] }) {
           let text = this.parser.parse(tokens)
           text = text.replace(/<p .*?>/g, `<p style="${getStyleString(meta.contentStyle)}">`)
-          let tmpl = `<blockquote class="${meta.className} ${meta.className}-${meta.variant}" style="${getStyleString(meta.wrapperStyle)}">\n`
+          let tmpl = `<blockquote id="${meta.blockId}" class="${meta.className} ${meta.className}-${meta.variant}" style="${getStyleString(meta.wrapperStyle)}" data-block-type="admonition" data-block-content="${encodeURIComponent(meta.originalContent)}">\n`
           tmpl += `<p class="${meta.titleClassName}" style="${getStyleString(meta.titleStyle)}">`
           tmpl += meta.icon.replace(
             `<svg`,

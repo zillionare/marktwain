@@ -10,9 +10,9 @@ import {
 import { useStore } from '@/stores'
 import { addPrefix, processClipboardContent } from '@/utils'
 import { copyPlain } from '@/utils/clipboard'
-import { ChevronDownIcon, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun } from 'lucide-vue-next'
+import { ChevronDownIcon, Image, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun } from 'lucide-vue-next'
 
-const emit = defineEmits([`addFormat`, `formatContent`, `startCopy`, `endCopy`])
+const emit = defineEmits([`addFormat`, `formatContent`, `startCopy`, `endCopy`, `convertToImages`])
 
 const formatItems = [
   {
@@ -72,13 +72,33 @@ const copyMode = useStorage(addPrefix(`copyMode`), `txt`)
 const source = ref(``)
 const { copy: copyContent } = useClipboard({ source })
 
+// 转图功能
+const isConverting = ref(false)
+
+async function convertToImages() {
+  isConverting.value = true
+  try {
+    emit(`convertToImages`)
+  } finally {
+    // 延迟重置状态，给用户一些视觉反馈
+    setTimeout(() => {
+      isConverting.value = false
+    }, 1000)
+  }
+}
+
 // 复制到微信公众号
 function copy() {
   // 如果是 Markdown 源码，直接复制并返回
   if (copyMode.value === `md`) {
-    const mdContent = editor.value?.getValue() || ``
+    // 检查是否有转换后的内容
+    const convertedMarkdown = localStorage.getItem('convertedMarkdown')
+    const mdContent = convertedMarkdown || editor.value?.getValue() || ``
     copyPlain(mdContent)
-    toast.success(`已复制 Markdown 源码到剪贴板。`)
+    const message = convertedMarkdown
+      ? `已复制转换后的 Markdown 源码到剪贴板。`
+      : `已复制 Markdown 源码到剪贴板。`
+    toast.success(message)
     editorRefresh()
     return
   }
@@ -190,6 +210,12 @@ function copy() {
       <Button variant="outline" size="icon" @click="toggleDark()">
         <Moon v-show="isDark" class="size-4" />
         <Sun v-show="!isDark" class="size-4" />
+      </Button>
+
+      <!-- 转图按钮 -->
+      <Button variant="outline" size="sm" @click="convertToImages" :disabled="isConverting">
+        <Image class="size-4 mr-1" />
+        {{ isConverting ? '转换中...' : '转图' }}
       </Button>
 
       <!-- 复制按钮组 -->

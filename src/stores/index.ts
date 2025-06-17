@@ -1,26 +1,26 @@
-import type { ReadTimeResults } from 'reading-time'
 import DEFAULT_CONTENT from '@/assets/example/markdown.md?raw'
 import DEFAULT_CSS_CONTENT from '@/assets/example/theme-css.txt?raw'
 import {
-  altKey,
-  defaultStyleConfig,
-  shiftKey,
-  themeMap,
-  widthOptions,
+    altKey,
+    defaultStyleConfig,
+    shiftKey,
+    themeMap,
+    widthOptions,
 } from '@/config'
 import {
-  addPrefix,
-  downloadMD,
-  exportHTML,
-  formatDoc,
-  sanitizeTitle,
+    addPrefix,
+    downloadMD,
+    exportHTML,
+    formatDoc,
+    sanitizeTitle,
 } from '@/utils'
+import type { ReadTimeResults } from 'reading-time'
 
 import { css2json, customCssWithTemplate, customizeTheme, postProcessHtml, renderMarkdown } from '@/utils/'
 import { copyPlain } from '@/utils/clipboard'
 import { initRenderer } from '@/utils/renderer'
 import CodeMirror from 'codemirror'
-import { toPng } from 'html-to-image'
+import html2canvas from 'html2canvas'
 
 import { v4 as uuid } from 'uuid'
 
@@ -574,23 +574,32 @@ export const useStore = defineStore(`store`, () => {
   }
 
   // 下载卡片
-  const downloadAsCardImage = () => {
+  const downloadAsCardImage = async () => {
     const el = document.querySelector(`#output-wrapper>.preview`)! as HTMLElement
-    toPng(el, {
-      backgroundColor: isDark.value ? `` : `#fff`,
-      skipFonts: true,
-      pixelRatio: Math.max(window.devicePixelRatio || 1, 2),
-      style: {
-        margin: `0`,
-      },
-    }).then((url) => {
-      const a = document.createElement(`a`)
-      a.download = sanitizeTitle(posts.value[currentPostIndex.value].title)
-      document.body.appendChild(a)
-      a.href = url
-      a.click()
-      document.body.removeChild(a)
-    })
+    try {
+      const canvas = await html2canvas(el, {
+        backgroundColor: isDark.value ? '#1a1a1a' : '#ffffff',
+        scale: Math.max(window.devicePixelRatio || 1, 2),
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+      })
+
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement(`a`)
+          a.download = sanitizeTitle(posts.value[currentPostIndex.value].title)
+          document.body.appendChild(a)
+          a.href = url
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+        }
+      }, 'image/png')
+    } catch (error) {
+      console.error('下载卡片图片失败:', error)
+    }
   }
 
   // 导出编辑器内容到本地

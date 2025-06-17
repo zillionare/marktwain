@@ -1,289 +1,81 @@
-<script setup lang="ts">
-import type { ComponentPublicInstance } from 'vue'
-import {
-  AIPolishButton,
-  AIPolishPopover,
-  useAIPolish,
-} from '@/components/AIPolish'
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from '@/components/ui/resizable'
-import { SearchTab } from '@/components/ui/search-tab'
-import {
-  altKey,
-  altSign,
-  ctrlKey,
-  ctrlSign,
-  shiftKey,
-  shiftSign,
-} from '@/config'
-import { useDisplayStore, useStore } from '@/stores'
-import { checkImage, formatDoc, toBase64 } from '@/utils'
-import { toggleFormat } from '@/utils/editor'
-import fileApi from '@/utils/file'
-import CodeMirror from 'codemirror'
-import { Eye, List, Pen } from 'lucide-vue-next'
-import html2canvas from 'html2canvas'
-import CryptoJS from 'crypto-js'
+# Sprint #2: 转图功能
 
-const store = useStore()
-const displayStore = useDisplayStore()
-const { isDark, output, editor, readingTime } = storeToRefs(store)
+## 功能概述
 
-const {
-  editorRefresh,
-  exportEditorContent2HTML,
-  exportEditorContent2MD,
-  formatContent,
-  importMarkdownContent,
-  importDefaultContent,
-  copyToClipboard,
-  pasteFromClipboard,
-  resetStyleConfirm,
-  downloadAsCardImage,
-  clearContent,
-} = store
+实现将 markdown 中的特殊块（admonition、fenced block、math block）转换为图片的功能。
 
-const {
-  toggleShowInsertFormDialog,
-  toggleShowInsertMpCardDialog,
-  toggleShowUploadImgDialog,
-} = displayStore
+## 详细需求
 
-const isImgLoading = ref(false)
-const timeout = ref<NodeJS.Timeout>()
+### 1. UI 交互
 
-const showEditor = ref(true)
+- 在复制按钮左侧添加『转图』按钮
+- 点击时将 admonition、fenced block、math block 截图并上传到图床
+- 替换原始 markdown 中的对应内容为图床链接
 
-const searchTabRef = ref<InstanceType<typeof SearchTab>>()
+### 2. 渲染器改进
 
-function openSearchWithSelection(cm: CodeMirror.Editor) {
-  const selected = cm.getSelection().trim()
-  if (!searchTabRef.value)
-    return
+- 为 admonition、fenced block、math block 添加唯一 ID
+- 便于后续跟踪和截图
 
-  if (selected) {
-    // 自动带入选中文本
-    searchTabRef.value.setSearchWord(selected)
-  }
-  else {
-    // 仅打开面板
-    searchTabRef.value.showSearchTab = true
-  }
-}
+### 3. 图床配置
 
-function applyHeading(level: number, editor: CodeMirror.Editor) {
-  editor.operation(() => {
-    const ranges = editor.listSelections()
+- 在设置页面添加 GitHub 图床配置
+- 支持模板变量 {year}、{month}
+- 添加图床测试功能
 
-    ranges.forEach((range) => {
-      const from = range.from()
-      const to = range.to()
+### 4. 性能优化
 
-      for (let line = from.line; line <= to.line; line++) {
-        const text = editor.getLine(line)
-        // 去掉已有的 # 前缀（1~6 个）+ 空格
-        const cleaned = text.replace(/^#{1,6}\s+/, ``).trimStart()
-        const heading = `${`#`.repeat(level)} ${cleaned}`
-        editor.replaceRange(
-          heading,
-          { line, ch: 0 },
-          { line, ch: text.length },
-        )
-      }
-    })
-  })
-}
+- 使用 MD5 摘要防止重复上传
+- 本地存储上传状态
 
-function handleGlobalKeydown(e: KeyboardEvent) {
-  if (e.key === `Escape` && searchTabRef.value?.showSearchTab) {
-    searchTabRef.value.showSearchTab = false
-    e.preventDefault()
-    editor.value?.focus()
-  }
-}
+### 5. 测试配置
 
-onMounted(() => {
-  setTimeout(() => {
-    leftAndRightScroll()
-  }, 300)
-  document.addEventListener(`keydown`, handleGlobalKeydown)
-})
+GitHub 图床测试配置：
+- Token: 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
+- Owner: zillionare
+- Repository: marktwain
+- 存储路径: images/{year}/{month}
 
-// 切换编辑/预览视图（仅限移动端）
-function toggleView() {
-  showEditor.value = !showEditor.value
-}
+### 6. 注意事项
 
-const {
-  AIPolishBtnRef,
-  AIPolishPopoverRef,
-  selectedText,
-  position,
-  isDragging,
-  startDrag,
-  initPolishEvent,
-  recalcPos,
-} = useAIPolish()
+- 测试时每种类型（admonition, fenced, math）只能使用一个图片，避免因测试对图床造成污染
 
-const preview = ref<HTMLDivElement | null>(null)
 
-// 使浏览区与编辑区滚动条建立同步联系
-function leftAndRightScroll() {
-  const scrollCB = (text: string) => {
-    // AIPolishBtnRef.value?.close()
 
-    let source: HTMLElement
-    let target: HTMLElement
 
-    clearTimeout(timeout.value)
-    if (text === `preview`) {
-      source = preview.value!
-      target = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
 
-      editor.value!.off(`scroll`, editorScrollCB)
-      timeout.value = setTimeout(() => {
-        editor.value!.on(`scroll`, editorScrollCB)
-      }, 300)
-    }
-    else {
-      source = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
-      target = preview.value!
 
-      target.removeEventListener(`scroll`, previewScrollCB, false)
-      timeout.value = setTimeout(() => {
-        target.addEventListener(`scroll`, previewScrollCB, false)
-      }, 300)
-    }
 
-    const percentage
-      = source.scrollTop / (source.scrollHeight - source.offsetHeight)
-    const height = percentage * (target.scrollHeight - target.offsetHeight)
 
-    target.scrollTo(0, height)
-  }
 
-  function editorScrollCB() {
-    scrollCB(`editor`)
-  }
 
-  function previewScrollCB() {
-    scrollCB(`preview`)
-  }
 
-  preview.value!.addEventListener(`scroll`, previewScrollCB, false)
-  editor.value!.on(`scroll`, editorScrollCB)
-}
 
-// 更新编辑器
-function onEditorRefresh() {
-  editorRefresh()
-}
 
-const backLight = ref(false)
-const isCoping = ref(false)
 
-function startCopy() {
-  isCoping.value = true
-  backLight.value = true
-}
 
-// 拷贝结束
-function endCopy() {
-  backLight.value = false
-  setTimeout(() => {
-    isCoping.value = false
-  }, 800)
-}
 
-function beforeUpload(file: File) {
-  // validate image
-  const checkResult = checkImage(file)
-  if (!checkResult.ok) {
-    toast.error(checkResult.msg!)
-    return false
-  }
 
-  // check image host
-  const imgHost = localStorage.getItem(`imgHost`) || `default`
-  localStorage.setItem(`imgHost`, imgHost)
 
-  const config = localStorage.getItem(`${imgHost}Config`)
-  const isValidHost = imgHost === `default` || config
-  if (!isValidHost) {
-    toast.error(`请先配置 ${imgHost} 图床参数`)
-    return false
-  }
-  return true
-}
 
-// 图片上传结束
-function uploaded(imageUrl: string) {
-  if (!imageUrl) {
-    toast.error(`上传图片未知异常`)
-    return
-  }
-  toggleShowUploadImgDialog(false)
-  // 上传成功，获取光标
-  const cursor = editor.value!.getCursor()
-  const markdownImage = `![](${imageUrl})`
-  // 将 Markdown 形式的 URL 插入编辑框光标所在位置
-  toRaw(store.editor!).replaceSelection(`\n${markdownImage}\n`, cursor as any)
-  toast.success(`图片上传成功`)
-}
 
-function uploadImage(
-  file: File,
-  cb?: { (url: any): void, (arg0: unknown): void } | undefined,
-) {
-  isImgLoading.value = true
 
-  toBase64(file)
-    .then(base64Content => fileApi.fileUpload(base64Content, file))
-    .then((url) => {
-      if (cb) {
-        cb(url)
-      }
-      else {
-        uploaded(url)
-      }
-    })
-    .catch((err) => {
-      toast.error(err.message)
-    })
-    .finally(() => {
-      isImgLoading.value = false
-    })
-}
 
-const changeTimer = ref<NodeJS.Timeout>()
 
-// 监听暗色模式并更新编辑器
-watch(isDark, () => {
-  const theme = isDark.value ? `darcula` : `xq-light`
-  toRaw(editor.value)?.setOption?.(`theme`, theme)
-})
 
-// 初始化编辑器
-function initEditor() {
-  const editorDom = document.querySelector<HTMLTextAreaElement>(`#editor`)!
 
-  if (!editorDom.value) {
-    editorDom.value = store.posts[store.currentPostIndex].content
-  }
 
-  nextTick(() => {
-    editor.value = CodeMirror.fromTextArea(editorDom, {
-      mode: `text/x-markdown`,
-      theme: isDark.value ? `darcula` : `xq-light`,
-      lineNumbers: false,
-      lineWrapping: true,
-      styleActiveLine: true,
-      autoCloseBrackets: true,
-      extraKeys: {
-        [`${shiftKey}-${altKey}-F`]: function autoFormat(editor) {
+
+
+
+
+
+
+
+
+
+
+
           const value = editor.getValue()
           formatDoc(value).then((doc: string) => {
             editor.setValue(doc)
@@ -558,8 +350,8 @@ async function convertToImages() {
     // 检查图床配置
     const imgHost = localStorage.getItem('imgHost') || 'github'
 
-    // 对于 GitHub 图床或 default（默认使用 GitHub），检查 githubConfig
-    if (imgHost === 'github' || imgHost === 'default') {
+    // 对于 GitHub 图床，检查 githubConfig
+    if (imgHost === 'github') {
       const githubConfig = localStorage.getItem('githubConfig')
       if (!githubConfig) {
         toast.error('请先在设置中配置 GitHub 图床参数')
@@ -621,20 +413,18 @@ async function convertToImages() {
 
       try {
         // 截图
-        const canvas = await html2canvas(block as HTMLElement, {
+        const imageDataUrl = await toPng(block as HTMLElement, {
           backgroundColor: isDark.value ? '#1a1a1a' : '#ffffff',
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          logging: false,
+          pixelRatio: 2,
+          style: {
+            margin: '0',
+            padding: '8px',
+          },
         })
 
         // 转换为 Blob
-        const blob = await new Promise<Blob>((resolve) => {
-          canvas.toBlob((blob: Blob | null) => {
-            resolve(blob!)
-          }, 'image/png')
-        })
+        const response = await fetch(imageDataUrl)
+        const blob = await response.blob()
         const file = new File([blob], `${blockType}-${Date.now()}.png`, { type: 'image/png' })
 
         // 上传图片
@@ -649,8 +439,8 @@ async function convertToImages() {
 
         // 根据块类型替换 markdown 内容
         if (blockType === 'admonition') {
-          // 查找并替换 admonition 块 - 使用与 MDAdmonition.ts 相同的正则表达式
-          const admonitionRegex = /!!![\s\S]*?(?=\n\s*\n\s*\n|<!--\w+-->|$)/g
+          // 查找并替换 admonition 块
+          const admonitionRegex = /!!![\s\S]*?(?=\n\n|$)/g
           const matches = [...currentMarkdown.matchAll(admonitionRegex)]
 
           for (const match of matches) {
@@ -665,12 +455,16 @@ async function convertToImages() {
           }
         } else if (blockType === 'fenced') {
           // 查找并替换代码块
-          const fencedRegex = /```[\s\S]*?```/g
+          const fencedRegex = /```
+[\s\S]*?
+```/g
           const matches = [...currentMarkdown.matchAll(fencedRegex)]
 
           for (const match of matches) {
             const matchContent = match[0]
-            const codeContent = matchContent.replace(/```\w*\n?/, '').replace(/\n?```$/, '').trim()
+            const codeContent = matchContent.replace(/```
+\w*\n?/, '').replace(/\n?
+```$/, '').trim()
             const matchHash = CryptoJS.MD5(codeContent).toString()
             if (matchHash === contentHash) {
               currentMarkdown = currentMarkdown.replace(matchContent, `![](${imageUrl})`)
