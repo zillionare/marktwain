@@ -103,7 +103,7 @@ npm run firefox:zip
 
 ## 🙏 致谢
 
-感谢 [zillionare](https://github.com/zillionare/marktwain)项目！
+感谢 [Doocs](https://github.com/doocs/md)项目！本项目基于 Doocs/md 修改。
 
 ## 📞 联系我们
 
