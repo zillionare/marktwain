@@ -1,7 +1,7 @@
 {
   "name": "marktwain",
   "type": "module",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "private": false,
   "description": "MarkTwain | 一处编辑 处处发布",
   "homepage": "https://github.com/zillionare/marktwain",

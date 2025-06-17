@@ -10,6 +10,11 @@
 2. 支持多平台（无视觉差别的）发布！一些平台不支持公式，Admonition（比如公众号和知乎）甚至代码块（比如头条），我们通过将这些块转换成图片，再替换为图床链接，来达到兼容的目标。
 3. 支持导出转换后的markdown文本，这样可以方便地在知乎、头条、CSDN、星球等平台导入。
 
+## 如何使用转图功能
+当你编辑好markdown的文本内容之后，就可以点击右上工具栏中的『转图』按钮，此时程序会将其它平台可能不兼容的文字块（比如Admonition, 公式，代码）转换为图片上传到图床，再将文字替换为图片链接。
+
+在『转图』之前，你还需要对图床进行配置。这个项目默认使用Github图床。
+
 ## 标题示例
 
 ### 三级标题
@@ -114,13 +119,16 @@ $$
     ```python
       print("hello")
     ```
-    它会在两个空行之后结束。你也可以通过添加<!--note-->这样的注释来结束它
+    它会在两个空行之后结束。你也可以通过添加<\!--note-->这样的注释来结束它
+
 
 !!! warning "警告"
     这是一个警告类型的 admonition。
+  
 
 !!! tip "小贴士"
     这是一个提示类型的 admonition。
+
 
 > [!tip] "github风格的Admonition块"
 > 这是一个小tips。每一行都要使用 > 来引起。支持嵌套！
@@ -156,7 +164,3 @@ $$
 - [Quantstats-Reloaded](https://github.com/zillionare/quantstats-reloaded)，一个量化策略指标分析库
 - [Zigzag](https://github.com/zillionare/ZigZag)，一个重要的顶底检测工具。
 - [MarkTwain](https://github.com/zillionare/marktwain/)，即您正在使用的这份软件。
-
-
-
-
