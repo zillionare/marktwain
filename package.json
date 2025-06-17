@@ -1,16 +1,16 @@
 {
-  "name": "md",
+  "name": "marktwain",
   "type": "module",
   "version": "2.0.3",
   "private": false,
-  "description": "WeChat Markdown Editor | 一款高度简洁的微信 Markdown 编辑器：支持 Markdown 语法、自定义主题样式、内容管理、多图床、AI 助手等特性",
-  "homepage": "https://github.com/doocs/md",
+  "description": "MarkTwain | 一处编辑 处处发布",
+  "homepage": "https://github.com/zillionare/marktwain",
   "repository": {
     "type": "git",
-    "url": "https://github.com/doocs/md"
+    "url": "https://github.com/zillionare/marktwain"
   },
   "bugs": {
-    "url": "https://github.com/doocs/md/issues"
+    "url": "https://github.com/zillionare/marktwain/issues"
   },
   "scripts": {
     "start": "npm run dev",

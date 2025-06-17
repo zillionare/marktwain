@@ -10,7 +10,7 @@ export default defineConfig({
   srcDir: `src`,
   modulesDir: `src/modules`,
   manifest: ({ mode, browser }) => ({
-    name: `公众号内容编辑器`,
+    name: `MarkTwain`,
     icons: {
       256: mode === `development` ? `/mpmd/icon-256-gray.png` : `/mpmd/icon-256.png`,
     },
@@ -40,12 +40,13 @@ export default defineConfig({
           default_icon: {
             256: `mpmd/icon-256.png`,
           },
-          default_title: `MD 公众号编辑器`,
+          default_title: `MarkTwain -- publish everwhere!`,
+          open_at_install: false,
         }
       : undefined,
     commands: {
       _execute_sidebar_action: {
-        description: `Open MD Editor Side Panel`,
+        description: `Open MarkTwain Editor Side Panel`,
         suggested_key: {
           default: `Ctrl+Shift+Y`,
         },

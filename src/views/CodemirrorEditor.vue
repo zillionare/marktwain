@@ -923,17 +923,25 @@ async function convertToImages() {
         else if (blockType === `fenced`) {
           console.log(`🔍 开始处理 fenced 代码块转换`)
           console.log(`🎯 目标内容哈希:`, contentHash)
+          console.log(`📄 目标内容:`, JSON.stringify(blockContent))
           console.log(`🖼️ 图片 URL:`, imageUrl)
 
           // 查找并替换代码块
           const fencedRegex = /```[\s\S]*?```/g
           const matches = [...currentMarkdown.matchAll(fencedRegex)]
 
+          console.log(`📊 找到 ${matches.length} 个代码块`)
+
           for (const match of matches) {
             const matchContent = match[0]
-            const codeContent = matchContent.replace(/```\w*\n?/, ``).replace(/\n?```$/, ``).trim()
+            // 更精确的内容提取，处理各种语言标识符
+            const codeContent = matchContent.replace(/^```[a-zA-Z0-9_+-]*\n?/, ``).replace(/\n?```$/, ``)
             const matchHash = CryptoJS.MD5(codeContent).toString()
-            console.log(`🔑 fenced 计算的哈希:`, matchHash, `内容:`, codeContent)
+            console.log(`🔑 fenced 计算的哈希:`, matchHash)
+            console.log(`📝 fenced 内容:`, JSON.stringify(codeContent))
+            console.log(`🎯 目标哈希:`, contentHash)
+            console.log(`✅ 哈希匹配:`, matchHash === contentHash)
+
             if (matchHash === contentHash) {
               console.log(`✅ fenced 哈希匹配，替换成功`)
               currentMarkdown = currentMarkdown.replace(matchContent, `![](${imageUrl})`)
@@ -1200,7 +1208,7 @@ async function convertToImages() {
 
       <InsertMpCardDialog />
 
-      <RunLoading />
+      <!-- <RunLoading /> -->
 
       <AlertDialog v-model:open="store.isOpenConfirmDialog">
         <AlertDialogContent>
