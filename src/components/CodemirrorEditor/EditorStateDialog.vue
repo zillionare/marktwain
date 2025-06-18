@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref, computed, watch } from 'vue'
+
 import { storeLabels } from '@/config/store'
 import { getAllStoreStates, useDisplayStore, useStore } from '@/stores'
 import { copyPlain } from '@/utils/clipboard'

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { ref, computed, onBeforeMount } from 'vue'
+import { storeToRefs } from 'pinia'
+
 import type { Post, PostAccount } from '@/types'
 import { useStore } from '@/stores'
 import { Check, Info } from 'lucide-vue-next'

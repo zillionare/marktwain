@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useDebounceFn } from '@vueuse/core'
+
 import type CodeMirror from 'codemirror'
 import { ChevronDown, ChevronRight, ChevronUp, Replace, ReplaceAll, X } from 'lucide-vue-next'
 

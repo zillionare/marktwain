@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+import { useStorage } from '@vueuse/core'
+
 import { useDisplayStore } from '@/stores'
 import { checkImage } from '@/utils'
 import { toTypedSchema } from '@vee-validate/yup'

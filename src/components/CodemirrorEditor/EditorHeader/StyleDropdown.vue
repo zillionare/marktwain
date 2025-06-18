@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
+import { templateRef } from '@vueuse/core'
+
 import {
   codeBlockThemeOptions,
   colorOptions,
@@ -49,7 +52,7 @@ function customStyle() {
   }, 50)
 }
 
-const pickColorsContainer = useTemplateRef(`pickColorsContainer`)
+const pickColorsContainer = templateRef(`pickColorsContainer`)
 const format = ref<Format>(`rgb`)
 const formatOptions = ref<Format[]>([`rgb`, `hex`, `hsl`, `hsv`])
 </script>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref, watch } from 'vue'
+
 import { useStore } from '@/stores'
 import {
   ChevronRight,

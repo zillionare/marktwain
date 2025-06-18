@@ -1,5 +1,8 @@
 <script setup lang="ts">
 /* ---------- 依赖 ---------- */
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useStore } from '@/stores'
 import type { QuickCommandRuntime } from '@/stores/useQuickCommands'
 import { Button } from '@/components/ui/button'
 import {
@@ -29,9 +32,6 @@ import {
 /* ---------- Markdown & highlight.js ---------- */
 import { Marked } from 'marked'
 import { markedHighlight } from 'marked-highlight'
-import { nextTick, onMounted, ref, watch } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useStore } from '@/stores'
 import AIConfig from './AIConfig.vue'
 import QuickCommandManager from './QuickCommandManager.vue'
 /* ---------- 组件属性 ---------- */
@@ -72,11 +72,11 @@ let quickCmdStore: any = null
 
 try {
   store = useStore()
-  const storeRefs = storeToRefs(store)
+  const storeRefs = storeToRefs(store) as any
   editor = storeRefs.editor
 
   AIConfigStore = useAIConfigStore()
-  const configRefs = storeToRefs(AIConfigStore)
+  const configRefs = storeToRefs(AIConfigStore) as any
   apiKey = configRefs.apiKey
   endpoint = configRefs.endpoint
   model = configRefs.model

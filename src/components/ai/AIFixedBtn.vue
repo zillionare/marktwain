@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
+
 import { useDisplayStore } from '@/stores'
 import { Bot } from 'lucide-vue-next'
 

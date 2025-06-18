@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 import { useDisplayStore, useStore } from '@/stores'
 import { Edit3, Plus, X } from 'lucide-vue-next'
 import { toast } from '@/utils/toast'

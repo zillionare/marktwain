@@ -1,5 +1,10 @@
 <script setup lang="ts">
+import { useStorage } from '@vueuse/core'
+
 import type { ComponentPublicInstance } from 'vue'
+import { ref, watch, onMounted, nextTick, toRaw } from 'vue'
+import { storeToRefs } from 'pinia'
+import { toast } from 'vue-sonner'
 import {
   AIPolishButton,
   AIPolishPopover,

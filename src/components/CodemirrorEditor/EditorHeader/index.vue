@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { ref, nextTick } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useStorage, useClipboard } from '@vueuse/core'
+
 import { Toaster } from '@/components/ui/sonner'
 import {
   altSign,

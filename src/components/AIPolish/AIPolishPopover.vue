@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
+
 import { Button } from '@/components/ui/button'
 import {
   Select,

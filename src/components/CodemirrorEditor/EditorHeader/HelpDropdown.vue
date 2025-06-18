@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 const aboutDialogVisible = ref(false)
 const fundDialogVisible = ref(false)
 </script>

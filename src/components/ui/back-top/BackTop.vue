@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
+
 import { throttle } from 'es-toolkit'
 import { ArrowUpFromLine } from 'lucide-vue-next'
 

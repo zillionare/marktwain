@@ -1,4 +1,7 @@
 <script setup lang='ts'>
+import { onMounted, nextTick, markRaw } from 'vue'
+import { useLocalStorage } from '@vueuse/core'
+
 import { useStore } from '@/stores'
 import { removeLeft } from '@/utils'
 import CodeMirror from 'codemirror'
