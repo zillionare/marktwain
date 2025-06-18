@@ -5,7 +5,8 @@ import { getStyleString } from '.'
 
 /**
  * A marked extension to support CommonMark admonition syntax.
- * Syntax: !!! type "Optional Title"
+ * Syntax: !!! type "Optional Title"  (quoted title)
+ *         !!! type Optional Title    (unquoted title, ends at newline)
  *         Content here
  */
 export default function markedAdmonition(options: AlertOptions = {}): MarkedExtension {
@@ -23,14 +24,17 @@ export default function markedAdmonition(options: AlertOptions = {}): MarkedExte
         },
         tokenizer(src: string) {
           // Updated regex to handle the CommonMark admonition syntax properly
-          // This regex matches: !!! type "optional title"
+          // This regex matches: !!! type "optional title" or !!! type optional title
           //                     content lines (indented with 4 spaces)
           // Accepts any word after !!! and defaults unsupported types to 'note'
-          const rule = new RegExp(`^!!!\\s+(\\w+)(?:\\s+"([^"]*)")?\\s*\\n([\\s\\S]*?)(?=\\n\\s*\\n\\s*\\n|<!--\\1-->|$)`, `i`)
+          // Support both quoted and unquoted titles
+          const rule = new RegExp(`^!!!\\s+(\\w+)(?:\\s+(?:"([^"]*)"|([^\\n]*)))?\\s*\\n([\\s\\S]*?)(?=\\n\\s*\\n\\s*\\n|<!--\\1-->|$)`, `i`)
           const match = src.match(rule)
 
           if (match) {
-            const [fullMatch, type, title, content] = match
+            const [fullMatch, type, quotedTitle, unquotedTitle, content] = match
+            // Use quoted title if available, otherwise use unquoted title (trimmed)
+            const title = quotedTitle || (unquotedTitle ? unquotedTitle.trim() : undefined)
             // Find the variant, or default to 'note' if not found
             let variant = resolvedVariants.find(v => v.type.toLowerCase() === type.toLowerCase())
 

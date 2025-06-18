@@ -569,8 +569,8 @@ function replaceAdmonitionBlock(markdown: string, targetHash: string, imageUrl: 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
 
-    // 检查是否是 admonition 开始
-    const startMatch = line.match(/^!!!\s+(\w+)(?:\s+"([^"]*)")?/)
+    // 检查是否是 admonition 开始 (支持带引号和不带引号的标题)
+    const startMatch = line.match(/^!!!\s+(\w+)(?:\s+(?:"([^"]*)"|([^\n]*)))?/)
     if (startMatch && !inAdmonition) {
       inAdmonition = true
       admonitionStart = i
