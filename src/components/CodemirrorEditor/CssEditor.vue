@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useDisplayStore, useStore } from '@/stores'
 import { Edit3, Plus, X } from 'lucide-vue-next'
+import { toast } from '@/utils/toast'
 
 const store = useStore()
 const displayStore = useDisplayStore()
