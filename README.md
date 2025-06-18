@@ -64,7 +64,7 @@ npm run ext:zip
 npm run firefox:zip
 ```
 
-详细安装指南请参考 [浏览器扩展安装指南](BROWSER_EXTENSION_GUIDE.md)。
+详细安装指南请参考 [浏览器扩展安装指南](docs/BROWSER_EXTENSION_GUIDE.md)。
 
 ## 🛠️ 技术栈
 
