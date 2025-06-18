@@ -24,18 +24,12 @@ function onOpenOption() {
       >使用必读</span>
     </div>
     <section style="margin-top: 12px; line-height: 28px">
-      <div>如果您希望使用微信公众号素材库作为图床功能，需要进行以下配置：</div>
-      <div>
-        1.开启公众号开发者模式
-        <span><a
-          href="https://developers.weixin.qq.com/doc/offiaccount/Getting_Started/Getting_Started_Guide.html"
-          target="_blank"
-        >查看文档</a></span>
-      </div>
-      <div>
-        2.配置IP白名单<span><a href="https://md-pages.doocs.org/tutorial" target="_blank">使用教程</a></span>
-      </div>
-      <div>
+      <div>MarkTwain 是一款增强版 Markdown 编辑器，支持：</div>
+      <div>• 实时预览和编辑</div>
+      <div>• GitHub 图床上传</div>
+      <div>• 多种主题样式</div>
+      <div>• 数学公式和代码高亮</div>
+      <div style="margin-top: 16px;">
         <button class="button" @click="onOpenOption">
           开始使用
         </button>
