@@ -86,7 +86,27 @@ function getDateFilename(filename: string) {
 // -----------------------------------------------------------------------
 
 async function ghFileUpload(content: string, filename: string) {
-  const useDefault = localStorage.getItem(`imgHost`) === `default`
+  // 检查用户是否配置了自己的 GitHub 图床
+  const userGithubConfig = localStorage.getItem(`githubConfig`)
+  let useDefault = true
+
+  if (userGithubConfig) {
+    try {
+      const config = JSON.parse(userGithubConfig)
+      // 如果用户配置了完整的仓库和访问令牌，使用用户配置
+      if (config.repo && config.accessToken) {
+        useDefault = false
+        console.log(`🎯 使用用户自定义 GitHub 图床: ${config.repo}`)
+      }
+    } catch (error) {
+      console.warn(`用户 GitHub 配置解析失败，使用默认图床`, error)
+    }
+  }
+
+  if (useDefault) {
+    console.log(`🏠 使用默认 bucketio 图床`)
+  }
+
   const { username, repo, branch, accessToken } = getConfig(
     useDefault,
     `github`,
@@ -125,9 +145,9 @@ async function ghFileUpload(content: string, filename: string) {
   const githubResourceUrl = `raw.githubusercontent.com/${username}/${repo}/${branch}/`
   const cdnResourceUrl = `fastly.jsdelivr.net/gh/${username}/${repo}@${branch}/`
   res.content = res.data?.content || res.content
-  return useDefault
-    ? res.content.download_url.replace(githubResourceUrl, cdnResourceUrl)
-    : res.content.download_url
+
+  // 为所有 GitHub 仓库启用 CDN 加速，提升访问速度
+  return res.content.download_url.replace(githubResourceUrl, cdnResourceUrl)
 }
 
 // -----------------------------------------------------------------------

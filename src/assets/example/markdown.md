@@ -117,8 +117,8 @@ $$
     这是一个 CommonMark 风格的 admonition 块。
     它可以包含多行内容。支持嵌套！
     ```python
-      print("hello")
-    ```
+print("hello")
+```
     它会在两个空行之后结束。你也可以通过添加<\!--note-->这样的注释来结束它
 
 
@@ -162,5 +162,11 @@ $$
 我维护着以下开源软件：
 
 - [Quantstats-Reloaded](https://github.com/zillionare/quantstats-reloaded)，一个量化策略指标分析库
+- [Zigzag](https://github.com/zillionare/ZigZag)，一个重要的顶底检测工具。
+- [MarkTwain](https://github.com/zillionare/marktwain/)，即您正在使用的这份软件。
+tats-reloaded)，一个量化策略指标分析库
+- [Zigzag](https://github.com/zillionare/ZigZag)，一个重要的顶底检测工具。
+- [MarkTwain](https://github.com/zillionare/marktwain/)，即您正在使用的这份软件。
+tats-reloaded)，一个量化策略指标分析库
 - [Zigzag](https://github.com/zillionare/ZigZag)，一个重要的顶底检测工具。
 - [MarkTwain](https://github.com/zillionare/marktwain/)，即您正在使用的这份软件。

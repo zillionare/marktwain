@@ -12,7 +12,7 @@ import { addPrefix, processClipboardContent } from '@/utils'
 import { copyPlain } from '@/utils/clipboard'
 import { ChevronDownIcon, Image, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun } from 'lucide-vue-next'
 
-const emit = defineEmits([`addFormat`, `formatContent`, `startCopy`, `endCopy`, `convertToImages`])
+const emit = defineEmits([`addFormat`, `formatContent`, `startCopy`, `endCopy`, `convertToImages`, `forceConvertToImages`])
 
 const formatItems = [
   {
@@ -79,6 +79,18 @@ async function convertToImages() {
   isConverting.value = true
   try {
     emit(`convertToImages`)
+  } finally {
+    // 延迟重置状态，给用户一些视觉反馈
+    setTimeout(() => {
+      isConverting.value = false
+    }, 1000)
+  }
+}
+
+async function forceConvertToImages() {
+  isConverting.value = true
+  try {
+    emit(`forceConvertToImages`)
   } finally {
     // 延迟重置状态，给用户一些视觉反馈
     setTimeout(() => {
@@ -212,11 +224,31 @@ function copy() {
         <Sun v-show="!isDark" class="size-4" />
       </Button>
 
-      <!-- 转图按钮 -->
-      <Button variant="outline" size="sm" @click="convertToImages" :disabled="isConverting">
-        <Image class="size-4 mr-1" />
-        {{ isConverting ? '转换中...' : '转图' }}
-      </Button>
+      <!-- 转图按钮组 -->
+      <div class="bg-background space-x-1 text-background-foreground flex items-center border rounded-md">
+        <Button variant="ghost" size="sm" @click="convertToImages" :disabled="isConverting" class="shadow-none">
+          <Image class="size-4 mr-1" />
+          {{ isConverting ? '转换中...' : '转图' }}
+        </Button>
+        <Separator orientation="vertical" class="h-5" />
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button variant="ghost" size="sm" class="px-2 shadow-none" :disabled="isConverting">
+              <ChevronDownIcon class="text-secondary-foreground h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" :align-offset="-5" class="w-[180px]">
+            <DropdownMenuItem @click="convertToImages" :disabled="isConverting">
+              <Image class="mr-2 h-4 w-4" />
+              智能转图
+            </DropdownMenuItem>
+            <DropdownMenuItem @click="forceConvertToImages" :disabled="isConverting">
+              <Image class="mr-2 h-4 w-4" />
+              强制重新生图
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       <!-- 复制按钮组 -->
       <div class="bg-background space-x-1 text-background-foreground mx-2 flex items-center border rounded-md">

@@ -51,27 +51,70 @@ const githubImageBedConfig = useStorage(`githubConfig`, {
   path: `images/{year}/{month}`,
 })
 
+// 计算当前图床状态
+const currentImageBedStatus = computed(() => {
+  const config = githubImageBedConfig.value
+  if (config.repo && config.accessToken) {
+    return {
+      type: 'user',
+      message: `使用您的 GitHub 图床: ${config.repo}`,
+      color: 'text-green-600 dark:text-green-400'
+    }
+  } else {
+    return {
+      type: 'default',
+      message: `使用默认 bucketio 图床（公共服务）`,
+      color: 'text-orange-600 dark:text-orange-400'
+    }
+  }
+})
+
+// 监听 GitHub 配置变化，自动设置图床类型
+watch(githubImageBedConfig, (newConfig) => {
+  // 如果配置了仓库和访问令牌，自动设置图床为 GitHub
+  if (newConfig.repo && newConfig.accessToken) {
+    localStorage.setItem(`imgHost`, `github`)
+    console.log(`✅ 已自动设置图床类型为 GitHub`)
+  }
+}, { deep: true })
+
 const isTestingImageBed = ref(false)
 
 // 测试图床
 async function testImageBed() {
-  if (!githubImageBedConfig.value.repo || !githubImageBedConfig.value.accessToken) {
-    toast.error(`请先完整配置 GitHub 图床参数`)
-    return
+  const config = githubImageBedConfig.value
+  const hasUserConfig = config.repo && config.accessToken
+
+  if (!hasUserConfig) {
+    toast.info(`将测试默认 bucketio 图床（公共服务）`)
+  } else {
+    toast.info(`将测试您的 GitHub 图床: ${config.repo}`)
   }
 
   isTestingImageBed.value = true
   try {
     // 创建一个测试图片
     const canvas = document.createElement(`canvas`)
-    canvas.width = 100
-    canvas.height = 50
+    canvas.width = 300
+    canvas.height = 120
     const ctx = canvas.getContext(`2d`)!
-    ctx.fillStyle = `#f0f0f0`
-    ctx.fillRect(0, 0, 100, 50)
-    ctx.fillStyle = `#333`
-    ctx.font = `12px Arial`
-    ctx.fillText(`Test`, 35, 30)
+
+    // 绘制测试图片
+    ctx.fillStyle = hasUserConfig ? `#4CAF50` : `#FF9800`
+    ctx.fillRect(0, 0, 300, 120)
+    ctx.fillStyle = `white`
+    ctx.font = `14px Arial`
+    ctx.textAlign = `center`
+
+    if (hasUserConfig) {
+      ctx.fillText(`用户 GitHub 图床测试`, 150, 35)
+      ctx.fillText(`仓库: ${config.repo}`, 150, 55)
+    } else {
+      ctx.fillText(`默认 bucketio 图床测试`, 150, 35)
+      ctx.fillText(`公共服务`, 150, 55)
+    }
+
+    ctx.fillText(new Date().toLocaleTimeString(), 150, 85)
 
     const blob = await new Promise<Blob>((resolve) => {
       canvas.toBlob(blob => resolve(blob!), `image/png`)
@@ -87,22 +130,15 @@ async function testImageBed() {
     // 使用现有的文件上传 API
     const testFile = new File([blob], `test.png`, { type: `image/png` })
 
-    // 临时设置图床为 GitHub
-    const originalImgHost = localStorage.getItem(`imgHost`)
-    localStorage.setItem(`imgHost`, `github`)
-
     try {
       const imageUrl = await fileApi.fileUpload(base64, testFile)
-      toast.success(`图床测试成功！图片已上传到：${imageUrl}`)
+      const bedType = hasUserConfig ? '用户图床' : '默认图床'
+      toast.success(`${bedType}测试成功！图片已上传到：${imageUrl}`)
+      console.log(`🎉 ${bedType}测试成功，图片 URL:`, imageUrl)
     }
-    finally {
-      // 恢复原始图床设置
-      if (originalImgHost) {
-        localStorage.setItem(`imgHost`, originalImgHost)
-      }
-      else {
-        localStorage.removeItem(`imgHost`)
-      }
+    catch (error) {
+      console.error(`图床测试失败:`, error)
+      throw error
     }
   }
   catch (error) {
@@ -362,7 +398,62 @@ async function testImageBed() {
         </div>
       </div>
       <div class="space-y-2">
+        <h2>转图设置</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="text-sm font-medium">图片最大宽度</label>
+            <Input
+              v-model.number="store.convertImageMaxWidth"
+              type="number"
+              min="200"
+              max="2000"
+              step="50"
+              placeholder="800"
+              class="mt-1"
+            />
+            <p class="text-xs text-gray-500 mt-1">
+              转图时生成图片的最大宽度，单位：像素（默认 800px）
+            </p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <input
+              id="convertImageHighRes"
+              v-model="store.convertImageHighRes"
+              type="checkbox"
+              class="rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <label for="convertImageHighRes" class="text-sm font-medium">
+              生成高分辨率图片
+            </label>
+          </div>
+          <p class="text-xs text-gray-500">
+            开启后图片像素密度为2倍，适合高清显示设备。
+            <span class="text-orange-600 dark:text-orange-400">
+              关闭后图片尺寸与设置值完全一致。
+            </span>
+          </p>
+        </div>
+      </div>
+
+      <div class="space-y-2">
         <h2>GitHub 图床配置</h2>
+
+        <!-- 当前图床状态显示 -->
+        <div class="p-3 rounded-lg border bg-gray-50 dark:bg-gray-800">
+          <div class="flex items-center space-x-2">
+            <div class="w-2 h-2 rounded-full" :class="currentImageBedStatus.type === 'user' ? 'bg-green-500' : 'bg-orange-500'"></div>
+            <span class="text-sm font-medium" :class="currentImageBedStatus.color">
+              {{ currentImageBedStatus.message }}
+            </span>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">
+            {{ currentImageBedStatus.type === 'user'
+              ? '图片将上传到您的仓库，通过 jsDelivr CDN 加速访问'
+              : '图片将上传到公共图床，建议配置自己的仓库以确保数据安全'
+            }}
+          </p>
+        </div>
+
         <div class="space-y-3">
           <div>
             <label class="text-sm font-medium">Repository</label>

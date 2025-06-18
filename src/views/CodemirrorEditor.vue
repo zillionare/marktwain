@@ -553,33 +553,204 @@ const isOpenHeadingSlider = ref(false)
 const convertedMarkdown = useStorage(`convertedMarkdown`, ``)
 const blockUploadStatus = useStorage(`blockUploadStatus`, {} as Record<string, { hash: string, url: string }>)
 
-// 转图功能
-async function convertToImages() {
-  try {
-    // 检查图床配置
-    const imgHost = localStorage.getItem(`imgHost`) || `github`
+// 替换 admonition 块的辅助函数
+function replaceAdmonitionBlock(markdown: string, targetHash: string, imageUrl: string): string {
+  const lines = markdown.split(`\n`)
+  let inAdmonition = false
+  let admonitionStart = -1
+  let admonitionType = ``
+  let admonitionContent = ``
 
-    // 对于 GitHub 图床或 default（默认使用 GitHub），检查 githubConfig
-    if (imgHost === `github` || imgHost === `default`) {
-      const githubConfig = localStorage.getItem(`githubConfig`)
-      if (!githubConfig) {
-        toast.error(`请先在设置中配置 GitHub 图床参数`)
-        return
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+
+    // 检查是否是 admonition 开始
+    const startMatch = line.match(/^!!!\s+(\w+)(?:\s+"([^"]*)")?/)
+    if (startMatch && !inAdmonition) {
+      inAdmonition = true
+      admonitionStart = i
+      admonitionType = startMatch[1]
+      admonitionContent = ``
+      continue
+    }
+
+    if (inAdmonition) {
+      // 检查结束条件
+      const isEndByComment = line.trim() === `<!--${admonitionType}-->`
+      const isEndByEmptyLines = line.trim() === `` && i + 1 < lines.length && lines[i + 1].trim() === ``
+      const isEndOfFile = i === lines.length - 1
+
+      if (isEndByComment || isEndByEmptyLines) {
+        const matchHash = CryptoJS.MD5(admonitionContent).toString()
+        if (matchHash === targetHash) {
+          let endLine = i - 1
+          if (isEndByComment) endLine = i
+
+          const newLines = [
+            ...lines.slice(0, admonitionStart),
+            `![](${imageUrl})`,
+            ...lines.slice(endLine + 1),
+          ]
+          return newLines.join(`\n`)
+        }
+        inAdmonition = false
+        admonitionStart = -1
+        admonitionType = ``
+        admonitionContent = ``
       }
+      else if (isEndOfFile) {
+        if (admonitionContent) {
+          admonitionContent += `\n${line}`
+        } else {
+          admonitionContent = line
+        }
 
-      const configObj = JSON.parse(githubConfig)
-      if (!configObj.repo || !configObj.accessToken) {
-        toast.error(`请先完整配置 GitHub 图床参数（仓库和访问令牌）`)
-        return
+        const matchHash = CryptoJS.MD5(admonitionContent).toString()
+        if (matchHash === targetHash) {
+          const newLines = [
+            ...lines.slice(0, admonitionStart),
+            `![](${imageUrl})`,
+            ...lines.slice(i + 1),
+          ]
+          return newLines.join(`\n`)
+        }
+      }
+      else {
+        if (admonitionContent) {
+          admonitionContent += `\n${line}`
+        } else {
+          admonitionContent = line
+        }
       }
     }
-    else {
-      // 对于其他图床，使用原来的逻辑
-      const config = localStorage.getItem(`${imgHost}Config`)
-      if (!config) {
-        toast.error(`请先在设置中配置 ${imgHost} 图床参数`)
-        return
+  }
+
+  // 尝试 GMF 格式
+  return replaceGMFAdmonitionBlock(markdown, targetHash, imageUrl)
+}
+
+// 替换 GMF admonition 块的辅助函数
+function replaceGMFAdmonitionBlock(markdown: string, targetHash: string, imageUrl: string): string {
+  const lines = markdown.split(`\n`)
+  let inGmfAdmonition = false
+  let gmfAdmonitionStart = -1
+  let gmfAdmonitionContent = ``
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+
+    const gmfStartMatch = line.match(/^>\s*\[!(\w+)\]/)
+    if (gmfStartMatch && !inGmfAdmonition) {
+      inGmfAdmonition = true
+      gmfAdmonitionStart = i
+      gmfAdmonitionContent = ``
+      continue
+    }
+
+    if (inGmfAdmonition) {
+      if (line.startsWith(`> `)) {
+        const content = line.substring(2)
+        if (gmfAdmonitionContent) {
+          gmfAdmonitionContent += `\n${content}`
+        } else {
+          gmfAdmonitionContent = content
+        }
       }
+      else if (line.trim() === ``) {
+        continue
+      }
+      else {
+        const gmfMatchHash = CryptoJS.MD5(gmfAdmonitionContent).toString()
+        if (gmfMatchHash === targetHash) {
+          const endLine = i - 1
+          const newLines = [
+            ...lines.slice(0, gmfAdmonitionStart),
+            `![](${imageUrl})`,
+            ...lines.slice(endLine + 1),
+          ]
+          return newLines.join(`\n`)
+        }
+        inGmfAdmonition = false
+        gmfAdmonitionStart = -1
+        gmfAdmonitionContent = ``
+        break
+      }
+    }
+  }
+
+  return markdown
+}
+
+// 替换代码块的辅助函数
+function replaceFencedBlock(markdown: string, targetHash: string, imageUrl: string): string {
+  const fencedRegex = /```[\s\S]*?```/g
+  const matches = [...markdown.matchAll(fencedRegex)]
+
+  for (const match of matches) {
+    const matchContent = match[0]
+    const codeContent = matchContent.replace(/^```[a-zA-Z0-9_+-]*\n?/, ``).replace(/\n?```$/, ``)
+    const matchHash = CryptoJS.MD5(codeContent).toString()
+
+    if (matchHash === targetHash) {
+      return markdown.replace(matchContent, `![](${imageUrl})`)
+    }
+  }
+
+  return markdown
+}
+
+// 替换数学公式的辅助函数
+function replaceMathBlock(markdown: string, targetHash: string, imageUrl: string): string {
+  const mathRegex = /\$\$[\s\S]*?\$\$/g
+  const matches = [...markdown.matchAll(mathRegex)]
+
+  for (const match of matches) {
+    const matchContent = match[0]
+    const mathContent = matchContent.replace(/^\$\$\s*/, ``).replace(/\s*\$\$$/, ``).trim()
+    const matchHash = CryptoJS.MD5(mathContent).toString()
+
+    if (matchHash === targetHash) {
+      return markdown.replace(matchContent, `![](${imageUrl})`)
+    }
+  }
+
+  return markdown
+}
+
+// 转图功能
+async function convertToImages(forceRegenerate = false) {
+  try {
+    // 检查图床配置
+    const userGithubConfig = localStorage.getItem(`githubConfig`)
+    let useUserConfig = false
+    let configMessage = ''
+
+    if (userGithubConfig) {
+      try {
+        const config = JSON.parse(userGithubConfig)
+        if (config.repo && config.accessToken) {
+          useUserConfig = true
+          configMessage = `使用您的 GitHub 图床: ${config.repo}`
+        }
+      } catch (error) {
+        console.warn(`用户 GitHub 配置解析失败`, error)
+      }
+    }
+
+    if (!useUserConfig) {
+      configMessage = `使用默认 bucketio 图床（公共服务）`
+    }
+
+    console.log(`📸 转图配置: ${configMessage}`)
+    toast.info(configMessage)
+
+    // 检查缓存版本，如果格式不兼容则清理
+    const cacheVersion = localStorage.getItem('blockUploadCacheVersion')
+    const currentVersion = '2.0' // 组合哈希版本
+    if (cacheVersion !== currentVersion) {
+      console.log(`🧹 清理旧版本缓存 (${cacheVersion} -> ${currentVersion})`)
+      blockUploadStatus.value = {}
+      localStorage.setItem('blockUploadCacheVersion', currentVersion)
     }
 
     const outputElement = document.getElementById(`output`)
@@ -600,36 +771,87 @@ async function convertToImages() {
       return
     }
 
-    let currentMarkdown = editor.value?.getValue() || ``
+    // 保存原始 markdown 内容，避免在处理过程中被修改
+    const originalMarkdown = editor.value?.getValue() || ``
+    let currentMarkdown = originalMarkdown
     let hasChanges = false
     let processedCount = 0
+
+    // 收集所有需要替换的信息
+    const replacements: Array<{
+      blockType: string
+      originalContentHash: string
+      imageUrl: string
+    }> = []
 
     toast.info(`开始转换 ${allBlocks.length} 个块...`)
 
     for (const block of allBlocks) {
-      const blockId = block.id
       const blockType = block.getAttribute(`data-block-type`)
       const blockContent = decodeURIComponent(block.getAttribute(`data-block-content`) || ``)
 
-      // 计算内容的 MD5 哈希
-      const contentHash = CryptoJS.MD5(blockContent).toString()
+      // 计算原始内容哈希（用于 Markdown 替换）
+      const originalContentHash = CryptoJS.MD5(blockContent).toString()
 
-      // 检查是否已经上传过相同内容
-      const existingUpload = blockUploadStatus.value[blockId]
-      if (existingUpload && existingUpload.hash === contentHash) {
-        console.info(`${blockType} 块内容未改变，跳过上传`)
+      // 计算内容和样式设置的组合哈希（用于缓存检查）
+      const styleSettings = {
+        maxWidth: store.convertImageMaxWidth,
+        highRes: store.convertImageHighRes,
+        isDark: isDark.value,
+        theme: store.theme,
+        fontSize: store.fontSize,
+        fontFamily: store.fontFamily,
+        primaryColor: store.primaryColor,
+        codeBlockTheme: store.codeBlockTheme,
+      }
+      const combinedContent = blockContent + JSON.stringify(styleSettings)
+      const combinedHash = CryptoJS.MD5(combinedContent).toString()
+
+      // 使用组合哈希作为缓存键，而不是 DOM 元素的 ID
+      const cacheKey = `${blockType}-${combinedHash}`
+
+      // 检查是否已经上传过相同内容和样式设置（除非强制重新生成）
+      const existingUpload = blockUploadStatus.value[cacheKey]
+      console.log(`🔍 缓存检查 ${blockType} 块:`, {
+        cacheKey,
+        forceRegenerate,
+        existingUpload,
+        currentHash: combinedHash,
+        hashMatch: existingUpload?.hash === combinedHash
+      })
+
+      if (!forceRegenerate && existingUpload && existingUpload.hash === combinedHash) {
+        console.info(`${blockType} 块内容和样式设置未改变，跳过上传`)
         continue
       }
 
       try {
+        console.info(`${blockType} 块需要重新生图，开始处理...`)
+        // 应用最大宽度设置到需要转图的块
+        const originalMaxWidth = (block as HTMLElement).style.maxWidth
+        const maxWidth = `${store.convertImageMaxWidth}px`
+        ;(block as HTMLElement).style.maxWidth = maxWidth
+
+        // 计算实际的元素宽度（不超过最大宽度）
+        const elementRect = (block as HTMLElement).getBoundingClientRect()
+        const actualWidth = Math.min(elementRect.width, store.convertImageMaxWidth)
+
+        // 根据用户设置决定是否使用高分辨率
+        const scale = store.convertImageHighRes ? 2 : 1
+
         // 截图
         const canvas = await html2canvas(block as HTMLElement, {
           backgroundColor: isDark.value ? `#1a1a1a` : `#ffffff`,
-          scale: 2,
+          scale,
           useCORS: true,
           allowTaint: true,
           logging: false,
+          width: actualWidth,
+          height: elementRect.height,
         })
+
+        // 恢复原始样式
+        ;(block as HTMLElement).style.maxWidth = originalMaxWidth
 
         // 转换为 Blob
         const blob = await new Promise<Blob>((resolve) => {
@@ -643,335 +865,18 @@ async function convertToImages() {
         const base64Content = await toBase64(file)
         const imageUrl = await fileApi.fileUpload(base64Content, file)
 
-        // 记录上传状态
-        blockUploadStatus.value[blockId] = {
-          hash: contentHash,
+        // 记录上传状态（使用组合哈希作为键）
+        blockUploadStatus.value[cacheKey] = {
+          hash: combinedHash,
           url: imageUrl,
         }
 
-        // 根据块类型替换 markdown 内容
-        if (blockType === `admonition`) {
-          console.log(`🔍 开始处理 admonition 块转换`)
-          console.log(`📄 当前 markdown 内容:`, currentMarkdown)
-          console.log(`🎯 目标内容哈希:`, contentHash)
-          console.log(`🖼️ 图片 URL:`, imageUrl)
-
-          // 查找并替换 admonition 块 - 使用与 MDAdmonition.ts 相同的正则表达式
-          // 需要逐行匹配，因为 admonition 可能在文档的任何位置
-          const lines = currentMarkdown.split(`\n`)
-          let inAdmonition = false
-          let admonitionStart = -1
-          let admonitionType = ``
-          let admonitionContent = ``
-          let foundMatch = false
-
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i]
-
-            // 检查是否是 admonition 开始
-            const startMatch = line.match(/^!!!\s+(\w+)(?:\s+"([^"]*)")?/)
-            if (startMatch && !inAdmonition) {
-              console.log(`📍 找到 admonition 开始 (行 ${i}):`, line)
-              inAdmonition = true
-              admonitionStart = i
-              admonitionType = startMatch[1]
-              admonitionContent = ``
-              continue
-            }
-
-            if (inAdmonition) {
-              // 检查结束条件
-              const isEndByComment = line.trim() === `<!--${admonitionType}-->`
-              // 检查是否遇到两个连续的空行（三个换行符）
-              const isEndByEmptyLines = line.trim() === ``
-                && i + 1 < lines.length && lines[i + 1].trim() === ``
-              const isEndOfFile = i === lines.length - 1
-
-              // 如果遇到结束条件，先处理已累积的内容，不包含当前行
-              if (isEndByComment || isEndByEmptyLines) {
-                console.log(`🏁 找到 admonition 结束 (行 ${i}):`, {
-                  isEndByComment,
-                  isEndByEmptyLines,
-                  isEndOfFile: false,
-                  line,
-                })
-
-                // 处理内容 - 移除4空格缩进
-                const processedContent = admonitionContent
-                  .split(`\n`)
-                  .map(contentLine => contentLine.replace(/^ {4}/, ``))
-                  .join(`\n`)
-                  .trim()
-
-                console.log(`📝 原始内容:`, admonitionContent)
-                console.log(`🔧 处理后内容:`, processedContent)
-
-                // 使用原始内容计算哈希，因为渲染器使用的是 originalContent
-                const matchHash = CryptoJS.MD5(admonitionContent).toString()
-                console.log(`🔑 计算的哈希 (原始内容):`, matchHash)
-                console.log(`🎯 目标哈希:`, contentHash)
-                console.log(`✅ 哈希匹配:`, matchHash === contentHash)
-
-                if (matchHash === contentHash) {
-                  // 计算要替换的行范围
-                  let endLine = i - 1 // 不包含当前的空行
-                  if (isEndByComment) {
-                    endLine = i // 包含注释行
-                  }
-
-                  console.log(`🔄 替换行范围: ${admonitionStart} - ${endLine}`)
-
-                  // 替换整个 admonition 块
-                  const originalBlock = lines.slice(admonitionStart, endLine + 1).join(`\n`)
-                  console.log(`📋 原始块内容:`, originalBlock)
-
-                  const newLines = [
-                    ...lines.slice(0, admonitionStart),
-                    `![](${imageUrl})`,
-                    ...lines.slice(endLine + 1),
-                  ]
-                  currentMarkdown = newLines.join(`\n`)
-                  console.log(`✨ 替换后的 markdown:`, currentMarkdown)
-                  hasChanges = true
-                  foundMatch = true
-                  break
-                }
-
-                inAdmonition = false
-                admonitionStart = -1
-                admonitionType = ``
-                admonitionContent = ``
-              }
-              else if (isEndOfFile) {
-                // 文件结束，包含当前行
-                if (admonitionContent) {
-                  admonitionContent += `\n${line}`
-                }
-                else {
-                  admonitionContent = line
-                }
-
-                console.log(`🏁 找到 admonition 结束 (文件结束):`, {
-                  isEndByComment: false,
-                  isEndByEmptyLines: false,
-                  isEndOfFile: true,
-                  line,
-                })
-
-                // 处理内容 - 移除4空格缩进
-                const processedContent = admonitionContent
-                  .split(`\n`)
-                  .map(contentLine => contentLine.replace(/^ {4}/, ``))
-                  .join(`\n`)
-                  .trim()
-
-                console.log(`📝 原始内容:`, admonitionContent)
-                console.log(`🔧 处理后内容:`, processedContent)
-
-                // 使用原始内容计算哈希，因为渲染器使用的是 originalContent
-                const matchHash = CryptoJS.MD5(admonitionContent).toString()
-                console.log(`🔑 计算的哈希 (原始内容):`, matchHash)
-                console.log(`🎯 目标哈希:`, contentHash)
-                console.log(`✅ 哈希匹配:`, matchHash === contentHash)
-
-                if (matchHash === contentHash) {
-                  console.log(`🔄 替换行范围: ${admonitionStart} - ${i}`)
-
-                  // 替换整个 admonition 块
-                  const originalBlock = lines.slice(admonitionStart, i + 1).join(`\n`)
-                  console.log(`📋 原始块内容:`, originalBlock)
-
-                  const newLines = [
-                    ...lines.slice(0, admonitionStart),
-                    `![](${imageUrl})`,
-                    ...lines.slice(i + 1),
-                  ]
-                  currentMarkdown = newLines.join(`\n`)
-                  console.log(`✨ 替换后的 markdown:`, currentMarkdown)
-                  hasChanges = true
-                  foundMatch = true
-                  break
-                }
-              }
-              else {
-                // 累积内容
-                if (admonitionContent) {
-                  admonitionContent += `\n${line}`
-                }
-                else {
-                  admonitionContent = line
-                }
-              }
-            }
-          }
-
-          if (!foundMatch) {
-            console.log(`❌ 未找到匹配的 CommonMark admonition 块，尝试查找 GMF admonition`)
-
-            // 尝试查找 GMF 格式的 admonition (> [!type])
-            const gmfLines = currentMarkdown.split(`\n`)
-            let inGmfAdmonition = false
-            let gmfAdmonitionStart = -1
-            let gmfAdmonitionType = ``
-            let gmfAdmonitionContent = ``
-
-            for (let i = 0; i < gmfLines.length; i++) {
-              const line = gmfLines[i]
-
-              // 检查是否是 GMF admonition 开始
-              const gmfStartMatch = line.match(/^>\s*\[!(\w+)\]/)
-              if (gmfStartMatch && !inGmfAdmonition) {
-                console.log(`📍 找到 GMF admonition 开始 (行 ${i}):`, line)
-                inGmfAdmonition = true
-                gmfAdmonitionStart = i
-                gmfAdmonitionType = gmfStartMatch[1]
-                gmfAdmonitionContent = ``
-                continue
-              }
-
-              if (inGmfAdmonition) {
-                // 检查是否是 GMF admonition 的内容行
-                if (line.startsWith(`> `)) {
-                  const content = line.substring(2) // 移除 "> "
-                  if (gmfAdmonitionContent) {
-                    gmfAdmonitionContent += `\n${content}`
-                  }
-                  else {
-                    gmfAdmonitionContent = content
-                  }
-                }
-                else if (line.trim() === ``) {
-                  // 空行，继续
-                  continue
-                }
-                else {
-                  // 非空行且不以 "> " 开头，GMF admonition 结束
-                  console.log(`🏁 找到 GMF admonition 结束 (行 ${i}):`, line)
-
-                  console.log(`📝 GMF 原始内容:`, gmfAdmonitionContent)
-
-                  const gmfMatchHash = CryptoJS.MD5(gmfAdmonitionContent).toString()
-                  console.log(`🔑 GMF 计算的哈希:`, gmfMatchHash)
-                  console.log(`🎯 目标哈希:`, contentHash)
-                  console.log(`✅ GMF 哈希匹配:`, gmfMatchHash === contentHash)
-
-                  if (gmfMatchHash === contentHash) {
-                    // 计算要替换的行范围（不包含当前行）
-                    const endLine = i - 1
-
-                    console.log(`🔄 GMF 替换行范围: ${gmfAdmonitionStart} - ${endLine}`)
-
-                    // 替换整个 GMF admonition 块
-                    const originalBlock = gmfLines.slice(gmfAdmonitionStart, endLine + 1).join(`\n`)
-                    console.log(`📋 GMF 原始块内容:`, originalBlock)
-
-                    const newLines = [
-                      ...gmfLines.slice(0, gmfAdmonitionStart),
-                      `![](${imageUrl})`,
-                      ...gmfLines.slice(endLine + 1),
-                    ]
-                    currentMarkdown = newLines.join(`\n`)
-                    console.log(`✨ GMF 替换后的 markdown:`, currentMarkdown)
-                    hasChanges = true
-                    foundMatch = true
-                    break
-                  }
-
-                  inGmfAdmonition = false
-                  gmfAdmonitionStart = -1
-                  gmfAdmonitionType = ``
-                  gmfAdmonitionContent = ``
-                  break
-                }
-              }
-            }
-
-            // 处理文件结束的情况
-            if (inGmfAdmonition && !foundMatch) {
-              console.log(`🏁 GMF admonition 在文件结束`)
-
-              console.log(`📝 GMF 原始内容:`, gmfAdmonitionContent)
-
-              const gmfMatchHash = CryptoJS.MD5(gmfAdmonitionContent).toString()
-              console.log(`🔑 GMF 计算的哈希:`, gmfMatchHash)
-              console.log(`🎯 目标哈希:`, contentHash)
-              console.log(`✅ GMF 哈希匹配:`, gmfMatchHash === contentHash)
-
-              if (gmfMatchHash === contentHash) {
-                console.log(`🔄 GMF 替换行范围: ${gmfAdmonitionStart} - ${gmfLines.length - 1}`)
-
-                // 替换整个 GMF admonition 块
-                const originalBlock = gmfLines.slice(gmfAdmonitionStart).join(`\n`)
-                console.log(`📋 GMF 原始块内容:`, originalBlock)
-
-                const newLines = [
-                  ...gmfLines.slice(0, gmfAdmonitionStart),
-                  `![](${imageUrl})`,
-                ]
-                currentMarkdown = newLines.join(`\n`)
-                console.log(`✨ GMF 替换后的 markdown:`, currentMarkdown)
-                hasChanges = true
-                foundMatch = true
-              }
-            }
-
-            if (!foundMatch) {
-              console.log(`❌ 未找到匹配的 GMF admonition 块`)
-            }
-          }
-        }
-        else if (blockType === `fenced`) {
-          console.log(`🔍 开始处理 fenced 代码块转换`)
-          console.log(`🎯 目标内容哈希:`, contentHash)
-          console.log(`📄 目标内容:`, JSON.stringify(blockContent))
-          console.log(`🖼️ 图片 URL:`, imageUrl)
-
-          // 查找并替换代码块
-          const fencedRegex = /```[\s\S]*?```/g
-          const matches = [...currentMarkdown.matchAll(fencedRegex)]
-
-          console.log(`📊 找到 ${matches.length} 个代码块`)
-
-          for (const match of matches) {
-            const matchContent = match[0]
-            // 更精确的内容提取，处理各种语言标识符
-            const codeContent = matchContent.replace(/^```[a-zA-Z0-9_+-]*\n?/, ``).replace(/\n?```$/, ``)
-            const matchHash = CryptoJS.MD5(codeContent).toString()
-            console.log(`🔑 fenced 计算的哈希:`, matchHash)
-            console.log(`📝 fenced 内容:`, JSON.stringify(codeContent))
-            console.log(`🎯 目标哈希:`, contentHash)
-            console.log(`✅ 哈希匹配:`, matchHash === contentHash)
-
-            if (matchHash === contentHash) {
-              console.log(`✅ fenced 哈希匹配，替换成功`)
-              currentMarkdown = currentMarkdown.replace(matchContent, `![](${imageUrl})`)
-              hasChanges = true
-              break
-            }
-          }
-        }
-        else if (blockType === `math`) {
-          console.log(`🔍 开始处理 math 数学公式转换`)
-          console.log(`🎯 目标内容哈希:`, contentHash)
-          console.log(`🖼️ 图片 URL:`, imageUrl)
-
-          // 查找并替换数学公式块
-          const mathRegex = /\$\$[\s\S]*?\$\$/g
-          const matches = [...currentMarkdown.matchAll(mathRegex)]
-
-          for (const match of matches) {
-            const matchContent = match[0]
-            const mathContent = matchContent.replace(/^\$\$\s*/, ``).replace(/\s*\$\$$/, ``).trim()
-            const matchHash = CryptoJS.MD5(mathContent).toString()
-            console.log(`🔑 math 计算的哈希:`, matchHash, `内容:`, mathContent)
-            if (matchHash === contentHash) {
-              console.log(`✅ math 哈希匹配，替换成功`)
-              currentMarkdown = currentMarkdown.replace(matchContent, `![](${imageUrl})`)
-              hasChanges = true
-              break
-            }
-          }
-        }
+        // 收集替换信息，稍后统一处理
+        replacements.push({
+          blockType: blockType!,
+          originalContentHash,
+          imageUrl,
+        })
 
         processedCount++
         toast.success(`${blockType} 块转换成功 (${processedCount}/${allBlocks.length})`)
@@ -982,11 +887,35 @@ async function convertToImages() {
       }
     }
 
-    if (hasChanges) {
-      convertedMarkdown.value = currentMarkdown
-      toast.success(`所有块转换完成！复制 MD 格式时将使用转换后的内容`)
+    // 统一处理所有替换，基于原始 markdown 内容
+    if (replacements.length > 0) {
+      console.log(`🔄 开始统一处理 ${replacements.length} 个替换`)
+      currentMarkdown = originalMarkdown
+
+      for (const replacement of replacements) {
+        const { blockType, originalContentHash, imageUrl } = replacement
+        console.log(`🔄 处理 ${blockType} 块替换，哈希: ${originalContentHash}`)
+
+        // 根据块类型替换 markdown 内容
+        if (blockType === `admonition`) {
+          currentMarkdown = replaceAdmonitionBlock(currentMarkdown, originalContentHash, imageUrl)
+        }
+        else if (blockType === `fenced`) {
+          currentMarkdown = replaceFencedBlock(currentMarkdown, originalContentHash, imageUrl)
+        }
+        else if (blockType === `math`) {
+          currentMarkdown = replaceMathBlock(currentMarkdown, originalContentHash, imageUrl)
+        }
+      }
+
+      if (replacements.length > 0) {
+        hasChanges = true
+        convertedMarkdown.value = currentMarkdown
+        toast.success(`所有块转换完成！复制 MD 格式时将使用转换后的内容`)
+      }
     }
-    else {
+
+    if (!hasChanges) {
       toast.info(`内容未改变，不需要重复执行`)
     }
   }
@@ -1005,6 +934,7 @@ async function convertToImages() {
       @start-copy="startCopy"
       @end-copy="endCopy"
       @convert-to-images="convertToImages"
+      @force-convert-to-images="() => convertToImages(true)"
     />
     <AIPolishButton
       v-if="store.showAIToolbox"
@@ -1140,7 +1070,12 @@ async function convertToImages() {
                     class="preview border-x-1 shadow-xl"
                     :class="[store.previewWidth]"
                   >
-                    <section id="output" class="w-full" v-html="output" />
+                    <section
+                      id="output"
+                      class="w-full"
+                      :style="store.convertImageCssVars"
+                      v-html="output"
+                    />
                     <div v-if="isCoping" class="loading-mask">
                       <div class="loading-mask-box">
                         <div class="loading__img" />
@@ -1288,5 +1223,13 @@ async function convertToImages() {
 .codeMirror-wrapper {
   overflow-x: auto;
   height: 100%;
+}
+
+/* 转图块的最大宽度设置 */
+:deep([data-block-type="admonition"]),
+:deep([data-block-type="fenced"]),
+:deep([data-block-type="math"]) {
+  max-width: var(--convert-image-max-width, 800px);
+  box-sizing: border-box;
 }
 </style>

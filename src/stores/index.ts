@@ -1,18 +1,18 @@
 import DEFAULT_CONTENT from '@/assets/example/markdown.md?raw'
 import DEFAULT_CSS_CONTENT from '@/assets/example/theme-css.txt?raw'
 import {
-    altKey,
-    defaultStyleConfig,
-    shiftKey,
-    themeMap,
-    widthOptions,
+  altKey,
+  defaultStyleConfig,
+  shiftKey,
+  themeMap,
+  widthOptions,
 } from '@/config'
 import {
-    addPrefix,
-    downloadMD,
-    exportHTML,
-    formatDoc,
-    sanitizeTitle,
+  addPrefix,
+  downloadMD,
+  exportHTML,
+  formatDoc,
+  sanitizeTitle,
 } from '@/utils'
 import type { ReadTimeResults } from 'reading-time'
 
@@ -90,7 +90,18 @@ export const useStore = defineStore(`store`, () => {
   // 预览宽度
   const previewWidth = useStorage(`previewWidth`, widthOptions[0].value)
 
+  // 转图时生成图片的最大宽度（逻辑像素）
+  const convertImageMaxWidth = useStorage(`convertImageMaxWidth`, 800)
+
+  // 是否生成高分辨率图片（2倍像素密度）
+  const convertImageHighRes = useStorage(`convertImageHighRes`, true)
+
   const fontSizeNumber = computed(() => Number(fontSize.value.replace(`px`, ``)))
+
+  // 转图块的 CSS 变量
+  const convertImageCssVars = computed(() => ({
+    '--convert-image-max-width': `${convertImageMaxWidth.value}px`,
+  }))
 
   // 内容编辑器
   const editor = ref<CodeMirror.EditorFromTextArea | null>(null)
@@ -711,6 +722,9 @@ export const useStore = defineStore(`store`, () => {
     readingTime,
     previewWidth,
     previewWidthChanged,
+    convertImageMaxWidth,
+    convertImageHighRes,
+    convertImageCssVars,
 
     editorRefresh,
 
