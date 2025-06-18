@@ -11,8 +11,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import useAIConfigStore from '@/stores/AIConfig'
+import { useStore } from '@/stores'
 import { Pause, Settings, X } from 'lucide-vue-next'
 import { nextTick, ref, toRaw, watch } from 'vue'
+import { toast } from 'vue-sonner'
 
 /* -------------------- props / emits -------------------- */
 const props = defineProps<{

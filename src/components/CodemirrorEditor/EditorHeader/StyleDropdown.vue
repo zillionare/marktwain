@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
+import { ref } from 'vue'
 import { templateRef } from '@vueuse/core'
 
 import {

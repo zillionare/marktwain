@@ -8,6 +8,7 @@ import { toTypedSchema } from '@vee-validate/yup'
 import { UploadCloud } from 'lucide-vue-next'
 import { Field, Form } from 'vee-validate'
 import * as yup from 'yup'
+import { toast } from 'vue-sonner'
 
 const emit = defineEmits([`uploadImage`])
 

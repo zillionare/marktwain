@@ -1,6 +1,7 @@
 <script setup lang='ts'>
-import { onMounted, nextTick, markRaw } from 'vue'
-import { useLocalStorage } from '@vueuse/core'
+import { onMounted, nextTick, markRaw, ref } from 'vue'
+import { useLocalStorage, templateRef } from '@vueuse/core'
+import { toast } from 'vue-sonner'
 
 import { useStore } from '@/stores'
 import { removeLeft } from '@/utils'
@@ -21,7 +22,7 @@ const code = useLocalStorage(`formCustomConfig`, removeLeft(`
   })
 `).trim())
 
-const formCustomTextarea = useTemplateRef<HTMLTextAreaElement>(`formCustomTextarea`)
+const formCustomTextarea = templateRef<HTMLTextAreaElement>(`formCustomTextarea`)
 
 const editor = ref< CodeMirror.EditorFromTextArea | null>(null)
 

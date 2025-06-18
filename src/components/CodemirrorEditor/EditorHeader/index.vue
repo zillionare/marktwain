@@ -15,6 +15,7 @@ import { useStore } from '@/stores'
 import { addPrefix, processClipboardContent } from '@/utils'
 import { copyPlain } from '@/utils/clipboard'
 import { ChevronDownIcon, Image, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 
 const emit = defineEmits([`addFormat`, `formatContent`, `startCopy`, `endCopy`, `convertToImages`, `forceConvertToImages`])
 

@@ -5,6 +5,7 @@ import { useStorage } from '@vueuse/core'
 import { useStore } from '@/stores'
 import { addPrefix } from '@/utils'
 import { ArrowUpNarrowWide, ChevronsDownUp, ChevronsUpDown, PlusSquare } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 
 const store = useStore()
 
