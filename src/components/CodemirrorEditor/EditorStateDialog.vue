@@ -18,7 +18,7 @@ const emit = defineEmits([`close`])
 
 watch(
   () => props.visible,
-  (val) => {
+  (val: boolean) => {
     if (val)
       fetchStoreStates()
   },
@@ -378,7 +378,7 @@ function applyImportedConfig() {
   </Dialog>
 
   <!-- 最大化弹窗 -->
-  <Dialog :open="isMaximized" @update:open="(val) => isMaximized = val">
+  <Dialog :open="isMaximized" @update:open="(val: boolean) => isMaximized = val">
     <DialogContent class="max-h-[90vh] max-w-[90vw] overflow-auto">
       <DialogHeader>
         <DialogTitle>JSON 全屏预览</DialogTitle>
