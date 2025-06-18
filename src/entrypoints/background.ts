@@ -9,7 +9,7 @@ export default defineBackground({
         return
       }
       if (detail.reason === `install`) {
-        browser.tabs.create({ url: `https://www.jieyu.ai` })
+        browser.tabs.create({ url: `https://zillionare.github.io/marktwain` })
       }
       else if (detail.reason === `update`) {
         browser.runtime.openOptionsPage()
