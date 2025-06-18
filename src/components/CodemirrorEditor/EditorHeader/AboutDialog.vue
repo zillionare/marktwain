@@ -15,9 +15,8 @@ function onUpdate(val: boolean) {
 }
 
 const links = [
-  { label: `GitHub 仓库`, url: `https://github.com/doocs/md` },
-  { label: `Gitee 仓库`, url: `https://gitee.com/doocs/md` },
-  { label: `GitCode 仓库`, url: `https://gitcode.com/doocs/md` },
+  { label: `GitHub 仓库`, url: `https://github.com/zillionare/marktwain` },
+  { label: `在线使用`, url: `https://zillionare.github.io/marktwain` },
 ]
 
 function onRedirect(url: string) {
@@ -32,14 +31,14 @@ function onRedirect(url: string) {
         <DialogTitle>关于</DialogTitle>
       </DialogHeader>
       <div class="text-center">
-        <h3>一款高度简洁的微信 Markdown 编辑器</h3>
-        <p>扫码关注公众号 Doocs，原创技术内容第一时间推送！</p>
-        <img
-          class="mx-auto my-5"
-          src="https://cdn-doocs.oss-cn-shenzhen.aliyuncs.com/gh/doocs/md/images/1648303220922-7e14aefa-816e-44c1-8604-ade709ca1c69.png"
-          alt="Doocs Markdown 编辑器"
-          style="width: 40%"
-        >
+        <h3>MarkTwain | 一次编辑，到处发布</h3>
+        <p>基于 Doocs/md 项目开发的增强版 Markdown 编辑器</p>
+        <div class="text-center space-y-2">
+          <p class="text-sm text-gray-600">在线访问：</p>
+          <a href="https://zillionare.github.io/marktwain" target="_blank" class="text-blue-500 hover:text-blue-700">
+            https://zillionare.github.io/marktwain
+          </a>
+        </div>
       </div>
       <DialogFooter class="sm:justify-evenly">
         <Button
