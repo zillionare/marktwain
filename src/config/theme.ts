@@ -680,6 +680,22 @@ const simpleTheme = toMerged(defaultTheme, {
       'font-style': `italic`,
     },
 
+    blockquote_question: {
+      'font-style': `italic`,
+    },
+
+    blockquote_hint: {
+      'font-style': `italic`,
+    },
+
+    blockquote_example: {
+      'font-style': `italic`,
+    },
+
+    blockquote_abstract: {
+      'font-style': `italic`,
+    },
+
     blockquote_title: {
     },
 
@@ -699,6 +715,18 @@ const simpleTheme = toMerged(defaultTheme, {
     blockquote_title_caution: {
     },
 
+    blockquote_title_question: {
+    },
+
+    blockquote_title_hint: {
+    },
+
+    blockquote_title_example: {
+    },
+
+    blockquote_title_abstract: {
+    },
+
     blockquote_p_note: {
     },
 
@@ -712,6 +740,18 @@ const simpleTheme = toMerged(defaultTheme, {
     },
 
     blockquote_p_caution: {
+    },
+
+    blockquote_p_question: {
+    },
+
+    blockquote_p_hint: {
+    },
+
+    blockquote_p_example: {
+    },
+
+    blockquote_p_abstract: {
     },
 
     code_pre: {

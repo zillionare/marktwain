@@ -66,18 +66,30 @@ export function customCssWithTemplate(jsonString: Partial<Record<Block | Inline,
     `blockquote_important`,
     `blockquote_warning`,
     `blockquote_caution`,
+    `blockquote_question`,
+    `blockquote_hint`,
+    `blockquote_example`,
+    `blockquote_abstract`,
     `blockquote_p`,
     `blockquote_p_note`,
     `blockquote_p_tip`,
     `blockquote_p_important`,
     `blockquote_p_warning`,
     `blockquote_p_caution`,
+    `blockquote_p_question`,
+    `blockquote_p_hint`,
+    `blockquote_p_example`,
+    `blockquote_p_abstract`,
     `blockquote_title`,
     `blockquote_title_note`,
     `blockquote_title_tip`,
     `blockquote_title_important`,
     `blockquote_title_warning`,
     `blockquote_title_caution`,
+    `blockquote_title_question`,
+    `blockquote_title_hint`,
+    `blockquote_title_example`,
+    `blockquote_title_abstract`,
     `image`,
     `ul`,
     `ol`,
@@ -412,11 +424,142 @@ export function modifyHtmlStructure(htmlString: string): string {
   return tempDiv.innerHTML
 }
 
-export function processClipboardContent(primaryColor: string) {
+/**
+ * 获取代码高亮的CSS样式
+ */
+async function getCodeHighlightStyles(): Promise<string> {
+  const hljsLink = document.querySelector('#hljs') as HTMLLinkElement
+  if (!hljsLink || !hljsLink.href) {
+    return ''
+  }
+
+  try {
+    const response = await fetch(hljsLink.href)
+    const cssText = await response.text()
+    return cssText
+  } catch (error) {
+    console.warn('Failed to fetch highlight.js CSS:', error)
+    return ''
+  }
+}
+
+/**
+ * 解析CSS文本并提取样式规则
+ */
+function parseCSSRules(cssText: string): Map<string, Record<string, string>> {
+  const rules = new Map<string, Record<string, string>>()
+
+  // 简单的CSS解析，匹配选择器和样式块
+  const cssRuleRegex = /([^{}]+)\{([^{}]*)\}/g
+  let match
+
+  while ((match = cssRuleRegex.exec(cssText)) !== null) {
+    const selector = match[1].trim()
+    const declarations = match[2].trim()
+
+    // 解析样式声明
+    const styles: Record<string, string> = {}
+    const declarationRegex = /([^:;]+):\s*([^;]+)/g
+    let declMatch
+
+    while ((declMatch = declarationRegex.exec(declarations)) !== null) {
+      const property = declMatch[1].trim()
+      const value = declMatch[2].trim()
+      styles[property] = value
+    }
+
+    if (Object.keys(styles).length > 0) {
+      rules.set(selector, styles)
+    }
+  }
+
+  return rules
+}
+
+/**
+ * 内联代码高亮样式到代码块元素
+ */
+function inlineCodeHighlightStyles(element: Element, cssText: string) {
+  if (!cssText) return
+
+  const cssRules = parseCSSRules(cssText)
+
+  // 为代码块相关元素应用样式
+  const codeBlocks = element.querySelectorAll('pre.hljs')
+  const codeElements = element.querySelectorAll('code')
+  const spanElements = element.querySelectorAll('.hljs span')
+
+  // 应用代码块样式
+  codeBlocks.forEach((el) => {
+    applyMatchingStyles(el, cssRules, ['.hljs', 'pre.hljs', 'pre'])
+  })
+
+  // 应用代码元素样式
+  codeElements.forEach((el) => {
+    applyMatchingStyles(el, cssRules, ['code', '.hljs code'])
+  })
+
+  // 应用语法高亮span样式
+  spanElements.forEach((el) => {
+    const className = el.className
+    if (className) {
+      const classSelectors = className.split(' ').map(cls => `.hljs .${cls}`)
+      applyMatchingStyles(el, cssRules, classSelectors)
+    }
+  })
+}
+
+/**
+ * 为元素应用匹配的CSS样式
+ */
+function applyMatchingStyles(element: Element, cssRules: Map<string, Record<string, string>>, selectors: string[]) {
+  const inlineStyles: string[] = []
+  const existingStyle = element.getAttribute('style') || ''
+
+  selectors.forEach(selector => {
+    const styles = cssRules.get(selector)
+    if (styles) {
+      Object.entries(styles).forEach(([prop, value]) => {
+        // 只应用重要的样式属性
+        if (isImportantStyleProperty(prop)) {
+          inlineStyles.push(`${prop}: ${value}`)
+        }
+      })
+    }
+  })
+
+  if (inlineStyles.length > 0) {
+    const newStyle = existingStyle + '; ' + inlineStyles.join('; ')
+    element.setAttribute('style', newStyle)
+  }
+}
+
+/**
+ * 判断是否为重要的样式属性
+ */
+function isImportantStyleProperty(prop: string): boolean {
+  const importantProps = [
+    'background-color', 'background', 'color', 'font-family', 'font-size',
+    'font-weight', 'font-style', 'text-decoration', 'opacity', 'border-radius',
+    'padding', 'margin', 'line-height', 'white-space', 'border', 'border-left',
+    'border-right', 'border-top', 'border-bottom'
+  ]
+  return importantProps.includes(prop)
+}
+
+export async function processClipboardContent(primaryColor: string) {
   const clipboardDiv = document.getElementById(`output`)!
+
+  // 获取代码高亮样式
+  const codeHighlightCSS = await getCodeHighlightStyles()
 
   // 先合并 CSS 和修改 HTML 结构
   clipboardDiv.innerHTML = modifyHtmlStructure(mergeCss(clipboardDiv.innerHTML))
+
+  // 内联代码高亮样式
+  if (codeHighlightCSS) {
+    inlineCodeHighlightStyles(clipboardDiv, codeHighlightCSS)
+  }
 
   // 处理样式和颜色变量
   clipboardDiv.innerHTML = clipboardDiv.innerHTML
