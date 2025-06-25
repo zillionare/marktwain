@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { serviceOptions } from '@/config/ai-services'
-import { DEFAULT_SERVICE_TYPE } from '@/constants/AIConfig'
-import useAIConfigStore from '@/stores/AIConfig'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -18,9 +15,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { serviceOptions } from '@/config/ai-services'
+import { DEFAULT_SERVICE_TYPE } from '@/constants/AIConfig'
+import useAIConfigStore from '@/stores/AIConfig'
 import { Info } from 'lucide-vue-next'
-import { computed, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { computed, reactive, ref, watch } from 'vue'
 
 /* -------------------------- 基础数据 -------------------------- */
 

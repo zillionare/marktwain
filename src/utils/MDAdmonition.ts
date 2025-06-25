@@ -40,7 +40,7 @@ export default function markedAdmonition(options: AlertOptions = {}): MarkedExte
 
             // If the type is not supported, default to 'note'
             if (!variant) {
-              variant = resolvedVariants.find(v => v.type === 'note')!
+              variant = resolvedVariants.find(v => v.type === `note`)!
             }
 
             const { styles } = options

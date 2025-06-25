@@ -1,8 +1,4 @@
 <script setup lang="ts">
-import { storeToRefs } from 'pinia'
-import { ref } from 'vue'
-import { templateRef } from '@vueuse/core'
-
 import {
   codeBlockThemeOptions,
   colorOptions,
@@ -12,6 +8,10 @@ import {
   themeOptions,
 } from '@/config'
 import { useDisplayStore, useStore } from '@/stores'
+import { templateRef } from '@vueuse/core'
+
+import { storeToRefs } from 'pinia'
+import { ref } from 'vue'
 import PickColors, { type Format } from 'vue-pick-colors'
 
 const store = useStore()

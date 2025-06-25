@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-
 import { storeLabels } from '@/config/store'
+
 import { getAllStoreStates, useDisplayStore, useStore } from '@/stores'
 import { copyPlain } from '@/utils/clipboard'
 import { Expand, UploadCloud } from 'lucide-vue-next'
+import { computed, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 const props = defineProps({
