@@ -94,225 +94,102 @@ const defaultTheme: Theme = {
       'color': `hsl(var(--foreground))`,
     },
 
-    // mkdocs-material 风格的 admonition 样式
     blockquote_note: {
-      'border': `none`,
-      'border-left': `4px solid #448aff`,
-      'border-radius': `0.1rem`,
-      'box-shadow': `0 0.2rem 1rem rgba(0,0,0,0.05), 0 0 0.05rem rgba(0,0,0,0.05)`,
-      'color': `rgba(0,0,0,0.87)`,
-      'font-size': `1rem`,
-      'margin': `1.5625em 0`,
-      'padding': `0 0.6rem`,
-      'page-break-inside': `avoid`,
-      'background-color': `rgba(68, 138, 255, 0.1)`,
-      'font-style': `normal`,
     },
 
     blockquote_tip: {
-      'border': `none`,
-      'border-left': `4px solid #00c853`,
-      'border-radius': `0.1rem`,
-      'box-shadow': `0 0.2rem 1rem rgba(0,0,0,0.05), 0 0 0.05rem rgba(0,0,0,0.05)`,
-      'color': `rgba(0,0,0,0.87)`,
-      'font-size': `1rem`,
-      'margin': `1.5625em 0`,
-      'padding': `0 0.6rem`,
-      'page-break-inside': `avoid`,
-      'background-color': `rgba(0, 200, 83, 0.1)`,
-      'font-style': `normal`,
     },
 
     blockquote_important: {
-      'border': `none`,
-      'border-left': `4px solid #ab47bc`,
-      'border-radius': `0.1rem`,
-      'box-shadow': `0 0.2rem 1rem rgba(0,0,0,0.05), 0 0 0.05rem rgba(0,0,0,0.05)`,
-      'color': `rgba(0,0,0,0.87)`,
-      'font-size': `1rem`,
-      'margin': `1.5625em 0`,
-      'padding': `0 0.6rem`,
-      'page-break-inside': `avoid`,
-      'background-color': `rgba(171, 71, 188, 0.1)`,
-      'font-style': `normal`,
     },
 
     blockquote_warning: {
-      'border': `none`,
-      'border-left': `4px solid #ff9100`,
-      'border-radius': `0.1rem`,
-      'box-shadow': `0 0.2rem 1rem rgba(0,0,0,0.05), 0 0 0.05rem rgba(0,0,0,0.05)`,
-      'color': `rgba(0,0,0,0.87)`,
-      'font-size': `1rem`,
-      'margin': `1.5625em 0`,
-      'padding': `0 0.6rem`,
-      'page-break-inside': `avoid`,
-      'background-color': `rgba(255, 145, 0, 0.1)`,
-      'font-style': `normal`,
     },
 
     blockquote_caution: {
-      'border': `none`,
-      'border-left': `4px solid #ff5252`,
-      'border-radius': `0.1rem`,
-      'box-shadow': `0 0.2rem 1rem rgba(0,0,0,0.05), 0 0 0.05rem rgba(0,0,0,0.05)`,
-      'color': `rgba(0,0,0,0.87)`,
-      'font-size': `1rem`,
-      'margin': `1.5625em 0`,
-      'padding': `0 0.6rem`,
-      'page-break-inside': `avoid`,
-      'background-color': `rgba(255, 82, 82, 0.1)`,
-      'font-style': `normal`,
     },
 
     blockquote_question: {
-      'border': `none`,
-      'border-left': `4px solid #64b5f6`,
-      'border-radius': `0.1rem`,
-      'box-shadow': `0 0.2rem 1rem rgba(0,0,0,0.05), 0 0 0.05rem rgba(0,0,0,0.05)`,
-      'color': `rgba(0,0,0,0.87)`,
-      'font-size': `1rem`,
-      'margin': `1.5625em 0`,
-      'padding': `0 0.6rem`,
-      'page-break-inside': `avoid`,
-      'background-color': `rgba(100, 181, 246, 0.1)`,
-      'font-style': `normal`,
     },
 
     blockquote_hint: {
-      'border': `none`,
-      'border-left': `4px solid #00c853`,
-      'border-radius': `0.1rem`,
-      'box-shadow': `0 0.2rem 1rem rgba(0,0,0,0.05), 0 0 0.05rem rgba(0,0,0,0.05)`,
-      'color': `rgba(0,0,0,0.87)`,
-      'font-size': `1rem`,
-      'margin': `1.5625em 0`,
-      'padding': `0 0.6rem`,
-      'page-break-inside': `avoid`,
-      'background-color': `rgba(0, 200, 83, 0.1)`,
-      'font-style': `normal`,
     },
 
     blockquote_example: {
-      'border': `none`,
-      'border-left': `4px solid #7c4dff`,
-      'border-radius': `0.1rem`,
-      'box-shadow': `0 0.2rem 1rem rgba(0,0,0,0.05), 0 0 0.05rem rgba(0,0,0,0.05)`,
-      'color': `rgba(0,0,0,0.87)`,
-      'font-size': `1rem`,
-      'margin': `1.5625em 0`,
-      'padding': `0 0.6rem`,
-      'page-break-inside': `avoid`,
-      'background-color': `rgba(124, 77, 255, 0.1)`,
-      'font-style': `normal`,
     },
 
     blockquote_abstract: {
-      'border': `none`,
-      'border-left': `4px solid #00bcd4`,
-      'border-radius': `0.1rem`,
-      'box-shadow': `0 0.2rem 1rem rgba(0,0,0,0.05), 0 0 0.05rem rgba(0,0,0,0.05)`,
-      'color': `rgba(0,0,0,0.87)`,
-      'font-size': `1rem`,
-      'margin': `1.5625em 0`,
-      'padding': `0 0.6rem`,
-      'page-break-inside': `avoid`,
-      'background-color': `rgba(0, 188, 212, 0.1)`,
-      'font-style': `normal`,
     },
 
-    // mkdocs-material 风格的 admonition 标题
+    // GFM 警告块标题
     blockquote_title: {
       'display': `flex`,
       'align-items': `center`,
       'gap': `0.5em`,
-      'margin': `0 -0.6rem 0.5em`,
-      'padding': `0.4rem 0.6rem`,
-      'font-weight': `700`,
-      'background-color': `rgba(68, 138, 255, 0.1)`,
-      'border-top-left-radius': `0.1rem`,
-      'border-top-right-radius': `0.1rem`,
+      'margin-bottom': `0.5em`,
     },
 
     blockquote_title_note: {
-      'color': `#448aff`,
-      'background-color': `rgba(68, 138, 255, 0.1)`,
+      color: `#478be6`,
     },
 
     blockquote_title_tip: {
-      'color': `#00c853`,
-      'background-color': `rgba(0, 200, 83, 0.1)`,
+      color: `#57ab5a`,
     },
 
     blockquote_title_important: {
-      'color': `#ab47bc`,
-      'background-color': `rgba(171, 71, 188, 0.1)`,
+      color: `#986ee2`,
     },
 
     blockquote_title_warning: {
-      'color': `#ff9100`,
-      'background-color': `rgba(255, 145, 0, 0.1)`,
+      color: `#c69026`,
     },
 
     blockquote_title_caution: {
-      'color': `#ff5252`,
-      'background-color': `rgba(255, 82, 82, 0.1)`,
+      color: `#e5534b`,
     },
 
     blockquote_title_question: {
-      'color': `#64b5f6`,
-      'background-color': `rgba(100, 181, 246, 0.1)`,
+      color: `#478be6`,
     },
 
     blockquote_title_hint: {
-      'color': `#00c853`,
-      'background-color': `rgba(0, 200, 83, 0.1)`,
+      color: `#57ab5a`,
     },
 
     blockquote_title_example: {
-      'color': `#7c4dff`,
-      'background-color': `rgba(124, 77, 255, 0.1)`,
+      color: `#986ee2`,
     },
 
     blockquote_title_abstract: {
-      'color': `#00bcd4`,
-      'background-color': `rgba(0, 188, 212, 0.1)`,
+      color: `#478be6`,
     },
 
     blockquote_p_note: {
-      margin: `0.6rem 0`,
     },
 
     blockquote_p_tip: {
-      margin: `0.6rem 0`,
     },
 
     blockquote_p_important: {
-      margin: `0.6rem 0`,
     },
 
     blockquote_p_warning: {
-      margin: `0.6rem 0`,
     },
 
     blockquote_p_caution: {
-      margin: `0.6rem 0`,
     },
 
     blockquote_p_question: {
-      margin: `0.6rem 0`,
     },
 
     blockquote_p_hint: {
-      margin: `0.6rem 0`,
     },
 
     blockquote_p_example: {
-      margin: `0.6rem 0`,
     },
 
     blockquote_p_abstract: {
-      margin: `0.6rem 0`,
     },
 
     // 代码块

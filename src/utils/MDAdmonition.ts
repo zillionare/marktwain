@@ -84,17 +84,22 @@ export default function markedAdmonition(options: AlertOptions = {}): MarkedExte
         },
         renderer({ meta, tokens = [] }) {
           let text = this.parser.parse(tokens)
-          text = text.replace(/<p .*?>/g, `<p style="${getStyleString(meta.contentStyle)}">`)
-          let tmpl = `<blockquote id="${meta.blockId}" class="${meta.className} ${meta.className}-${meta.variant}" style="${getStyleString(meta.wrapperStyle)}" data-block-type="admonition" data-block-content="${encodeURIComponent(meta.originalContent)}">\n`
-          tmpl += `<p class="${meta.titleClassName}" style="${getStyleString(meta.titleStyle)}">`
+          // 移除内联样式，使用CSS类
+          text = text.replace(/<p .*?>/g, `<p>`)
+
+          // 使用独立的div标签结构，避免与blockquote冲突
+          let tmpl = `<div id="${meta.blockId}" class="admonition admonition-${meta.variant}" data-block-type="admonition" data-block-content="${encodeURIComponent(meta.originalContent)}">\n`
+          tmpl += `<div class="admonition-title">`
           tmpl += meta.icon.replace(
             `<svg`,
-            `<svg style="fill: ${meta.titleStyle?.color ?? `inherit`}"`,
+            `<svg style="fill: currentColor"`,
           )
           tmpl += meta.title
-          tmpl += `</p>\n`
+          tmpl += `</div>\n`
+          tmpl += `<div class="admonition-content">\n`
           tmpl += text
-          tmpl += `</blockquote>\n`
+          tmpl += `</div>\n`
+          tmpl += `</div>\n`
 
           return tmpl
         },
