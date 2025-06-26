@@ -1,20 +1,20 @@
-import type { ReadTimeResults } from 'reading-time'
 import DEFAULT_CONTENT from '@/assets/example/markdown.md?raw'
 import DEFAULT_CSS_CONTENT from '@/assets/example/theme-css.txt?raw'
 import {
-  altKey,
-  defaultStyleConfig,
-  shiftKey,
-  themeMap,
-  widthOptions,
+    altKey,
+    defaultStyleConfig,
+    shiftKey,
+    themeMap,
+    widthOptions,
 } from '@/config'
 import {
-  addPrefix,
-  downloadMD,
-  exportHTML,
-  formatDoc,
-  sanitizeTitle,
+    addPrefix,
+    downloadMD,
+    exportHTML,
+    formatDoc,
+    sanitizeTitle,
 } from '@/utils'
+import type { ReadTimeResults } from 'reading-time'
 
 import { css2json, customCssWithTemplate, customizeTheme, postProcessHtml, renderMarkdown } from '@/utils/'
 import { copyPlain } from '@/utils/clipboard'
@@ -101,6 +101,13 @@ export const useStore = defineStore(`store`, () => {
 
   // 是否生成高分辨率图片（2倍像素密度）
   const convertImageHighRes = useStorage(`convertImageHighRes`, true)
+
+  // 转图时包含的块类型配置
+  const convertImageBlockTypes = useStorage(`convertImageBlockTypes`, {
+    admonition: true,
+    fenced: true,
+    math: true,
+  })
 
   const fontSizeNumber = computed(() => Number(fontSize.value.replace(`px`, ``)))
 
@@ -731,6 +738,7 @@ export const useStore = defineStore(`store`, () => {
     previewWidthChanged,
     convertImageMaxWidth,
     convertImageHighRes,
+    convertImageBlockTypes,
     convertImageCssVars,
 
     editorRefresh,

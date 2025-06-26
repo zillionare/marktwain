@@ -436,6 +436,48 @@ async function testImageBed() {
               关闭后图片尺寸与设置值完全一致。
             </span>
           </p>
+
+          <div>
+            <label class="text-sm font-medium">转图块类型</label>
+            <div class="mt-2 space-y-2">
+              <div class="space-x-2 flex items-center">
+                <input
+                  id="convertAdmonition"
+                  v-model="store.convertImageBlockTypes.admonition"
+                  type="checkbox"
+                  class="text-primary focus:ring-primary border-gray-300 rounded"
+                >
+                <label for="convertAdmonition" class="text-sm">
+                  Admonition 块
+                </label>
+              </div>
+              <div class="space-x-2 flex items-center">
+                <input
+                  id="convertFenced"
+                  v-model="store.convertImageBlockTypes.fenced"
+                  type="checkbox"
+                  class="text-primary focus:ring-primary border-gray-300 rounded"
+                >
+                <label for="convertFenced" class="text-sm">
+                  代码块 (Fenced Block)
+                </label>
+              </div>
+              <div class="space-x-2 flex items-center">
+                <input
+                  id="convertMath"
+                  v-model="store.convertImageBlockTypes.math"
+                  type="checkbox"
+                  class="text-primary focus:ring-primary border-gray-300 rounded"
+                >
+                <label for="convertMath" class="text-sm">
+                  数学公式块 (Math Block)
+                </label>
+              </div>
+            </div>
+            <p class="mt-1 text-xs text-gray-500">
+              选择在转图时要包含的块类型。至少需要选择一种类型。
+            </p>
+          </div>
         </div>
       </div>
 

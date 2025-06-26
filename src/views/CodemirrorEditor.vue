@@ -769,15 +769,46 @@ async function convertToImages(forceRegenerate = false) {
       return
     }
 
-    // 查找所有需要转换的块
-    const admonitionBlocks = outputElement.querySelectorAll(`[data-block-type="admonition"]`)
-    const fencedBlocks = outputElement.querySelectorAll(`[data-block-type="fenced"]`)
-    const mathBlocks = outputElement.querySelectorAll(`[data-block-type="math"]`)
+    // 检查是否至少选择了一种块类型
+    const hasSelectedBlockType = Object.values(store.convertImageBlockTypes).some(enabled => enabled)
+    if (!hasSelectedBlockType) {
+      toast.error(`请在设置中至少选择一种要转图的块类型`)
+      return
+    }
 
-    const allBlocks = [...admonitionBlocks, ...fencedBlocks, ...mathBlocks]
+    // 根据用户配置查找需要转换的块
+    const selectedBlocks: Element[] = []
+
+    if (store.convertImageBlockTypes.admonition) {
+      const admonitionBlocks = outputElement.querySelectorAll(`[data-block-type="admonition"]`)
+      selectedBlocks.push(...admonitionBlocks)
+    }
+
+    if (store.convertImageBlockTypes.fenced) {
+      const fencedBlocks = outputElement.querySelectorAll(`[data-block-type="fenced"]`)
+      selectedBlocks.push(...fencedBlocks)
+    }
+
+    if (store.convertImageBlockTypes.math) {
+      const mathBlocks = outputElement.querySelectorAll(`[data-block-type="math"]`)
+      selectedBlocks.push(...mathBlocks)
+    }
+
+    const allBlocks = selectedBlocks
 
     if (allBlocks.length === 0) {
-      toast.info(`没有找到需要转换的块`)
+      const enabledTypes = Object.entries(store.convertImageBlockTypes)
+        .filter(([_, enabled]) => enabled)
+        .map(([type, _]) => {
+          switch (type) {
+            case 'admonition': return 'Admonition'
+            case 'fenced': return '代码块'
+            case 'math': return '数学公式'
+            default: return type
+          }
+        })
+        .join('、')
+      toast.info(`没有找到需要转换的 ${enabledTypes} 块`)
       return
     }
 
@@ -794,7 +825,23 @@ async function convertToImages(forceRegenerate = false) {
       imageUrl: string
     }> = []
 
-    toast.info(`开始转换 ${allBlocks.length} 个块...`)
+    // 统计各类型块的数量
+    const blockCounts = {
+      admonition: allBlocks.filter(block => block.getAttribute('data-block-type') === 'admonition').length,
+      fenced: allBlocks.filter(block => block.getAttribute('data-block-type') === 'fenced').length,
+      math: allBlocks.filter(block => block.getAttribute('data-block-type') === 'math').length,
+    }
+
+    const countInfo = Object.entries(blockCounts)
+      .filter(([_, count]) => count > 0)
+      .map(([type, count]) => {
+        const typeName = type === 'admonition' ? 'Admonition' :
+                        type === 'fenced' ? '代码块' : '数学公式'
+        return `${typeName} ${count}个`
+      })
+      .join('、')
+
+    toast.info(`开始转换 ${allBlocks.length} 个块 (${countInfo})...`)
 
     for (const block of allBlocks) {
       const blockType = block.getAttribute(`data-block-type`)
