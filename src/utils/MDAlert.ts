@@ -28,7 +28,7 @@ export default function markedAlert(options: AlertOptions = {}): MarkedExtension
 
     // 提取原始内容用于转图功能
     let originalContent = ``
-    if ('text' in token && typeof token.text === 'string') {
+    if (`text` in token && typeof token.text === `string`) {
       // 移除类型标记，保留内容
       originalContent = token.text.replace(typeRegexp, ``).trim()
     }
@@ -61,13 +61,13 @@ export default function markedAlert(options: AlertOptions = {}): MarkedExtension
     })
 
     // 处理 token 的 tokens 属性，如果存在的话
-    if ('tokens' in token && Array.isArray(token.tokens) && token.tokens.length > 0) {
+    if (`tokens` in token && Array.isArray(token.tokens) && token.tokens.length > 0) {
       const firstLine = token.tokens[0] as Tokens.Paragraph
       if (firstLine && firstLine.raw) {
         const firstLineText = firstLine.raw.replace(typeRegexp, ``).trim()
 
         if (firstLineText) {
-          if ('tokens' in firstLine && Array.isArray(firstLine.tokens) && firstLine.tokens.length > 0) {
+          if (`tokens` in firstLine && Array.isArray(firstLine.tokens) && firstLine.tokens.length > 0) {
             const patternToken = firstLine.tokens[0] as Tokens.Text
             if (patternToken && patternToken.raw && patternToken.text) {
               Object.assign(patternToken, {
@@ -82,7 +82,7 @@ export default function markedAlert(options: AlertOptions = {}): MarkedExtension
             }
           }
         }
-        else if ('tokens' in token && Array.isArray(token.tokens)) {
+        else if (`tokens` in token && Array.isArray(token.tokens)) {
           token.tokens.shift()
         }
       }
@@ -94,39 +94,39 @@ export default function markedAlert(options: AlertOptions = {}): MarkedExtension
       // 处理 blockquote 类型的 token (GFM 语法)
       if (token.type === `blockquote`) {
         // 确保 token 有 text 属性
-        if ('text' in token && typeof token.text === 'string') {
+        if (`text` in token && typeof token.text === `string`) {
           const matchedVariant = resolvedVariants.find(({ type }) =>
             new RegExp(`^\\[!${type}]\\s*?\\n*`, `i`).test(token.text),
           )
 
           if (matchedVariant) {
             // 移除标签文本
-            if ('tokens' in token && Array.isArray(token.tokens) && token.tokens.length > 0) {
-              const firstParagraph = token.tokens[0];
-              if (firstParagraph && 'tokens' in firstParagraph && Array.isArray(firstParagraph.tokens) && firstParagraph.tokens.length > 0) {
-                const firstText = firstParagraph.tokens[0];
-                if (firstText && 'text' in firstText && typeof firstText.text === 'string') {
-                  firstText.text = firstText.text.replace(new RegExp(`^\\[!${matchedVariant.type}]\\s*`, 'i'), '');
+            if (`tokens` in token && Array.isArray(token.tokens) && token.tokens.length > 0) {
+              const firstParagraph = token.tokens[0]
+              if (firstParagraph && `tokens` in firstParagraph && Array.isArray(firstParagraph.tokens) && firstParagraph.tokens.length > 0) {
+                const firstText = firstParagraph.tokens[0]
+                if (firstText && `text` in firstText && typeof firstText.text === `string`) {
+                  firstText.text = firstText.text.replace(new RegExp(`^\\[!${matchedVariant.type}]\\s*`, `i`), ``)
                 }
               }
             }
-            processAlertToken(token, matchedVariant, options, className);
+            processAlertToken(token, matchedVariant, options, className)
           }
         }
-        return;
+        return
       }
 
       // 处理段落类型的 token (CommonMark 语法)
       if (token.type === `paragraph`) {
         // 确保 token 有 text 属性
-        const text = 'text' in token && typeof token.text === 'string' ? token.text : '';
+        const text = `text` in token && typeof token.text === `string` ? token.text : ``
         if (text) {
           const matchedVariant = resolvedVariants.find(({ type }) =>
             new RegExp(`^!!!\\s+${type}\\s*?\\n*`, `i`).test(text),
           )
 
           if (matchedVariant) {
-            processAlertToken(token, matchedVariant, options, className);
+            processAlertToken(token, matchedVariant, options, className)
           }
         }
       }
@@ -137,22 +137,22 @@ export default function markedAlert(options: AlertOptions = {}): MarkedExtension
         level: `block`,
         renderer({ meta, tokens = [] }) {
           let text = this.parser.parse(tokens)
-          text = text.replace(/<p .*?>/g, `<p style="${getStyleString(meta.contentStyle)}">`);
+          text = text.replace(/<p .*?>/g, `<p style="${getStyleString(meta.contentStyle)}">`)
           let tmpl = `<blockquote id="${meta.blockId}" class="${meta.className} ${meta.className}-${meta.variant}" style="${getStyleString(meta.wrapperStyle)}" data-block-type="admonition" data-block-content="${encodeURIComponent(meta.originalContent)}">
-`;
-          tmpl += `<p class="${meta.titleClassName}" style="${getStyleString(meta.titleStyle)}">`;
+`
+          tmpl += `<p class="${meta.titleClassName}" style="${getStyleString(meta.titleStyle)}">`
           tmpl += meta.icon.replace(
             `<svg`,
             `<svg style="fill: ${meta.titleStyle?.color ?? `inherit`}"`,
-          );
-          tmpl += meta.title;
+          )
+          tmpl += meta.title
           tmpl += `</p>
-`;
-          tmpl += text;
+`
+          tmpl += text
           tmpl += `</blockquote>
-`;
+`
 
-          return tmpl;
+          return tmpl
         },
       },
     ],

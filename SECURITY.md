@@ -40,16 +40,21 @@ VITE_GITHUB_IMAGE_TOKEN=your_github_personal_access_token_here
 在生产环境中，请通过以下方式设置环境变量：
 
 #### Vercel
+
 在 Vercel 项目设置中添加环境变量：
+
 - 变量名：`VITE_GITHUB_IMAGE_TOKEN`
 - 值：您的 GitHub Personal Access Token
 
 #### Netlify
+
 在 Netlify 项目设置中添加环境变量：
+
 - 变量名：`VITE_GITHUB_IMAGE_TOKEN`
 - 值：您的 GitHub Personal Access Token
 
 #### 其他平台
+
 请参考相应平台的文档来设置环境变量。
 
 ## 安全注意事项
@@ -63,13 +68,17 @@ VITE_GITHUB_IMAGE_TOKEN=your_github_personal_access_token_here
 ## 故障排除
 
 ### 图床配置失败
+
 如果图床配置失败，请检查：
+
 1. 环境变量是否正确设置
 2. GitHub token 是否有效且具有正确的权限
 3. 仓库名称格式是否正确（如：`owner/repo`）
 
 ### 环境变量未生效
+
 如果环境变量未生效，请：
+
 1. 确认 `.env.local` 文件在项目根目录
 2. 重启开发服务器
 3. 检查变量名是否以 `VITE_` 开头（Vite 要求）

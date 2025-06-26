@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-
 import { Bot } from 'lucide-vue-next'
+
+import { ref } from 'vue'
 
 defineProps<{
   position: {

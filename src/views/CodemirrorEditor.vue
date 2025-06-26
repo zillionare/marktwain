@@ -1,10 +1,6 @@
 <script setup lang="ts">
-import { useStorage } from '@vueuse/core'
-
 import type { ComponentPublicInstance } from 'vue'
-import { ref, watch, onMounted, nextTick, toRaw } from 'vue'
-import { storeToRefs } from 'pinia'
-import { toast } from 'vue-sonner'
+
 import {
   AIPolishButton,
   AIPolishPopover,
@@ -28,10 +24,14 @@ import { useDisplayStore, useStore } from '@/stores'
 import { checkImage, formatDoc, toBase64 } from '@/utils'
 import { toggleFormat } from '@/utils/editor'
 import fileApi from '@/utils/file'
+import { useStorage } from '@vueuse/core'
 import CodeMirror from 'codemirror'
 import CryptoJS from 'crypto-js'
 import html2canvas from 'html2canvas'
 import { Eye, List, Pen } from 'lucide-vue-next'
+import { storeToRefs } from 'pinia'
+import { nextTick, onMounted, ref, toRaw, watch } from 'vue'
+import { toast } from 'vue-sonner'
 
 const store = useStore()
 const displayStore = useDisplayStore()
@@ -589,7 +589,8 @@ function replaceAdmonitionBlock(markdown: string, targetHash: string, imageUrl: 
         const matchHash = CryptoJS.MD5(admonitionContent).toString()
         if (matchHash === targetHash) {
           let endLine = i - 1
-          if (isEndByComment) endLine = i
+          if (isEndByComment)
+            endLine = i
 
           const newLines = [
             ...lines.slice(0, admonitionStart),
@@ -606,7 +607,8 @@ function replaceAdmonitionBlock(markdown: string, targetHash: string, imageUrl: 
       else if (isEndOfFile) {
         if (admonitionContent) {
           admonitionContent += `\n${line}`
-        } else {
+        }
+        else {
           admonitionContent = line
         }
 
@@ -623,7 +625,8 @@ function replaceAdmonitionBlock(markdown: string, targetHash: string, imageUrl: 
       else {
         if (admonitionContent) {
           admonitionContent += `\n${line}`
-        } else {
+        }
+        else {
           admonitionContent = line
         }
       }
@@ -657,7 +660,8 @@ function replaceGMFAdmonitionBlock(markdown: string, targetHash: string, imageUr
         const content = line.substring(2)
         if (gmfAdmonitionContent) {
           gmfAdmonitionContent += `\n${content}`
-        } else {
+        }
+        else {
           gmfAdmonitionContent = content
         }
       }
@@ -693,7 +697,7 @@ function replaceFencedBlock(markdown: string, targetHash: string, imageUrl: stri
 
   for (const match of matches) {
     const matchContent = match[0]
-    const codeContent = matchContent.replace(/^```[a-zA-Z0-9_+-]*\n?/, ``).replace(/\n?```$/, ``)
+    const codeContent = matchContent.replace(/^```[\w+-]*\n?/, ``).replace(/\n?```$/, ``)
     const matchHash = CryptoJS.MD5(codeContent).toString()
 
     if (matchHash === targetHash) {
@@ -728,7 +732,7 @@ async function convertToImages(forceRegenerate = false) {
     // 检查图床配置
     const userGithubConfig = localStorage.getItem(`githubConfig`)
     let useUserConfig = false
-    let configMessage = ''
+    let configMessage = ``
 
     if (userGithubConfig) {
       try {
@@ -737,7 +741,8 @@ async function convertToImages(forceRegenerate = false) {
           useUserConfig = true
           configMessage = `使用您的 GitHub 图床: ${config.repo}`
         }
-      } catch (error) {
+      }
+      catch (error) {
         console.warn(`用户 GitHub 配置解析失败`, error)
       }
     }
@@ -750,12 +755,12 @@ async function convertToImages(forceRegenerate = false) {
     toast.info(configMessage)
 
     // 检查缓存版本，如果格式不兼容则清理
-    const cacheVersion = localStorage.getItem('blockUploadCacheVersion')
-    const currentVersion = '2.0' // 组合哈希版本
+    const cacheVersion = localStorage.getItem(`blockUploadCacheVersion`)
+    const currentVersion = `2.0` // 组合哈希版本
     if (cacheVersion !== currentVersion) {
       console.log(`🧹 清理旧版本缓存 (${cacheVersion} -> ${currentVersion})`)
       blockUploadStatus.value = {}
-      localStorage.setItem('blockUploadCacheVersion', currentVersion)
+      localStorage.setItem(`blockUploadCacheVersion`, currentVersion)
     }
 
     const outputElement = document.getElementById(`output`)
@@ -764,15 +769,46 @@ async function convertToImages(forceRegenerate = false) {
       return
     }
 
-    // 查找所有需要转换的块
-    const admonitionBlocks = outputElement.querySelectorAll(`[data-block-type="admonition"]`)
-    const fencedBlocks = outputElement.querySelectorAll(`[data-block-type="fenced"]`)
-    const mathBlocks = outputElement.querySelectorAll(`[data-block-type="math"]`)
+    // 检查是否至少选择了一种块类型
+    const hasSelectedBlockType = Object.values(store.convertImageBlockTypes).some(enabled => enabled)
+    if (!hasSelectedBlockType) {
+      toast.error(`请在设置中至少选择一种要转图的块类型`)
+      return
+    }
 
-    const allBlocks = [...admonitionBlocks, ...fencedBlocks, ...mathBlocks]
+    // 根据用户配置查找需要转换的块
+    const selectedBlocks: Element[] = []
+
+    if (store.convertImageBlockTypes.admonition) {
+      const admonitionBlocks = outputElement.querySelectorAll(`[data-block-type="admonition"]`)
+      selectedBlocks.push(...admonitionBlocks)
+    }
+
+    if (store.convertImageBlockTypes.fenced) {
+      const fencedBlocks = outputElement.querySelectorAll(`[data-block-type="fenced"]`)
+      selectedBlocks.push(...fencedBlocks)
+    }
+
+    if (store.convertImageBlockTypes.math) {
+      const mathBlocks = outputElement.querySelectorAll(`[data-block-type="math"]`)
+      selectedBlocks.push(...mathBlocks)
+    }
+
+    const allBlocks = selectedBlocks
 
     if (allBlocks.length === 0) {
-      toast.info(`没有找到需要转换的块`)
+      const enabledTypes = Object.entries(store.convertImageBlockTypes)
+        .filter(([_, enabled]) => enabled)
+        .map(([type, _]) => {
+          switch (type) {
+            case 'admonition': return 'Admonition'
+            case 'fenced': return '代码块'
+            case 'math': return '数学公式'
+            default: return type
+          }
+        })
+        .join('、')
+      toast.info(`没有找到需要转换的 ${enabledTypes} 块`)
       return
     }
 
@@ -789,7 +825,23 @@ async function convertToImages(forceRegenerate = false) {
       imageUrl: string
     }> = []
 
-    toast.info(`开始转换 ${allBlocks.length} 个块...`)
+    // 统计各类型块的数量
+    const blockCounts = {
+      admonition: allBlocks.filter(block => block.getAttribute('data-block-type') === 'admonition').length,
+      fenced: allBlocks.filter(block => block.getAttribute('data-block-type') === 'fenced').length,
+      math: allBlocks.filter(block => block.getAttribute('data-block-type') === 'math').length,
+    }
+
+    const countInfo = Object.entries(blockCounts)
+      .filter(([_, count]) => count > 0)
+      .map(([type, count]) => {
+        const typeName = type === 'admonition' ? 'Admonition' :
+                        type === 'fenced' ? '代码块' : '数学公式'
+        return `${typeName} ${count}个`
+      })
+      .join('、')
+
+    toast.info(`开始转换 ${allBlocks.length} 个块 (${countInfo})...`)
 
     for (const block of allBlocks) {
       const blockType = block.getAttribute(`data-block-type`)
@@ -822,7 +874,7 @@ async function convertToImages(forceRegenerate = false) {
         forceRegenerate,
         existingUpload,
         currentHash: combinedHash,
-        hashMatch: existingUpload?.hash === combinedHash
+        hashMatch: existingUpload?.hash === combinedHash,
       })
 
       if (!forceRegenerate && existingUpload && existingUpload.hash === combinedHash) {
@@ -1231,9 +1283,9 @@ async function convertToImages(forceRegenerate = false) {
 }
 
 /* 转图块的最大宽度设置 */
-:deep([data-block-type="admonition"]),
-:deep([data-block-type="fenced"]),
-:deep([data-block-type="math"]) {
+:deep([data-block-type='admonition']),
+:deep([data-block-type='fenced']),
+:deep([data-block-type='math']) {
   max-width: var(--convert-image-max-width, 800px);
   box-sizing: border-box;
 }

@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-
 import { useStore } from '@/stores'
+
 import {
   ChevronRight,
   Edit3,
@@ -10,6 +9,7 @@ import {
   PlusSquare,
   Trash2,
 } from 'lucide-vue-next'
+import { ref, watch } from 'vue'
 
 interface Post {
   id: string
