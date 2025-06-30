@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { storeToRefs } from 'pinia'
-
 import { Button } from '@/components/ui/button'
+
 import {
   Select,
   SelectContent,
@@ -10,9 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import useAIConfigStore from '@/stores/AIConfig'
 import { useStore } from '@/stores'
+import useAIConfigStore from '@/stores/AIConfig'
 import { Pause, Settings, X } from 'lucide-vue-next'
+import { storeToRefs } from 'pinia'
 import { nextTick, ref, toRaw, watch } from 'vue'
 import { toast } from 'vue-sonner'
 

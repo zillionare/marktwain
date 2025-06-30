@@ -1,13 +1,13 @@
-import { parseHTML } from 'linkedom'
-import { writeFile } from 'node:fs/promises'
-import path from 'node:path'
-import { hash } from 'ohash'
 import type { OutputOptions } from 'rollup'
 import type * as vite from 'vite'
 import type * as wxt from 'wxt'
+import { writeFile } from 'node:fs/promises'
+import path from 'node:path'
+import { parseHTML } from 'linkedom'
+import { hash } from 'ohash'
 import {
-    addViteConfig,
-    defineWxtModule,
+  addViteConfig,
+  defineWxtModule,
 } from 'wxt/modules'
 
 export default defineWxtModule({

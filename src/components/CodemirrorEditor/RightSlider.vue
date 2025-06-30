@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-
 import {
   codeBlockThemeOptions,
   colorOptions,
@@ -10,13 +8,14 @@ import {
   themeOptions,
   widthOptions,
 } from '@/config'
+
 import { useDisplayStore, useStore } from '@/stores'
 import fileApi from '@/utils/file'
-import { Moon, Sun, TestTube } from 'lucide-vue-next'
-import PickColors, { type Format } from 'vue-pick-colors'
-import { ref, watch, useTemplateRef } from 'vue'
-import { storeToRefs } from 'pinia'
 import { useStorage } from '@vueuse/core'
+import { Moon, Sun, TestTube } from 'lucide-vue-next'
+import { storeToRefs } from 'pinia'
+import { computed, ref, useTemplateRef, watch } from 'vue'
+import PickColors, { type Format } from 'vue-pick-colors'
 import { toast } from 'vue-sonner'
 
 const store = useStore()
@@ -58,15 +57,16 @@ const currentImageBedStatus = computed(() => {
   const config = githubImageBedConfig.value
   if (config.repo && config.accessToken) {
     return {
-      type: 'user',
+      type: `user`,
       message: `使用您的 GitHub 图床: ${config.repo}`,
-      color: 'text-green-600 dark:text-green-400'
+      color: `text-green-600 dark:text-green-400`,
     }
-  } else {
+  }
+  else {
     return {
-      type: 'default',
+      type: `default`,
       message: `使用默认 bucketio 图床（公共服务）`,
-      color: 'text-orange-600 dark:text-orange-400'
+      color: `text-orange-600 dark:text-orange-400`,
     }
   }
 })
@@ -89,7 +89,8 @@ async function testImageBed() {
 
   if (!hasUserConfig) {
     toast.info(`将测试默认 bucketio 图床（公共服务）`)
-  } else {
+  }
+  else {
     toast.info(`将测试您的 GitHub 图床: ${config.repo}`)
   }
 
@@ -111,7 +112,8 @@ async function testImageBed() {
     if (hasUserConfig) {
       ctx.fillText(`用户 GitHub 图床测试`, 150, 35)
       ctx.fillText(`仓库: ${config.repo}`, 150, 55)
-    } else {
+    }
+    else {
       ctx.fillText(`默认 bucketio 图床测试`, 150, 35)
       ctx.fillText(`公共服务`, 150, 55)
     }
@@ -134,7 +136,7 @@ async function testImageBed() {
 
     try {
       const imageUrl = await fileApi.fileUpload(base64, testFile)
-      const bedType = hasUserConfig ? '用户图床' : '默认图床'
+      const bedType = hasUserConfig ? `用户图床` : `默认图床`
       toast.success(`${bedType}测试成功！图片已上传到：${imageUrl}`)
       console.log(`🎉 ${bedType}测试成功，图片 URL:`, imageUrl)
     }
@@ -413,17 +415,17 @@ async function testImageBed() {
               placeholder="800"
               class="mt-1"
             />
-            <p class="text-xs text-gray-500 mt-1">
+            <p class="mt-1 text-xs text-gray-500">
               转图时生成图片的最大宽度，单位：像素（默认 800px）
             </p>
           </div>
-          <div class="flex items-center space-x-2">
+          <div class="space-x-2 flex items-center">
             <input
               id="convertImageHighRes"
               v-model="store.convertImageHighRes"
               type="checkbox"
-              class="rounded border-gray-300 text-primary focus:ring-primary"
-            />
+              class="text-primary focus:ring-primary border-gray-300 rounded"
+            >
             <label for="convertImageHighRes" class="text-sm font-medium">
               生成高分辨率图片
             </label>
@@ -434,6 +436,48 @@ async function testImageBed() {
               关闭后图片尺寸与设置值完全一致。
             </span>
           </p>
+
+          <div>
+            <label class="text-sm font-medium">转图块类型</label>
+            <div class="mt-2 space-y-2">
+              <div class="space-x-2 flex items-center">
+                <input
+                  id="convertAdmonition"
+                  v-model="store.convertImageBlockTypes.admonition"
+                  type="checkbox"
+                  class="text-primary focus:ring-primary border-gray-300 rounded"
+                >
+                <label for="convertAdmonition" class="text-sm">
+                  Admonition 块
+                </label>
+              </div>
+              <div class="space-x-2 flex items-center">
+                <input
+                  id="convertFenced"
+                  v-model="store.convertImageBlockTypes.fenced"
+                  type="checkbox"
+                  class="text-primary focus:ring-primary border-gray-300 rounded"
+                >
+                <label for="convertFenced" class="text-sm">
+                  代码块 (Fenced Block)
+                </label>
+              </div>
+              <div class="space-x-2 flex items-center">
+                <input
+                  id="convertMath"
+                  v-model="store.convertImageBlockTypes.math"
+                  type="checkbox"
+                  class="text-primary focus:ring-primary border-gray-300 rounded"
+                >
+                <label for="convertMath" class="text-sm">
+                  数学公式块 (Math Block)
+                </label>
+              </div>
+            </div>
+            <p class="mt-1 text-xs text-gray-500">
+              选择在转图时要包含的块类型。至少需要选择一种类型。
+            </p>
+          </div>
         </div>
       </div>
 
@@ -441,14 +485,14 @@ async function testImageBed() {
         <h2>GitHub 图床配置</h2>
 
         <!-- 当前图床状态显示 -->
-        <div class="p-3 rounded-lg border bg-gray-50 dark:bg-gray-800">
-          <div class="flex items-center space-x-2">
-            <div class="w-2 h-2 rounded-full" :class="currentImageBedStatus.type === 'user' ? 'bg-green-500' : 'bg-orange-500'"></div>
+        <div class="border rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+          <div class="space-x-2 flex items-center">
+            <div class="h-2 w-2 rounded-full" :class="currentImageBedStatus.type === 'user' ? 'bg-green-500' : 'bg-orange-500'" />
             <span class="text-sm font-medium" :class="currentImageBedStatus.color">
               {{ currentImageBedStatus.message }}
             </span>
           </div>
-          <p class="text-xs text-gray-500 mt-1">
+          <p class="mt-1 text-xs text-gray-500">
             {{ currentImageBedStatus.type === 'user'
               ? '图片将上传到您的仓库，通过 jsDelivr CDN 加速访问'
               : '图片将上传到公共图床，建议配置自己的仓库以确保数据安全'
@@ -489,7 +533,7 @@ async function testImageBed() {
               placeholder="支持模板变量：images/{year}/{month}"
               class="mt-1"
             />
-            <p class="text-xs text-gray-500 mt-1">
+            <p class="mt-1 text-xs text-gray-500">
               支持模板变量：{year} - 年份，{month} - 月份
             </p>
           </div>

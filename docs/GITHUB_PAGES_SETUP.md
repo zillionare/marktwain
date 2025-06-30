@@ -19,6 +19,7 @@
 配置完成后，每次推送到 `main` 分支时，GitHub Actions 会自动：
 
 1. **构建项目**：
+
    - 安装依赖 (`npm ci`)
    - 构建生产版本 (`npm run build`)
    - 设置正确的基础路径 (`/marktwain/`)
@@ -30,6 +31,7 @@
 ### 3. 部署状态
 
 您可以在以下位置查看部署状态：
+
 - **Actions 标签**：https://github.com/zillionare/marktwain/actions
 - **Deployments**：在仓库主页右侧的 "Deployments" 部分
 
@@ -40,6 +42,7 @@
 文件：`.github/workflows/deploy.yml`
 
 **主要配置**：
+
 - **触发条件**：推送到 `main` 分支
 - **Node.js 版本**：18
 - **构建命令**：`npm run build`
@@ -51,13 +54,15 @@
 文件：`vite.config.ts`
 
 **基础路径配置**：
+
 ```typescript
-base: process.env.SERVER_ENV === `NETLIFY` 
-  ? `/` 
+base: process.env.SERVER_ENV === `NETLIFY`
+  ? `/`
   : process.env.VITE_BASE_URL || `/md/`,
 ```
 
 **环境变量**：
+
 - `VITE_BASE_URL=/marktwain/` (在 GitHub Actions 中设置)
 
 ## 🎯 功能特性
@@ -65,6 +70,7 @@ base: process.env.SERVER_ENV === `NETLIFY`
 ### 完整功能支持
 
 在线版本将包含所有功能：
+
 - ✅ **Markdown 编辑器**：实时预览和编辑
 - ✅ **转图功能**：支持 admonition、代码块、数学公式转图
 - ✅ **图床配置**：支持用户自定义 GitHub 图床
@@ -75,10 +81,12 @@ base: process.env.SERVER_ENV === `NETLIFY`
 ### 图床功能
 
 **默认图床**：
+
 - 使用 bucketio 作为默认图床
 - 无需用户配置即可使用
 
 **自定义图床**：
+
 - 支持用户配置 GitHub 仓库作为图床
 - 需要用户提供 GitHub Token 和仓库信息
 
@@ -88,6 +96,7 @@ base: process.env.SERVER_ENV === `NETLIFY`
 
 1. **访问在线地址**：https://zillionare.github.io/marktwain
 2. **测试核心功能**：
+
    - 编辑 Markdown 内容
    - 实时预览效果
    - 转图功能
@@ -101,11 +110,13 @@ base: process.env.SERVER_ENV === `NETLIFY`
 ### 常见问题排查
 
 **如果页面无法访问**：
+
 1. 检查 GitHub Pages 是否已启用
 2. 检查 Actions 是否运行成功
 3. 检查基础路径配置是否正确
 
 **如果资源加载失败**：
+
 1. 检查浏览器控制台错误
 2. 确认基础路径设置正确
 3. 检查构建产物是否完整
@@ -128,6 +139,7 @@ graph TD
 ### 手动触发部署
 
 如果需要手动触发部署：
+
 1. 进入 **Actions** 标签
 2. 选择 **Deploy to GitHub Pages** 工作流
 3. 点击 **Run workflow**

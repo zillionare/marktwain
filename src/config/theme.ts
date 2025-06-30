@@ -109,6 +109,18 @@ const defaultTheme: Theme = {
     blockquote_caution: {
     },
 
+    blockquote_question: {
+    },
+
+    blockquote_hint: {
+    },
+
+    blockquote_example: {
+    },
+
+    blockquote_abstract: {
+    },
+
     // GFM 警告块标题
     blockquote_title: {
       'display': `flex`,
@@ -137,6 +149,22 @@ const defaultTheme: Theme = {
       color: `#e5534b`,
     },
 
+    blockquote_title_question: {
+      color: `#478be6`,
+    },
+
+    blockquote_title_hint: {
+      color: `#57ab5a`,
+    },
+
+    blockquote_title_example: {
+      color: `#986ee2`,
+    },
+
+    blockquote_title_abstract: {
+      color: `#478be6`,
+    },
+
     blockquote_p_note: {
     },
 
@@ -150,6 +178,18 @@ const defaultTheme: Theme = {
     },
 
     blockquote_p_caution: {
+    },
+
+    blockquote_p_question: {
+    },
+
+    blockquote_p_hint: {
+    },
+
+    blockquote_p_example: {
+    },
+
+    blockquote_p_abstract: {
     },
 
     // 代码块
@@ -517,6 +557,22 @@ const simpleTheme = toMerged(defaultTheme, {
       'font-style': `italic`,
     },
 
+    blockquote_question: {
+      'font-style': `italic`,
+    },
+
+    blockquote_hint: {
+      'font-style': `italic`,
+    },
+
+    blockquote_example: {
+      'font-style': `italic`,
+    },
+
+    blockquote_abstract: {
+      'font-style': `italic`,
+    },
+
     blockquote_title: {
     },
 
@@ -536,6 +592,18 @@ const simpleTheme = toMerged(defaultTheme, {
     blockquote_title_caution: {
     },
 
+    blockquote_title_question: {
+    },
+
+    blockquote_title_hint: {
+    },
+
+    blockquote_title_example: {
+    },
+
+    blockquote_title_abstract: {
+    },
+
     blockquote_p_note: {
     },
 
@@ -549,6 +617,18 @@ const simpleTheme = toMerged(defaultTheme, {
     },
 
     blockquote_p_caution: {
+    },
+
+    blockquote_p_question: {
+    },
+
+    blockquote_p_hint: {
+    },
+
+    blockquote_p_example: {
+    },
+
+    blockquote_p_abstract: {
     },
 
     code_pre: {

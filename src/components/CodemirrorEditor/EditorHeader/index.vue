@@ -1,8 +1,4 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useStorage, useClipboard } from '@vueuse/core'
-
 import { Toaster } from '@/components/ui/sonner'
 import {
   altSign,
@@ -10,11 +6,15 @@ import {
   ctrlSign,
   shiftSign,
 } from '@/config'
-
 import { useStore } from '@/stores'
+
 import { addPrefix, processClipboardContent } from '@/utils'
 import { copyPlain } from '@/utils/clipboard'
+
+import { useClipboard, useStorage } from '@vueuse/core'
 import { ChevronDownIcon, Image, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun } from 'lucide-vue-next'
+import { storeToRefs } from 'pinia'
+import { nextTick, ref } from 'vue'
 import { toast } from 'vue-sonner'
 
 const emit = defineEmits([`addFormat`, `formatContent`, `startCopy`, `endCopy`, `convertToImages`, `forceConvertToImages`])
@@ -84,7 +84,8 @@ async function convertToImages() {
   isConverting.value = true
   try {
     emit(`convertToImages`)
-  } finally {
+  }
+  finally {
     // 延迟重置状态，给用户一些视觉反馈
     setTimeout(() => {
       isConverting.value = false
@@ -96,7 +97,8 @@ async function forceConvertToImages() {
   isConverting.value = true
   try {
     emit(`forceConvertToImages`)
-  } finally {
+  }
+  finally {
     // 延迟重置状态，给用户一些视觉反馈
     setTimeout(() => {
       isConverting.value = false
@@ -108,8 +110,9 @@ async function forceConvertToImages() {
 function copy() {
   // 如果是 Markdown 源码，直接复制并返回
   if (copyMode.value === `md`) {
-    // 检查是否有转换后的内容
-    const convertedMarkdown = localStorage.getItem('convertedMarkdown')
+    // 检查是否有转换后的内容 - 使用 useStorage 方式
+    const convertedMarkdownStorage = useStorage(`convertedMarkdown`, ``)
+    const convertedMarkdown = convertedMarkdownStorage.value
     const mdContent = convertedMarkdown || editor.value?.getValue() || ``
     copyPlain(mdContent)
     const message = convertedMarkdown
@@ -231,8 +234,8 @@ function copy() {
 
       <!-- 转图按钮组 -->
       <div class="bg-background space-x-1 text-background-foreground flex items-center border rounded-md">
-        <Button variant="ghost" size="sm" @click="convertToImages" :disabled="isConverting" class="shadow-none">
-          <Image class="size-4 mr-1" />
+        <Button variant="ghost" size="sm" :disabled="isConverting" class="shadow-none" @click="convertToImages">
+          <Image class="mr-1 size-4" />
           {{ isConverting ? '转换中...' : '转图' }}
         </Button>
         <Separator orientation="vertical" class="h-5" />
@@ -243,11 +246,11 @@ function copy() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" :align-offset="-5" class="w-[180px]">
-            <DropdownMenuItem @click="convertToImages" :disabled="isConverting">
+            <DropdownMenuItem :disabled="isConverting" @click="convertToImages">
               <Image class="mr-2 h-4 w-4" />
               智能转图
             </DropdownMenuItem>
-            <DropdownMenuItem @click="forceConvertToImages" :disabled="isConverting">
+            <DropdownMenuItem :disabled="isConverting" @click="forceConvertToImages">
               <Image class="mr-2 h-4 w-4" />
               强制重新生图
             </DropdownMenuItem>
