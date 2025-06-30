@@ -634,7 +634,10 @@ export const useStore = defineStore(`store`, () => {
 
   // 导出转图后的 MD 内容到本地
   const exportConvertedMarkdown2MD = () => {
-    const convertedMarkdown = localStorage.getItem(`convertedMarkdown`)
+    // 使用 useStorage 的方式获取转换后的 Markdown
+    const convertedMarkdownStorage = useStorage(`convertedMarkdown`, ``)
+    const convertedMarkdown = convertedMarkdownStorage.value
+
     if (!convertedMarkdown || convertedMarkdown.trim() === ``) {
       toast.error(`没有转图后的内容，请先执行转图功能`)
       return

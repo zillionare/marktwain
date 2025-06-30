@@ -110,8 +110,9 @@ async function forceConvertToImages() {
 function copy() {
   // 如果是 Markdown 源码，直接复制并返回
   if (copyMode.value === `md`) {
-    // 检查是否有转换后的内容
-    const convertedMarkdown = localStorage.getItem(`convertedMarkdown`)
+    // 检查是否有转换后的内容 - 使用 useStorage 方式
+    const convertedMarkdownStorage = useStorage(`convertedMarkdown`, ``)
+    const convertedMarkdown = convertedMarkdownStorage.value
     const mdContent = convertedMarkdown || editor.value?.getValue() || ``
     copyPlain(mdContent)
     const message = convertedMarkdown
