@@ -80,11 +80,12 @@
 
 /* CommonMark Admonition 样式 (使用独立的div结构) */
 .admonition {
-  @apply border-0 rounded bg-white text-gray-800 text-base p-0;
+  @apply border-0 rounded bg-white text-gray-800 p-0;
   margin: 1.5625em 0;
   box-shadow: 2px 2px 8px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1);
   page-break-inside: avoid;
   font-style: normal;
+  font-size: 14px; /* 比正常文字小一号 */
 }
 
 .admonition-note {
@@ -126,6 +127,7 @@
 .admonition-title {
   @apply flex items-center gap-2 m-0 px-4 mb-2 py-2 font-medium min-w-0 rounded-t;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  font-size: 15px; /* 标题比内容稍大，但仍比正常文字小 */
 }
 
 .admonition-note .admonition-title {

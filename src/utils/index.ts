@@ -532,11 +532,12 @@ function getAdmonitionStyles(variant: string) {
 
   return {
     wrapper: `
-      font-style: italic;
+      font-style: normal;
+      font-size: 14px;
       padding: 1em 1em 1em 2em;
       border-left: 4px solid ${color};
       border-radius: 6px;
-      color: rgba(0,0,0,0.6);
+      color: rgba(0,0,0,0.8);
       box-shadow: 0 4px 6px rgba(0,0,0,0.05);
       margin-bottom: 1em;
       background: #f7f7f7;
@@ -548,6 +549,7 @@ function getAdmonitionStyles(variant: string) {
       margin-bottom: 0.5em;
       color: ${color};
       font-weight: bold;
+      font-size: 15px;
     `.replace(/\s+/g, ' ').trim()
   }
 }
