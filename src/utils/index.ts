@@ -400,6 +400,15 @@ export function mergeCss(html: string): string {
   return juice(html, {
     inlinePseudoElements: true,
     preserveImportant: true,
+    // 确保表格相关样式能正确内联
+    applyAttributesTableElements: true,
+    applyWidthAttributes: true,
+    applyHeightAttributes: true,
+    // 保留媒体查询和字体
+    preserveMediaQueries: true,
+    preserveFontFaces: true,
+    // 不移除style标签，避免某些样式丢失
+    removeStyleTags: false,
   })
 }
 
@@ -532,11 +541,12 @@ function getAdmonitionStyles(variant: string) {
 
   return {
     wrapper: `
-      font-style: italic;
+      font-style: normal;
+      font-size: 14px;
       padding: 1em 1em 1em 2em;
       border-left: 4px solid ${color};
       border-radius: 6px;
-      color: rgba(0,0,0,0.6);
+      color: rgba(0,0,0,0.8);
       box-shadow: 0 4px 6px rgba(0,0,0,0.05);
       margin-bottom: 1em;
       background: #f7f7f7;
@@ -548,6 +558,7 @@ function getAdmonitionStyles(variant: string) {
       margin-bottom: 0.5em;
       color: ${color};
       font-weight: bold;
+      font-size: 15px;
     `.replace(/\s+/g, ' ').trim()
   }
 }
@@ -742,7 +753,7 @@ function isImportantStyleProperty(prop: string): boolean {
     'background-color', 'background', 'color', 'font-family', 'font-size',
     'font-weight', 'font-style', 'text-decoration', 'opacity', 'border-radius',
     'padding', 'margin', 'line-height', 'white-space', 'border', 'border-left',
-    'border-right', 'border-top', 'border-bottom'
+    'border-right', 'border-top', 'border-bottom', 'display', 'text-align'
   ]
   return importantProps.includes(prop)
 }
