@@ -98,7 +98,8 @@ async function ghFileUpload(content: string, filename: string) {
         useDefault = false
         console.log(`🎯 使用用户自定义 GitHub 图床: ${config.repo}`)
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.warn(`用户 GitHub 配置解析失败，使用默认图床`, error)
     }
   }

@@ -78,10 +78,11 @@ const defaultTheme: Theme = {
     // 引用
     blockquote: {
       'font-style': `normal`,
+      'font-size': `14px`,
       'padding': `1em`,
       'border-left': `4px solid var(--md-primary-color)`,
       'border-radius': `6px`,
-      'color': `rgba(0,0,0,0.5)`,
+      'color': `rgba(0,0,0,0.8)`,
       'background': `var(--blockquote-background)`,
       'margin-bottom': `1em`,
     },
@@ -89,7 +90,7 @@ const defaultTheme: Theme = {
     // 引用内容
     blockquote_p: {
       'display': `block`,
-      'font-size': `1em`,
+      'font-size': `14px`,
       'letter-spacing': `0.1em`,
       'color': `hsl(var(--foreground))`,
     },
@@ -109,12 +110,26 @@ const defaultTheme: Theme = {
     blockquote_caution: {
     },
 
+    blockquote_question: {
+    },
+
+    blockquote_hint: {
+    },
+
+    blockquote_example: {
+    },
+
+    blockquote_abstract: {
+    },
+
     // GFM 警告块标题
     blockquote_title: {
       'display': `flex`,
       'align-items': `center`,
       'gap': `0.5em`,
       'margin-bottom': `0.5em`,
+      'font-size': `15px`,
+      'font-weight': `bold`,
     },
 
     blockquote_title_note: {
@@ -137,6 +152,22 @@ const defaultTheme: Theme = {
       color: `#e5534b`,
     },
 
+    blockquote_title_question: {
+      color: `#478be6`,
+    },
+
+    blockquote_title_hint: {
+      color: `#57ab5a`,
+    },
+
+    blockquote_title_example: {
+      color: `#986ee2`,
+    },
+
+    blockquote_title_abstract: {
+      color: `#478be6`,
+    },
+
     blockquote_p_note: {
     },
 
@@ -150,6 +181,18 @@ const defaultTheme: Theme = {
     },
 
     blockquote_p_caution: {
+    },
+
+    blockquote_p_question: {
+    },
+
+    blockquote_p_hint: {
+    },
+
+    blockquote_p_example: {
+    },
+
+    blockquote_p_abstract: {
     },
 
     // 代码块
@@ -344,20 +387,23 @@ const graceTheme = toMerged(defaultTheme, {
     },
 
     'blockquote': {
-      'font-style': `italic`,
+      'font-style': `normal`,
+      'font-size': `14px`,
       'padding': `1em 1em 1em 2em`,
       'border-left': `4px solid var(--md-primary-color)`,
       'border-radius': `6px`,
-      'color': `rgba(0,0,0,0.6)`,
+      'color': `rgba(0,0,0,0.8)`,
       'box-shadow': `0 4px 6px rgba(0,0,0,0.05)`,
       'margin-bottom': `1em`,
     },
 
     'blockquote_p': {
+      'font-size': `14px`,
     },
 
     'markdown-alert': {
-      'font-style': `italic`,
+      'font-style': `normal`,
+      'font-size': `14px`,
     },
 
     'code_pre': {
@@ -489,32 +535,49 @@ const simpleTheme = toMerged(defaultTheme, {
     },
 
     blockquote: {
-      'font-style': `italic`,
+      'font-style': `normal`,
+      'font-size': `14px`,
       'padding': `1em 1em 1em 2em`,
-      'color': `rgba(0,0,0,0.6)`,
+      'color': `rgba(0,0,0,0.8)`,
       'border-bottom': `0.2px solid rgba(0, 0, 0, 0.04)`,
       'border-top': `0.2px solid rgba(0, 0, 0, 0.04)`,
       'border-right': `0.2px solid rgba(0, 0, 0, 0.04)`,
     },
 
     blockquote_note: {
-      'font-style': `italic`,
+      'font-style': `normal`,
     },
 
     blockquote_tip: {
-      'font-style': `italic`,
+      'font-style': `normal`,
     },
 
     blockquote_important: {
-      'font-style': `italic`,
+      'font-style': `normal`,
     },
 
     blockquote_warning: {
-      'font-style': `italic`,
+      'font-style': `normal`,
     },
 
     blockquote_caution: {
-      'font-style': `italic`,
+      'font-style': `normal`,
+    },
+
+    blockquote_question: {
+      'font-style': `normal`,
+    },
+
+    blockquote_hint: {
+      'font-style': `normal`,
+    },
+
+    blockquote_example: {
+      'font-style': `normal`,
+    },
+
+    blockquote_abstract: {
+      'font-style': `normal`,
     },
 
     blockquote_title: {
@@ -536,6 +599,18 @@ const simpleTheme = toMerged(defaultTheme, {
     blockquote_title_caution: {
     },
 
+    blockquote_title_question: {
+    },
+
+    blockquote_title_hint: {
+    },
+
+    blockquote_title_example: {
+    },
+
+    blockquote_title_abstract: {
+    },
+
     blockquote_p_note: {
     },
 
@@ -549,6 +624,18 @@ const simpleTheme = toMerged(defaultTheme, {
     },
 
     blockquote_p_caution: {
+    },
+
+    blockquote_p_question: {
+    },
+
+    blockquote_p_hint: {
+    },
+
+    blockquote_p_example: {
+    },
+
+    blockquote_p_abstract: {
     },
 
     code_pre: {

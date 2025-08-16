@@ -19,14 +19,14 @@ import type { ReadTimeResults } from 'reading-time'
 import { css2json, customCssWithTemplate, customizeTheme, postProcessHtml, renderMarkdown } from '@/utils/'
 import { copyPlain } from '@/utils/clipboard'
 import { initRenderer } from '@/utils/renderer'
-import CodeMirror from 'codemirror'
-import html2canvas from 'html2canvas'
-
-import { v4 as uuid } from 'uuid'
-
 // Vue 组合式 API 导入
 import { useDark, useStorage, useToggle } from '@vueuse/core'
+import CodeMirror from 'codemirror'
+
+import html2canvas from 'html2canvas'
+
 import { defineStore } from 'pinia'
+import { v4 as uuid } from 'uuid'
 import { computed, markRaw, onBeforeMount, onBeforeUnmount, onMounted, ref, toRaw, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
@@ -101,6 +101,13 @@ export const useStore = defineStore(`store`, () => {
 
   // 是否生成高分辨率图片（2倍像素密度）
   const convertImageHighRes = useStorage(`convertImageHighRes`, true)
+
+  // 转图时包含的块类型配置
+  const convertImageBlockTypes = useStorage(`convertImageBlockTypes`, {
+    admonition: true,
+    fenced: true,
+    math: true,
+  })
 
   const fontSizeNumber = computed(() => Number(fontSize.value.replace(`px`, ``)))
 
@@ -595,7 +602,7 @@ export const useStore = defineStore(`store`, () => {
     const el = document.querySelector(`#output-wrapper>.preview`)! as HTMLElement
     try {
       const canvas = await html2canvas(el, {
-        backgroundColor: isDark.value ? '#1a1a1a' : '#ffffff',
+        backgroundColor: isDark.value ? `#1a1a1a` : `#ffffff`,
         scale: Math.max(window.devicePixelRatio || 1, 2),
         useCORS: true,
         allowTaint: true,
@@ -613,9 +620,10 @@ export const useStore = defineStore(`store`, () => {
           document.body.removeChild(a)
           URL.revokeObjectURL(url)
         }
-      }, 'image/png')
-    } catch (error) {
-      console.error('下载卡片图片失败:', error)
+      }, `image/png`)
+    }
+    catch (error) {
+      console.error(`下载卡片图片失败:`, error)
     }
   }
 
@@ -626,7 +634,10 @@ export const useStore = defineStore(`store`, () => {
 
   // 导出转图后的 MD 内容到本地
   const exportConvertedMarkdown2MD = () => {
-    const convertedMarkdown = localStorage.getItem(`convertedMarkdown`)
+    // 使用 useStorage 的方式获取转换后的 Markdown
+    const convertedMarkdownStorage = useStorage(`convertedMarkdown`, ``)
+    const convertedMarkdown = convertedMarkdownStorage.value
+
     if (!convertedMarkdown || convertedMarkdown.trim() === ``) {
       toast.error(`没有转图后的内容，请先执行转图功能`)
       return
@@ -730,6 +741,7 @@ export const useStore = defineStore(`store`, () => {
     previewWidthChanged,
     convertImageMaxWidth,
     convertImageHighRes,
+    convertImageBlockTypes,
     convertImageCssVars,
 
     editorRefresh,

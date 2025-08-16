@@ -1,10 +1,9 @@
 import type { Block, ExtendedProperties, Inline, Theme } from '@/types'
 
-import type { RendererAPI } from '@/types/renderer-types'
-import type { PropertiesHyphen } from 'csstype'
-import type { ReadTimeResults } from 'reading-time'
 import { prefix } from '@/config/prefix'
+import type { RendererAPI } from '@/types/renderer-types'
 import { addSpacingToMarkdown } from '@/utils/autoSpace'
+import type { PropertiesHyphen } from 'csstype'
 import DOMPurify from 'isomorphic-dompurify'
 import juice from 'juice'
 import { marked } from 'marked'
@@ -12,6 +11,7 @@ import * as prettierPluginBabel from 'prettier/plugins/babel'
 import * as prettierPluginEstree from 'prettier/plugins/estree'
 import * as prettierPluginMarkdown from 'prettier/plugins/markdown'
 import * as prettierPluginCss from 'prettier/plugins/postcss'
+import type { ReadTimeResults } from 'reading-time'
 
 import { format } from 'prettier/standalone'
 
@@ -66,18 +66,30 @@ export function customCssWithTemplate(jsonString: Partial<Record<Block | Inline,
     `blockquote_important`,
     `blockquote_warning`,
     `blockquote_caution`,
+    `blockquote_question`,
+    `blockquote_hint`,
+    `blockquote_example`,
+    `blockquote_abstract`,
     `blockquote_p`,
     `blockquote_p_note`,
     `blockquote_p_tip`,
     `blockquote_p_important`,
     `blockquote_p_warning`,
     `blockquote_p_caution`,
+    `blockquote_p_question`,
+    `blockquote_p_hint`,
+    `blockquote_p_example`,
+    `blockquote_p_abstract`,
     `blockquote_title`,
     `blockquote_title_note`,
     `blockquote_title_tip`,
     `blockquote_title_important`,
     `blockquote_title_warning`,
     `blockquote_title_caution`,
+    `blockquote_title_question`,
+    `blockquote_title_hint`,
+    `blockquote_title_example`,
+    `blockquote_title_abstract`,
     `image`,
     `ul`,
     `ol`,
@@ -388,6 +400,15 @@ export function mergeCss(html: string): string {
   return juice(html, {
     inlinePseudoElements: true,
     preserveImportant: true,
+    // 确保表格相关样式能正确内联
+    applyAttributesTableElements: true,
+    applyWidthAttributes: true,
+    applyHeightAttributes: true,
+    // 保留媒体查询和字体
+    preserveMediaQueries: true,
+    preserveFontFaces: true,
+    // 不移除style标签，避免某些样式丢失
+    removeStyleTags: false,
   })
 }
 
@@ -412,11 +433,360 @@ export function modifyHtmlStructure(htmlString: string): string {
   return tempDiv.innerHTML
 }
 
-export function processClipboardContent(primaryColor: string) {
+/**
+ * 转换 CommonMark admonition 和数学公式为适合公众号的格式
+ */
+export function convertCommonMarkAdmonitions(container: HTMLElement) {
+  // 转换 CommonMark admonition
+  const admonitions = container.querySelectorAll('.admonition')
+
+  admonitions.forEach((admonition) => {
+    const variant = admonition.className.match(/admonition-(\w+)/)?.[1] || 'note'
+    const titleElement = admonition.querySelector('.admonition-title')
+    const contentElement = admonition.querySelector('.admonition-content')
+
+    if (!titleElement || !contentElement) return
+
+    // 创建新的 blockquote 元素
+    const blockquote = document.createElement('blockquote')
+    blockquote.id = admonition.id
+    blockquote.setAttribute('data-block-type', 'admonition')
+    blockquote.setAttribute('data-block-content', admonition.getAttribute('data-block-content') || '')
+
+    // 设置样式
+    const styles = getAdmonitionStyles(variant)
+    blockquote.style.cssText = styles.wrapper
+
+    // 创建标题段落
+    const titleP = document.createElement('p')
+    titleP.style.cssText = styles.title
+    titleP.innerHTML = titleElement.innerHTML
+
+    // 处理内容
+    const contentHTML = contentElement.innerHTML
+
+    // 组装 blockquote
+    blockquote.appendChild(titleP)
+    blockquote.innerHTML += contentHTML
+
+    // 替换原来的 admonition
+    admonition.parentNode?.replaceChild(blockquote, admonition)
+  })
+
+  // 转换数学公式 section 为 div，并处理 SVG 兼容性
+  const mathSections = container.querySelectorAll('section[data-block-type="math"]')
+
+  mathSections.forEach((section) => {
+    // 创建新的 div 元素
+    const div = document.createElement('div')
+    div.id = section.id
+    div.setAttribute('data-block-type', 'math')
+    div.setAttribute('data-block-content', section.getAttribute('data-block-content') || '')
+
+    // 处理数学公式 SVG 的兼容性
+    const svgElement = section.querySelector('svg')
+    if (svgElement) {
+      // 确保 SVG 有正确的命名空间
+      if (!svgElement.getAttribute('xmlns')) {
+        svgElement.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+      }
+
+      // 确保 SVG 有正确的样式
+      const currentStyle = svgElement.getAttribute('style') || ''
+      svgElement.setAttribute('style', `${currentStyle}; vertical-align: middle; max-width: 100%;`)
+
+      // 创建一个包装的 section 元素（类似 Mermaid 的处理）
+      const wrapperSection = document.createElement('section')
+      wrapperSection.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml')
+      wrapperSection.style.cssText = 'text-align: center; margin: 1em 0; padding: 0.5em;'
+      wrapperSection.innerHTML = svgElement.outerHTML
+
+      div.appendChild(wrapperSection)
+    } else {
+      // 如果没有 SVG，直接复制内容
+      div.innerHTML = section.innerHTML
+      div.style.textAlign = 'center'
+      div.style.margin = '1em 0'
+      div.style.padding = '0.5em'
+    }
+
+    // 复制其他样式
+    const sectionStyle = (section as HTMLElement).style.cssText
+    if (sectionStyle) {
+      div.style.cssText += '; ' + sectionStyle
+    }
+
+    // 替换原来的 section
+    section.parentNode?.replaceChild(div, section)
+  })
+}
+
+/**
+ * 获取不同类型 admonition 的样式
+ */
+function getAdmonitionStyles(variant: string) {
+  const colorMap: Record<string, string> = {
+    note: '#478be6',
+    tip: '#57ab5a',
+    important: '#986ee2',
+    warning: '#c69026',
+    caution: '#e5534b',
+    question: '#478be6',
+    hint: '#57ab5a',
+    example: '#986ee2',
+    abstract: '#478be6'
+  }
+
+  const color = colorMap[variant] || colorMap.note
+
+  return {
+    wrapper: `
+      font-style: normal;
+      font-size: 14px;
+      padding: 1em 1em 1em 2em;
+      border-left: 4px solid ${color};
+      border-radius: 6px;
+      color: rgba(0,0,0,0.8);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+      margin-bottom: 1em;
+      background: #f7f7f7;
+    `.replace(/\s+/g, ' ').trim(),
+    title: `
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+      margin-bottom: 0.5em;
+      color: ${color};
+      font-weight: bold;
+      font-size: 15px;
+    `.replace(/\s+/g, ' ').trim()
+  }
+}
+
+/**
+ * Firefox 浏览器特殊优化
+ */
+function enhanceForFirefox(container: HTMLElement) {
+  // 1. 强化代码块样式
+  const codeBlocks = container.querySelectorAll('pre.hljs')
+  codeBlocks.forEach((block) => {
+    const codeElement = block.querySelector('code')
+    if (codeElement) {
+      // 确保代码块有足够的样式信息
+      const currentStyle = codeElement.getAttribute('style') || ''
+      if (!currentStyle.includes('font-family')) {
+        codeElement.style.fontFamily = 'Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace'
+      }
+      if (!currentStyle.includes('font-size')) {
+        codeElement.style.fontSize = '14px'
+      }
+      if (!currentStyle.includes('line-height')) {
+        codeElement.style.lineHeight = '1.5'
+      }
+    }
+  })
+
+  // 2. 强化 SVG 元素
+  const svgElements = container.querySelectorAll('svg')
+  svgElements.forEach((svg) => {
+    // 确保 SVG 有正确的命名空间和属性
+    if (!svg.getAttribute('xmlns')) {
+      svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    }
+
+    // 添加 Firefox 兼容的样式
+    const currentStyle = svg.getAttribute('style') || ''
+    svg.setAttribute('style', `${currentStyle}; display: block; margin: 0 auto;`)
+
+    // 确保 SVG 有明确的尺寸
+    if (!svg.getAttribute('width') && !svg.style.width) {
+      svg.style.width = 'auto'
+    }
+    if (!svg.getAttribute('height') && !svg.style.height) {
+      svg.style.height = 'auto'
+    }
+  })
+
+  // 3. 强化数学公式的包装
+  const mathElements = container.querySelectorAll('[data-block-type="math"]')
+  mathElements.forEach((mathElement) => {
+    const svg = mathElement.querySelector('svg')
+    if (svg) {
+      // 为数学公式 SVG 添加额外的包装和样式
+      const wrapper = document.createElement('div')
+      wrapper.style.cssText = 'text-align: center; margin: 1em 0; padding: 0.5em; display: block;'
+      wrapper.innerHTML = svg.outerHTML
+
+      // 替换原来的内容
+      mathElement.innerHTML = ''
+      mathElement.appendChild(wrapper)
+    }
+  })
+
+  // 4. 强化表格样式
+  const tables = container.querySelectorAll('table')
+  tables.forEach((table) => {
+    if (!table.style.borderCollapse) {
+      table.style.borderCollapse = 'collapse'
+    }
+    if (!table.style.width) {
+      table.style.width = '100%'
+    }
+  })
+}
+
+/**
+ * 获取代码高亮的CSS样式
+ */
+async function getCodeHighlightStyles(): Promise<string> {
+  const hljsLink = document.querySelector('#hljs') as HTMLLinkElement
+  if (!hljsLink || !hljsLink.href) {
+    return ''
+  }
+
+  try {
+    const response = await fetch(hljsLink.href)
+    const cssText = await response.text()
+    return cssText
+  } catch (error) {
+    console.warn('Failed to fetch highlight.js CSS:', error)
+    return ''
+  }
+}
+
+/**
+ * 解析CSS文本并提取样式规则
+ */
+function parseCSSRules(cssText: string): Map<string, Record<string, string>> {
+  const rules = new Map<string, Record<string, string>>()
+
+  // 简单的CSS解析，匹配选择器和样式块
+  const cssRuleRegex = /([^{}]+)\{([^{}]*)\}/g
+  let match
+
+  while ((match = cssRuleRegex.exec(cssText)) !== null) {
+    const selector = match[1].trim()
+    const declarations = match[2].trim()
+
+    // 解析样式声明
+    const styles: Record<string, string> = {}
+    const declarationRegex = /([^:;]+):\s*([^;]+)/g
+    let declMatch
+
+    while ((declMatch = declarationRegex.exec(declarations)) !== null) {
+      const property = declMatch[1].trim()
+      const value = declMatch[2].trim()
+      styles[property] = value
+    }
+
+    if (Object.keys(styles).length > 0) {
+      rules.set(selector, styles)
+    }
+  }
+
+  return rules
+}
+
+/**
+ * 内联代码高亮样式到代码块元素
+ */
+function inlineCodeHighlightStyles(element: Element, cssText: string) {
+  if (!cssText) return
+
+  const cssRules = parseCSSRules(cssText)
+
+  // 为代码块相关元素应用样式
+  const codeBlocks = element.querySelectorAll('pre.hljs')
+  const codeElements = element.querySelectorAll('code')
+  const spanElements = element.querySelectorAll('.hljs span')
+
+  // 应用代码块样式
+  codeBlocks.forEach((el) => {
+    applyMatchingStyles(el, cssRules, ['.hljs', 'pre.hljs', 'pre'])
+  })
+
+  // 应用代码元素样式
+  codeElements.forEach((el) => {
+    applyMatchingStyles(el, cssRules, ['code', '.hljs code'])
+  })
+
+  // 应用语法高亮span样式
+  spanElements.forEach((el) => {
+    const className = el.className
+    if (className) {
+      const classSelectors = className.split(' ').map(cls => `.hljs .${cls}`)
+      applyMatchingStyles(el, cssRules, classSelectors)
+    }
+  })
+}
+
+/**
+ * 为元素应用匹配的CSS样式
+ */
+function applyMatchingStyles(element: Element, cssRules: Map<string, Record<string, string>>, selectors: string[]) {
+  const inlineStyles: string[] = []
+  const existingStyle = element.getAttribute('style') || ''
+
+  selectors.forEach(selector => {
+    const styles = cssRules.get(selector)
+    if (styles) {
+      Object.entries(styles).forEach(([prop, value]) => {
+        // 只应用重要的样式属性
+        if (isImportantStyleProperty(prop)) {
+          inlineStyles.push(`${prop}: ${value}`)
+        }
+      })
+    }
+  })
+
+  if (inlineStyles.length > 0) {
+    const newStyle = existingStyle + '; ' + inlineStyles.join('; ')
+    element.setAttribute('style', newStyle)
+  }
+}
+
+/**
+ * 判断是否为重要的样式属性
+ */
+function isImportantStyleProperty(prop: string): boolean {
+  const importantProps = [
+    'background-color', 'background', 'color', 'font-family', 'font-size',
+    'font-weight', 'font-style', 'text-decoration', 'opacity', 'border-radius',
+    'padding', 'margin', 'line-height', 'white-space', 'border', 'border-left',
+    'border-right', 'border-top', 'border-bottom', 'display', 'text-align'
+  ]
+  return importantProps.includes(prop)
+}
+
+export async function processClipboardContent(primaryColor: string) {
   const clipboardDiv = document.getElementById(`output`)!
 
-  // 先合并 CSS 和修改 HTML 结构
-  clipboardDiv.innerHTML = modifyHtmlStructure(mergeCss(clipboardDiv.innerHTML))
+  // 检测浏览器类型
+  const isFirefox = navigator.userAgent.toLowerCase().includes('firefox')
+
+  // 转换 CommonMark admonition 和数学公式为适合公众号的格式
+  convertCommonMarkAdmonitions(clipboardDiv)
+
+  // 获取代码高亮样式
+  const codeHighlightCSS = await getCodeHighlightStyles()
+
+  // Firefox 需要特殊处理
+  if (isFirefox) {
+    // Firefox 优化：先内联代码样式，再合并其他 CSS
+    if (codeHighlightCSS) {
+      inlineCodeHighlightStyles(clipboardDiv, codeHighlightCSS)
+    }
+    clipboardDiv.innerHTML = modifyHtmlStructure(mergeCss(clipboardDiv.innerHTML))
+
+    // Firefox 特殊处理：强化 SVG 和样式
+    enhanceForFirefox(clipboardDiv)
+  } else {
+    // Chrome/其他浏览器：原有流程
+    clipboardDiv.innerHTML = modifyHtmlStructure(mergeCss(clipboardDiv.innerHTML))
+    if (codeHighlightCSS) {
+      inlineCodeHighlightStyles(clipboardDiv, codeHighlightCSS)
+    }
+  }
 
   // 处理样式和颜色变量
   clipboardDiv.innerHTML = clipboardDiv.innerHTML
@@ -499,7 +869,7 @@ export function postProcessHtml(baseHtml: string, reading: ReadTimeResults, rend
         .code__pre {
           padding: 0 !important;
         }
-  
+
         .hljs.code__pre code {
           display: -webkit-box;
           padding: 0.5em 1em 1em;

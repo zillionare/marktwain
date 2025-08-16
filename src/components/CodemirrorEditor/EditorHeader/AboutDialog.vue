@@ -33,8 +33,10 @@ function onRedirect(url: string) {
       <div class="text-center">
         <h3>MarkTwain | 一次编辑，到处发布</h3>
         <p>基于 Doocs/md 项目开发的增强版 Markdown 编辑器</p>
-        <div class="text-center space-y-2">
-          <p class="text-sm text-gray-600">在线访问：</p>
+        <div class="space-y-2 text-center">
+          <p class="text-sm text-gray-600">
+            在线访问：
+          </p>
           <a href="https://zillionare.github.io/marktwain" target="_blank" class="text-blue-500 hover:text-blue-700">
             https://zillionare.github.io/marktwain
           </a>

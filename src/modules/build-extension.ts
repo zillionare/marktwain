@@ -1,13 +1,13 @@
-import { parseHTML } from 'linkedom'
-import { writeFile } from 'node:fs/promises'
-import path from 'node:path'
-import { hash } from 'ohash'
 import type { OutputOptions } from 'rollup'
 import type * as vite from 'vite'
 import type * as wxt from 'wxt'
+import { writeFile } from 'node:fs/promises'
+import path from 'node:path'
+import { parseHTML } from 'linkedom'
+import { hash } from 'ohash'
 import {
-    addViteConfig,
-    defineWxtModule,
+  addViteConfig,
+  defineWxtModule,
 } from 'wxt/modules'
 
 export default defineWxtModule({
@@ -170,7 +170,8 @@ export function htmlScriptToLocal(
                 resolve()
                 return
               }
-              const textContent = await doFetch(url)
+              try {
+                const textContent = await doFetchWithFallback(url)
               const key = hash(textContent)
               let jsName = url.match(/\/([^/]+)\.js$/)?.[1] ?? `.js`
               if (url.indexOf(`?`) > 0) {
@@ -183,6 +184,11 @@ export function htmlScriptToLocal(
               script.setAttribute(`src`, `/${fileName}`)
               // script.setAttribute(`type`, `module`)
               resolve()
+              } catch (error) {
+                console.warn(`Failed to fetch external script: ${url}`, error)
+                // Keep the original src for external scripts that can't be downloaded
+                resolve()
+              }
             }))
           })
         }
@@ -246,6 +252,37 @@ export function vueDevtoolsHack(
       },
     },
   }
+}
+
+// MathJax备用CDN源
+const MATHJAX_FALLBACKS = [
+  'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js',
+  'https://unpkg.com/mathjax@3/es5/tex-svg.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js'
+]
+
+async function doFetchWithFallback(
+  url: string,
+): Promise<string> {
+  // 如果是MathJax，尝试备用CDN
+  if (url.includes('mathjax') && url.includes('tex-svg.js')) {
+    for (const fallbackUrl of MATHJAX_FALLBACKS) {
+      try {
+        console.log(`Trying MathJax from: ${fallbackUrl}`)
+        const res = await fetch(fallbackUrl)
+        if (res.status < 300) {
+          return await res.text()
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch MathJax from ${fallbackUrl}:`, error)
+        continue
+      }
+    }
+    throw new Error(`All MathJax CDN sources failed`)
+  }
+  
+  // 对于其他URL，使用原始逻辑
+  return await doFetch(url)
 }
 
 async function doFetch(

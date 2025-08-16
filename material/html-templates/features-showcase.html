@@ -1,328 +1,338 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MarkTwain - 功能特性展示</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f8fafc;
-            width: 1280px;
-            height: 800px;
-            overflow: hidden;
-        }
-        
-        .showcase-container {
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            background: white;
-        }
-        
-        /* 顶部标题区 */
-        .hero-section {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 40px 0;
-            text-align: center;
-        }
-        
-        .hero-title {
-            font-size: 36px;
-            font-weight: bold;
-            margin-bottom: 12px;
-        }
-        
-        .hero-subtitle {
-            font-size: 18px;
-            opacity: 0.9;
-            margin-bottom: 24px;
-        }
-        
-        .hero-badges {
-            display: flex;
-            justify-content: center;
-            gap: 16px;
-        }
-        
-        .badge {
-            background: rgba(255,255,255,0.2);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 500;
-        }
-        
-        /* 功能展示区 */
-        .features-section {
-            flex: 1;
-            padding: 40px;
-            overflow-y: auto;
-        }
-        
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        
-        .feature-card {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
-            border: 1px solid #e2e8f0;
-        }
-        
-        .feature-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-        }
-        
-        .feature-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            margin-bottom: 16px;
-        }
-        
-        .icon-editor { background: linear-gradient(135deg, #667eea, #764ba2); }
-        .icon-publish { background: linear-gradient(135deg, #f093fb, #f5576c); }
-        .icon-theme { background: linear-gradient(135deg, #4facfe, #00f2fe); }
-        .icon-image { background: linear-gradient(135deg, #43e97b, #38f9d7); }
-        .icon-ai { background: linear-gradient(135deg, #fa709a, #fee140); }
-        .icon-sync { background: linear-gradient(135deg, #a8edea, #fed6e3); }
-        
-        .feature-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 8px;
-        }
-        
-        .feature-description {
-            color: #64748b;
-            line-height: 1.6;
-            margin-bottom: 16px;
-        }
-        
-        .feature-list {
-            list-style: none;
-        }
-        
-        .feature-list li {
-            color: #475569;
-            font-size: 14px;
-            margin-bottom: 6px;
-            padding-left: 16px;
-            position: relative;
-        }
-        
-        .feature-list li::before {
-            content: '✓';
-            position: absolute;
-            left: 0;
-            color: #10b981;
-            font-weight: bold;
-        }
-        
-        /* 底部统计区 */
-        .stats-section {
-            background: #1e293b;
-            color: white;
-            padding: 24px 40px;
-            display: flex;
-            justify-content: center;
-            gap: 80px;
-        }
-        
-        .stat-item {
-            text-align: center;
-        }
-        
-        .stat-number {
-            font-size: 28px;
-            font-weight: bold;
-            color: #3b82f6;
-            margin-bottom: 4px;
-        }
-        
-        .stat-label {
-            font-size: 14px;
-            color: #94a3b8;
-        }
-        
-        /* 特殊效果 */
-        .highlight-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            grid-column: span 2;
-        }
-        
-        .highlight-card .feature-title {
-            color: white;
-        }
-        
-        .highlight-card .feature-description {
-            color: rgba(255,255,255,0.9);
-        }
-        
-        .highlight-card .feature-list li {
-            color: rgba(255,255,255,0.9);
-        }
-        
-        .highlight-card .feature-list li::before {
-            color: #fbbf24;
-        }
-        
-        .demo-preview {
-            background: rgba(255,255,255,0.1);
-            border-radius: 8px;
-            padding: 16px;
-            margin-top: 16px;
-            font-family: 'Monaco', monospace;
-            font-size: 12px;
-            line-height: 1.4;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #f8fafc;
+        width: 1280px;
+        height: 800px;
+        overflow: hidden;
+      }
+
+      .showcase-container {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: white;
+      }
+
+      /* 顶部标题区 */
+      .hero-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px 0;
+        text-align: center;
+      }
+
+      .hero-title {
+        font-size: 36px;
+        font-weight: bold;
+        margin-bottom: 12px;
+      }
+
+      .hero-subtitle {
+        font-size: 18px;
+        opacity: 0.9;
+        margin-bottom: 24px;
+      }
+
+      .hero-badges {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+      }
+
+      .badge {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      /* 功能展示区 */
+      .features-section {
+        flex: 1;
+        padding: 40px;
+        overflow-y: auto;
+      }
+
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .feature-card {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        border: 1px solid #e2e8f0;
+      }
+
+      .feature-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      }
+
+      .feature-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        margin-bottom: 16px;
+      }
+
+      .icon-editor {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+      }
+      .icon-publish {
+        background: linear-gradient(135deg, #f093fb, #f5576c);
+      }
+      .icon-theme {
+        background: linear-gradient(135deg, #4facfe, #00f2fe);
+      }
+      .icon-image {
+        background: linear-gradient(135deg, #43e97b, #38f9d7);
+      }
+      .icon-ai {
+        background: linear-gradient(135deg, #fa709a, #fee140);
+      }
+      .icon-sync {
+        background: linear-gradient(135deg, #a8edea, #fed6e3);
+
+      .feature-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 8px;
+      }
+
+      .feature-description {
+        color: #64748b;
+        line-height: 1.6;
+        margin-bottom: 16px;
+      }
+
+      .feature-list {
+        list-style: none;
+      }
+
+      .feature-list li {
+        color: #475569;
+        font-size: 14px;
+        margin-bottom: 6px;
+        padding-left: 16px;
+        position: relative;
+      }
+
+      .feature-list li::before {
+        content: '✓';
+        position: absolute;
+        left: 0;
+        color: #10b981;
+        font-weight: bold;
+      }
+
+      /* 底部统计区 */
+      .stats-section {
+        background: #1e293b;
+        color: white;
+        padding: 24px 40px;
+        display: flex;
+        justify-content: center;
+        gap: 80px;
+      }
+
+      .stat-item {
+        text-align: center;
+      }
+
+      .stat-number {
+        font-size: 28px;
+        font-weight: bold;
+        color: #3b82f6;
+        margin-bottom: 4px;
+      }
+
+      .stat-label {
+        font-size: 14px;
+        color: #94a3b8;
+      }
+
+      /* 特殊效果 */
+      .highlight-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        grid-column: span 2;
+      }
+
+      .highlight-card .feature-title {
+        color: white;
+      }
+
+      .highlight-card .feature-description {
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .highlight-card .feature-list li {
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .highlight-card .feature-list li::before {
+        color: #fbbf24;
+      }
+
+      .demo-preview {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 16px;
+        font-family: 'Monaco', monospace;
+        font-size: 12px;
+        line-height: 1.4;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="showcase-container">
-        <!-- 顶部英雄区 -->
-        <div class="hero-section">
-            <h1 class="hero-title">MarkTwain</h1>
-            <p class="hero-subtitle">一处编辑，处处发布 - 让内容创作更高效</p>
-            <div class="hero-badges">
-                <span class="badge">🚀 多平台发布</span>
-                <span class="badge">🎨 主题定制</span>
-                <span class="badge">🤖 AI 助手</span>
-                <span class="badge">📱 浏览器扩展</span>
-            </div>
+      <!-- 顶部英雄区 -->
+      <div class="hero-section">
+        <h1 class="hero-title">MarkTwain</h1>
+        <p class="hero-subtitle">一处编辑，处处发布 - 让内容创作更高效</p>
+        <div class="hero-badges">
+          <span class="badge">🚀 多平台发布</span>
+          <span class="badge">🎨 主题定制</span>
+          <span class="badge">🤖 AI 助手</span>
+          <span class="badge">📱 浏览器扩展</span>
         </div>
-        
-        <!-- 功能特性区 -->
-        <div class="features-section">
-            <div class="features-grid">
-                <!-- Markdown 编辑器 -->
-                <div class="feature-card">
-                    <div class="feature-icon icon-editor">📝</div>
-                    <h3 class="feature-title">强大的编辑器</h3>
-                    <p class="feature-description">基于 CodeMirror 的专业 Markdown 编辑器，支持语法高亮和实时预览。</p>
-                    <ul class="feature-list">
-                        <li>语法高亮显示</li>
-                        <li>实时预览</li>
-                        <li>快捷键支持</li>
-                        <li>自动补全</li>
-                    </ul>
-                </div>
-                
-                <!-- 多平台发布 -->
-                <div class="feature-card highlight-card">
-                    <div class="feature-icon icon-publish">🚀</div>
-                    <h3 class="feature-title">多平台一键发布</h3>
-                    <p class="feature-description">支持同时发布到多个内容平台，真正实现一处编辑，处处发布。</p>
-                    <ul class="feature-list">
-                        <li>微信公众号</li>
-                        <li>知乎专栏</li>
-                        <li>CSDN 博客</li>
-                        <li>掘金社区</li>
-                        <li>GitHub Pages</li>
-                        <li>Medium</li>
-                    </ul>
-                    <div class="demo-preview">
-// 一键发布示例
-const platforms = ['wechat', 'zhihu', 'csdn'];
-await publisher.publishToAll(markdown, platforms);
-                    </div>
-                </div>
-                
-                <!-- 主题定制 -->
-                <div class="feature-card">
-                    <div class="feature-icon icon-theme">🎨</div>
-                    <h3 class="feature-title">丰富主题样式</h3>
-                    <p class="feature-description">内置多种精美主题，支持自定义 CSS 样式，让你的文章更具个性。</p>
-                    <ul class="feature-list">
-                        <li>GitHub 主题</li>
-                        <li>掘金主题</li>
-                        <li>微信主题</li>
-                        <li>自定义 CSS</li>
-                    </ul>
-                </div>
-                
-                <!-- 图床支持 -->
-                <div class="feature-card">
-                    <div class="feature-icon icon-image">🖼️</div>
-                    <h3 class="feature-title">智能图床</h3>
-                    <p class="feature-description">支持多种图床服务，自动上传图片并生成链接，解决图片显示问题。</p>
-                    <ul class="feature-list">
-                        <li>GitHub 图床</li>
-                        <li>七牛云存储</li>
-                        <li>腾讯云 COS</li>
-                        <li>阿里云 OSS</li>
-                    </ul>
-                </div>
-                
-                <!-- AI 助手 -->
-                <div class="feature-card">
-                    <div class="feature-icon icon-ai">🤖</div>
-                    <h3 class="feature-title">AI 智能助手</h3>
-                    <p class="feature-description">集成 AI 功能，帮助优化内容、生成摘要、改进文章质量。</p>
-                    <ul class="feature-list">
-                        <li>内容优化建议</li>
-                        <li>自动生成摘要</li>
-                        <li>语法检查</li>
-                        <li>SEO 优化</li>
-                    </ul>
-                </div>
-                
-                <!-- 数据同步 -->
-                <div class="feature-card">
-                    <div class="feature-icon icon-sync">☁️</div>
-                    <h3 class="feature-title">云端同步</h3>
-                    <p class="feature-description">文档自动保存到云端，多设备同步，随时随地继续创作。</p>
-                    <ul class="feature-list">
-                        <li>自动保存</li>
-                        <li>版本历史</li>
-                        <li>多设备同步</li>
-                        <li>离线编辑</li>
-                    </ul>
-                </div>
+      </div>
+
+      <!-- 功能特性区 -->
+      <div class="features-section">
+        <div class="features-grid">
+          <!-- Markdown 编辑器 -->
+          <div class="feature-card">
+            <div class="feature-icon icon-editor">📝</div>
+            <h3 class="feature-title">强大的编辑器</h3>
+            <p class="feature-description">基于 CodeMirror 的专业 Markdown 编辑器，支持语法高亮和实时预览。</p>
+            <ul class="feature-list">
+              <li>语法高亮显示</li>
+              <li>实时预览</li>
+              <li>快捷键支持</li>
+              <li>自动补全</li>
+            </ul>
+          </div>
+
+          <!-- 多平台发布 -->
+          <div class="feature-card highlight-card">
+            <div class="feature-icon icon-publish">🚀</div>
+            <h3 class="feature-title">多平台一键发布</h3>
+            <p class="feature-description">支持同时发布到多个内容平台，真正实现一处编辑，处处发布。</p>
+            <ul class="feature-list">
+              <li>微信公众号</li>
+              <li>知乎专栏</li>
+              <li>CSDN 博客</li>
+              <li>掘金社区</li>
+              <li>GitHub Pages</li>
+              <li>Medium</li>
+            </ul>
+            <div class="demo-preview">
+              // 一键发布示例 const platforms = ['wechat', 'zhihu', 'csdn']; await publisher.publishToAll(markdown,
+              platforms);
             </div>
+          </div>
+
+          <!-- 主题定制 -->
+          <div class="feature-card">
+            <div class="feature-icon icon-theme">🎨</div>
+            <h3 class="feature-title">丰富主题样式</h3>
+            <p class="feature-description">内置多种精美主题，支持自定义 CSS 样式，让你的文章更具个性。</p>
+            <ul class="feature-list">
+              <li>GitHub 主题</li>
+              <li>掘金主题</li>
+              <li>微信主题</li>
+              <li>自定义 CSS</li>
+            </ul>
+          </div>
+
+          <!-- 图床支持 -->
+          <div class="feature-card">
+            <div class="feature-icon icon-image">🖼️</div>
+            <h3 class="feature-title">智能图床</h3>
+            <p class="feature-description">支持多种图床服务，自动上传图片并生成链接，解决图片显示问题。</p>
+            <ul class="feature-list">
+              <li>GitHub 图床</li>
+              <li>七牛云存储</li>
+              <li>腾讯云 COS</li>
+              <li>阿里云 OSS</li>
+            </ul>
+          </div>
+
+          <!-- AI 助手 -->
+          <div class="feature-card">
+            <div class="feature-icon icon-ai">🤖</div>
+            <h3 class="feature-title">AI 智能助手</h3>
+            <p class="feature-description">集成 AI 功能，帮助优化内容、生成摘要、改进文章质量。</p>
+            <ul class="feature-list">
+              <li>内容优化建议</li>
+              <li>自动生成摘要</li>
+              <li>语法检查</li>
+              <li>SEO 优化</li>
+            </ul>
+          </div>
+
+          <!-- 数据同步 -->
+          <div class="feature-card">
+            <div class="feature-icon icon-sync">☁️</div>
+            <h3 class="feature-title">云端同步</h3>
+            <p class="feature-description">文档自动保存到云端，多设备同步，随时随地继续创作。</p>
+            <ul class="feature-list">
+              <li>自动保存</li>
+              <li>版本历史</li>
+              <li>多设备同步</li>
+              <li>离线编辑</li>
+            </ul>
+          </div>
         </div>
-        
-        <!-- 底部统计区 -->
-        <div class="stats-section">
-            <div class="stat-item">
-                <div class="stat-number">10+</div>
-                <div class="stat-label">支持平台</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-number">50+</div>
-                <div class="stat-label">内置主题</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-number">1000+</div>
-                <div class="stat-label">活跃用户</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-number">99%</div>
-                <div class="stat-label">发布成功率</div>
-            </div>
+      </div>
+
+      <!-- 底部统计区 -->
+      <div class="stats-section">
+        <div class="stat-item">
+          <div class="stat-number">10+</div>
+          <div class="stat-label">支持平台</div>
         </div>
+        <div class="stat-item">
+          <div class="stat-number">50+</div>
+          <div class="stat-label">内置主题</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">1000+</div>
+          <div class="stat-label">活跃用户</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">99%</div>
+          <div class="stat-label">发布成功率</div>
+        </div>
+      </div>
     </div>
-</body>
+  </body>
 </html>

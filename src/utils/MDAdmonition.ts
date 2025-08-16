@@ -23,78 +23,95 @@ export default function markedAdmonition(options: AlertOptions = {}): MarkedExte
           return match ? match.index : undefined
         },
         tokenizer(src: string) {
-          // Updated regex to handle the CommonMark admonition syntax properly
-          // This regex matches: !!! type "optional title" or !!! type optional title
-          //                     content lines (indented with 4 spaces)
-          // Accepts any word after !!! and defaults unsupported types to 'note'
-          // Support both quoted and unquoted titles
-          const rule = new RegExp(`^!!!\\s+(\\w+)(?:\\s+(?:"([^"]*)"|([^\\n]*)))?\\s*\\n([\\s\\S]*?)(?=\\n\\s*\\n\\s*\\n|<!--\\1-->|$)`, `i`)
-          const match = src.match(rule)
+          // Split the approach: first match the header line, then the content
+          // This ensures we properly separate title from content
+          const headerMatch = src.match(/^!!![ \t]+(\w+)(?:[ \t]+(?:"([^"]*)"|([^\r\n]*?)))?[ \t]*(?:\r?\n|$)/i)
 
-          if (match) {
-            const [fullMatch, type, quotedTitle, unquotedTitle, content] = match
-            // Use quoted title if available, otherwise use unquoted title (trimmed)
-            const title = quotedTitle || (unquotedTitle ? unquotedTitle.trim() : undefined)
-            // Find the variant, or default to 'note' if not found
-            let variant = resolvedVariants.find(v => v.type.toLowerCase() === type.toLowerCase())
-
-            // If the type is not supported, default to 'note'
-            if (!variant) {
-              variant = resolvedVariants.find(v => v.type === 'note')!
-            }
-
-            const { styles } = options
-
-            // Process content - remove 4-space indentation from each line
-            const lines = content.split(`\n`)
-            const processedContent = lines
-              .map(line => line.replace(/^ {4}/, ``)) // Remove exactly 4 spaces
-              .join(`\n`)
-              .trim()
-
-            const blockId = `admonition-${uuid()}`
-            return {
-              type: `admonition`,
-              raw: fullMatch,
-              meta: {
-                blockId,
-                className,
-                variant: variant.type,
-                icon: variant.icon,
-                title: title || ucfirstAdmonition(type), // Use original type for title, even if defaulted to note
-                titleClassName: `${className}-title`,
-                wrapperStyle: {
-                  ...styles?.blockquote,
-                  ...styles?.[`blockquote_${variant.type}` as keyof typeof styles],
-                },
-                titleStyle: {
-                  ...styles?.blockquote_title,
-                  ...styles?.[`blockquote_title_${variant.type}` as keyof typeof styles],
-                },
-                contentStyle: {
-                  ...styles?.blockquote_p,
-                  ...styles?.[`blockquote_p_${variant.type}` as keyof typeof styles],
-                },
-                originalContent: content,
-              },
-              tokens: this.lexer.blockTokens(processedContent),
-            }
+          if (!headerMatch) {
+            return undefined
           }
-          return undefined
+
+          const [headerLine, type, quotedTitle, unquotedTitle] = headerMatch
+          const headerLength = headerLine.length
+
+          // Get the content after the header line
+          const remainingContent = src.slice(headerLength)
+
+          // Match the content until end conditions
+          const contentMatch = remainingContent.match(/^([\s\S]*?)(?=\n\s*\n\s*\n|<!--[^>]*-->|$)/i)
+          const content = contentMatch ? contentMatch[1] : ''
+
+          // Use quoted title if available, otherwise use unquoted title (trimmed)
+          // Only use unquoted title if it's not empty after trimming
+          const title = quotedTitle || (unquotedTitle && unquotedTitle.trim() ? unquotedTitle.trim() : undefined)
+          // Find the variant, or default to 'note' if not found
+          let variant = resolvedVariants.find(v => v.type.toLowerCase() === type.toLowerCase())
+
+          // If the type is not supported, default to 'note'
+          if (!variant) {
+            variant = resolvedVariants.find(v => v.type === `note`)!
+          }
+
+          const { styles } = options
+
+          // Process content - remove 4-space indentation from each line
+          const lines = content.split(`\n`)
+          const processedContent = lines
+            .map(line => line.replace(/^ {4}/, ``)) // Remove exactly 4 spaces
+            .join(`\n`)
+            .trim()
+
+          const blockId = `admonition-${uuid()}`
+          const fullMatch = headerLine + content
+          return {
+            type: `admonition`,
+            raw: fullMatch,
+            meta: {
+              blockId,
+              className,
+              variant: variant.type,
+              icon: variant.icon,
+              title: title || ucfirstAdmonition(type), // Use original type for title, even if defaulted to note
+              titleClassName: `${className}-title`,
+              wrapperStyle: {
+                ...styles?.blockquote,
+                ...styles?.[`blockquote_${variant.type}` as keyof typeof styles],
+              },
+              titleStyle: {
+                ...styles?.blockquote_title,
+                ...styles?.[`blockquote_title_${variant.type}` as keyof typeof styles],
+              },
+              contentStyle: {
+                ...styles?.blockquote_p,
+                ...styles?.[`blockquote_p_${variant.type}` as keyof typeof styles],
+              },
+              originalContent: content,
+            },
+            tokens: this.lexer.blockTokens(processedContent),
+          }
         },
+      },
+      {
+        name: `admonition`,
+        level: `block`,
         renderer({ meta, tokens = [] }) {
           let text = this.parser.parse(tokens)
-          text = text.replace(/<p .*?>/g, `<p style="${getStyleString(meta.contentStyle)}">`)
-          let tmpl = `<blockquote id="${meta.blockId}" class="${meta.className} ${meta.className}-${meta.variant}" style="${getStyleString(meta.wrapperStyle)}" data-block-type="admonition" data-block-content="${encodeURIComponent(meta.originalContent)}">\n`
-          tmpl += `<p class="${meta.titleClassName}" style="${getStyleString(meta.titleStyle)}">`
+          // 移除内联样式，使用CSS类
+          text = text.replace(/<p .*?>/g, `<p>`)
+
+          // 使用独立的div标签结构，避免与blockquote冲突
+          let tmpl = `<div id="${meta.blockId}" class="admonition admonition-${meta.variant}" data-block-type="admonition" data-block-content="${encodeURIComponent(meta.originalContent)}">\n`
+          tmpl += `<div class="admonition-title">`
           tmpl += meta.icon.replace(
             `<svg`,
-            `<svg style="fill: ${meta.titleStyle?.color ?? `inherit`}"`,
+            `<svg style="fill: currentColor"`,
           )
           tmpl += meta.title
-          tmpl += `</p>\n`
+          tmpl += `</div>\n`
+          tmpl += `<div class="admonition-content">\n`
           tmpl += text
-          tmpl += `</blockquote>\n`
+          tmpl += `</div>\n`
+          tmpl += `</div>\n`
 
           return tmpl
         },

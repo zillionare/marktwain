@@ -1,8 +1,4 @@
 <script setup lang="ts">
-/* ---------- 依赖 ---------- */
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useStore } from '@/stores'
 import type { QuickCommandRuntime } from '@/stores/useQuickCommands'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,11 +8,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { useStore } from '@/stores'
 import useAIConfigStore from '@/stores/AIConfig'
 import { useQuickCommands } from '@/stores/useQuickCommands'
 import { copyPlain } from '@/utils/clipboard'
 import hljs from 'highlight.js'
-
 import {
   Check,
   Copy,
@@ -28,10 +24,14 @@ import {
   Settings,
   Trash2,
 } from 'lucide-vue-next'
-
 /* ---------- Markdown & highlight.js ---------- */
 import { Marked } from 'marked'
+
 import { markedHighlight } from 'marked-highlight'
+
+import { storeToRefs } from 'pinia'
+/* ---------- 依赖 ---------- */
+import { nextTick, onMounted, ref, watch } from 'vue'
 import AIConfig from './AIConfig.vue'
 import QuickCommandManager from './QuickCommandManager.vue'
 /* ---------- 组件属性 ---------- */
@@ -85,8 +85,9 @@ try {
   type = configRefs.type
 
   quickCmdStore = useQuickCommands()
-} catch (error) {
-  console.warn('Stores initialization failed, will retry later:', error)
+}
+catch (error) {
+  console.warn(`Stores initialization failed, will retry later:`, error)
 }
 
 /* ---------- 弹窗开关 ---------- */
@@ -286,7 +287,7 @@ async function sendMessage() {
 
   // 检查 stores 是否已初始化
   if (!store || !AIConfigStore) {
-    console.warn('Stores not ready')
+    console.warn(`Stores not ready`)
     return
   }
 
@@ -331,7 +332,7 @@ async function sendMessage() {
     ? [{
         role: `system`,
         content:
-          `下面是一篇 Markdown 文章全文，请严格以此为主完成后续指令：\n\n${editor?.value?.getValue() || ''}`,
+          `下面是一篇 Markdown 文章全文，请严格以此为主完成后续指令：\n\n${editor?.value?.getValue() || ``}`,
       }]
     : []
 
@@ -359,7 +360,7 @@ async function sendMessage() {
   const signal = fetchController.value.signal
 
   try {
-    const url = new URL(endpoint?.value || '')
+    const url = new URL(endpoint?.value || ``)
     if (!url.pathname.endsWith(`/chat/completions`))
       url.pathname = url.pathname.replace(/\/?$/, `/chat/completions`)
 
@@ -595,7 +596,7 @@ async function sendMessage() {
       <!-- ============ 输入框 ============ -->
       <div v-if="!configVisible" class="relative mt-2">
         <div
-          class="item-start bg-background border-border flex flex-col items-baseline gap-2 border rounded-xl px-3 py-2 pr-12 shadow-inner"
+          class="bg-background border-border item-start flex flex-col items-baseline gap-2 border rounded-xl px-3 py-2 pr-12 shadow-inner"
         >
           <Textarea
             v-model="input"
@@ -626,7 +627,7 @@ async function sendMessage() {
           <Button
             :disabled="!input.trim() && !loading"
             size="icon"
-            class="bg-primary text-primary-foreground hover:bg-primary/90 absolute bottom-3 right-3 rounded-full disabled:opacity-40"
+            class="bg-primary hover:bg-primary/90 text-primary-foreground absolute bottom-3 right-3 rounded-full disabled:opacity-40"
             :aria-label="loading ? '暂停' : '发送'"
             @click="loading ? pauseStreaming() : sendMessage()"
           >
