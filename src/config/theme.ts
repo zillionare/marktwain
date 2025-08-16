@@ -90,6 +90,7 @@ const defaultTheme: Theme = {
     // 引用内容
     blockquote_p: {
       'display': `block`,
+      'font-size': `14px`,
       'letter-spacing': `0.1em`,
       'color': `hsl(var(--foreground))`,
     },
@@ -397,6 +398,7 @@ const graceTheme = toMerged(defaultTheme, {
     },
 
     'blockquote_p': {
+      'font-size': `14px`,
     },
 
     'markdown-alert': {
