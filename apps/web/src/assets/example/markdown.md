@@ -141,6 +141,44 @@ $$
 
 这是展示复杂数学表达的利器！
 
+## 测试转图功能
+
+### Admonition 示例
+
+!!! note
+这是一个 note 类型的 admonition 示例。它应该能够被转换为图片。
+
+    这里可以有多行内容，支持空格和换行。
+
+!!! tip
+这是一个 tip 类型的 admonition 示例。它包含了一些重要的提示信息。
+
+    内容区可以有空行，这样阅读更轻松。
+
+!!! warning
+这是一个 warning 类型的 admonition 示例。它用于显示警告信息。
+
+    只有遇到两个连续的空白行才算结束。
+
+### 数学公式示例
+
+这是一个行内公式：$E = mc^2$
+
+这是一个块级公式：
+
+$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$
+
+### 代码块示例
+
+```javascript
+function hello() {
+  console.log(`Hello, World!`)
+  return `This is a code block that should be converted to image`
+}
+```
+
 ### 2. Mermaid 流程图：可视化流程
 
 Mermaid 是强大的可视化工具，可以在 Markdown 中创建流程图、时序图等。
@@ -237,7 +275,6 @@ Foo -> Foo7: To queue
 [你好世界]{nǐ・hǎo・shì・jiè}
 [小夜時雨]^(さ・よ・しぐれ)
 
-
 当字符串数量与分隔符数量不匹配时，会自动匹配到最合适的分隔符。
 
 ```md
@@ -251,7 +288,6 @@ Foo -> Foo7: To queue
 [小夜時雨]{さ・よ}
 [小夜]{さ・よ・しぐれ}
 [小夜時雨]{さ・よ・しぐれ・extra}
-
 
 ## 结语
 

@@ -79,6 +79,42 @@ export interface Alert {
   tokens: Token[]
 }
 
+/**
+ * Options for the `markedAdmon` extension.
+ */
+export interface AdmonOptions {
+  className?: string
+  variants?: AdmonVariantItem[]
+  styles?: ThemeStyles
+}
+
+/**
+ * Configuration for an admonition type.
+ */
+export interface AdmonVariantItem {
+  type: string
+  icon: string
+  title?: string
+  titleClassName?: string
+}
+
+/**
+ * Represents an admonition token.
+ */
+export interface Admon {
+  type: `admon`
+  meta: {
+    className: string
+    variant: string
+    icon: string
+    title: string
+    titleClassName: string
+  }
+  raw: string
+  text: string
+  tokens: Token[]
+}
+
 export interface PostAccount {
   avatar: string
   displayName: string

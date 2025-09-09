@@ -1,0 +1,207 @@
+/* Admonition Styles - Optimized with SVG icons only */
+.admonition {
+  margin: 1.5625em 0;
+  padding: 0 0.6rem 0.8rem 0.6rem;
+  overflow: hidden;
+  page-break-inside: avoid;
+  border-left: 0.2rem solid;
+  border-radius: 0.1rem;
+  box-shadow:
+    0 0.2rem 0.5rem rgba(0, 0, 0, 0.05),
+    0 0 0.0625rem rgba(0, 0, 0, 0.1);
+  background-color: var(--md-admonition-bg-color);
+  border-left-color: var(--md-admonition-icon-color);
+}
+
+.admonition-title {
+  margin: 0 -0.6rem 0.4rem -0.6rem;
+  padding: 0.4rem 0.6rem 0.4rem 0.6rem;
+  font-weight: 700;
+  position: relative;
+  background-color: var(--md-admonition-title-bg-color);
+  border-bottom: 0.05rem solid var(--md-admonition-title-bg-color);
+  border-top-left-radius: 0.1rem;
+  border-top-right-radius: 0.1rem;
+}
+
+.admonition-title:before {
+  content: '';
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  margin-right: 0.5em;
+  vertical-align: middle;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* Summary/Abstract/TLDR - Description icon */
+.admonition.summary > .admonition-title:before,
+.admonition.abstract > .admonition-title:before,
+.admonition.tldr > .admonition-title:before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z'/%3E%3C/svg%3E");
+}
+
+/* Hint/Tip - Lightbulb icon */
+.admonition.hint > .admonition-title:before,
+.admonition.tip > .admonition-title:before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M12,2A7,7 0 0,0 5,9C5,11.38 6.19,13.47 8,14.74V17A1,1 0 0,0 9,18H15A1,1 0 0,0 16,17V14.74C17.81,13.47 19,11.38 19,9A7,7 0 0,0 12,2M9,21A1,1 0 0,0 10,22H14A1,1 0 0,0 15,21V20H9V21Z'/%3E%3C/svg%3E");
+}
+
+/* Info/Todo - Information icon */
+.admonition.info > .admonition-title:before,
+.admonition.todo > .admonition-title:before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z'/%3E%3C/svg%3E");
+}
+
+/* Success/Check/Done - Check circle icon */
+.admonition.success > .admonition-title:before,
+.admonition.check > .admonition-title:before,
+.admonition.done > .admonition-title:before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M11,16.5L18,9.5L16.5,8L11,13.5L7.5,10L6,11.5L11,16.5Z'/%3E%3C/svg%3E");
+}
+
+/* Question/Help/FAQ - Help circle icon */
+.admonition.question > .admonition-title:before,
+.admonition.help > .admonition-title:before,
+.admonition.faq > .admonition-title:before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M11,18H13V16H11V18M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,6A4,4 0 0,0 8,10H10A2,2 0 0,1 12,8A2,2 0 0,1 14,10C14,12 11,11.75 11,15H13C13,12.75 16,12.5 16,10A4,4 0 0,0 12,6Z'/%3E%3C/svg%3E");
+}
+
+/* Attention - Speakerphone icon */
+.admonition.attention > .admonition-title:before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23ff9100' stroke='%23ff9100' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M11 5.882V19.24a1.76 1.76 0 0 1-3.417.592l-2.147-6.15M18 13a3 3 0 1 0 0-6M5.436 13.683A4.001 4.001 0 0 1 7 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a4 4 0 0 1-1.564-.317'/%3E%3C/svg%3E");
+}
+
+/* Warning/Caution - Warning icon */
+.admonition.warning > .admonition-title:before,
+.admonition.caution > .admonition-title:before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z'/%3E%3C/svg%3E");
+}
+
+/* Failure/Fail/Missing - Close circle icon */
+.admonition.failure > .admonition-title:before,
+.admonition.fail > .admonition-title:before,
+.admonition.missing > .admonition-title:before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z'/%3E%3C/svg%3E");
+}
+
+/* Danger - Alert circle icon */
+.admonition.danger > .admonition-title:before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z'/%3E%3C/svg%3E");
+}
+
+/* Error - Error icon */
+.admonition.error > .admonition-title:before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z'/%3E%3C/svg%3E");
+}
+
+/* Bug - Bug icon */
+.admonition.bug > .admonition-title:before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M14,12H10V10H14M14,16H10V14H14M20,8H17.19C16.74,7.22 16.12,6.55 15.37,6.04L17,4.41L15.59,3L13.99,4.59C13.18,4.23 12.62,4 12,4S10.82,4.23 10.01,4.59L8.41,3L7,4.41L8.62,6.04C7.88,6.55 7.26,7.22 6.81,8H4V10H6.09C6.03,10.33 6,10.66 6,11V12H4V14H6V15C6,15.34 6.03,15.67 6.09,16H4V18H6.81C7.26,18.78 7.88,19.45 8.62,19.96L7,21.59L8.41,23L10.01,21.41C10.82,21.77 11.38,22 12,22S13.18,21.77 13.99,21.41L15.59,23L17,21.59L15.37,19.96C16.12,19.45 16.74,18.78 17.19,18H20V16H17.91C17.97,15.67 18,15.34 18,15V14H20V12H18V11C18,10.66 17.97,10.33 17.91,10H20V8Z'/%3E%3C/svg%3E");
+}
+
+/* Example/Snippet - Code icon */
+.admonition.example > .admonition-title:before,
+.admonition.snippet > .admonition-title:before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M14.6,16.6L19.2,12L14.6,7.4L13.2,8.8L16.4,12L13.2,15.2L14.6,16.6M9.4,16.6L4.8,12L9.4,7.4L10.8,8.8L7.6,12L10.8,15.2L9.4,16.6Z'/%3E%3C/svg%3E");
+}
+
+/* Quote/Cite - Quote icon */
+.admonition.quote > .admonition-title:before,
+.admonition.cite > .admonition-title:before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M14,17H17L19,13V7H13V13H16M6,17H9L11,13V7H5V13H8L6,17Z'/%3E%3C/svg%3E");
+}
+
+/* Color themes for different admonition types */
+.admonition.summary,
+.admonition.abstract,
+.admonition.tldr {
+  --md-admonition-bg-color: rgba(0, 176, 255, 0.1);
+  --md-admonition-icon-color: #00b0ff;
+  --md-admonition-title-bg-color: rgba(0, 176, 255, 0.1);
+}
+
+.admonition.hint,
+.admonition.tip {
+  --md-admonition-bg-color: rgba(0, 191, 165, 0.1);
+  --md-admonition-icon-color: #00bfa5;
+  --md-admonition-title-bg-color: rgba(0, 191, 165, 0.1);
+}
+
+.admonition.info,
+.admonition.todo {
+  --md-admonition-bg-color: rgba(0, 184, 212, 0.1);
+  --md-admonition-icon-color: #00b8d4;
+  --md-admonition-title-bg-color: rgba(0, 184, 212, 0.1);
+}
+
+.admonition.success,
+.admonition.check,
+.admonition.done {
+  --md-admonition-bg-color: rgba(0, 200, 83, 0.1);
+  --md-admonition-icon-color: #00c853;
+  --md-admonition-title-bg-color: rgba(0, 200, 83, 0.1);
+}
+
+.admonition.question,
+.admonition.help,
+.admonition.faq {
+  --md-admonition-bg-color: rgba(100, 149, 237, 0.1);
+  --md-admonition-icon-color: #6495ed;
+  --md-admonition-title-bg-color: rgba(100, 149, 237, 0.1);
+}
+
+.admonition.attention {
+  --md-admonition-bg-color: rgba(255, 145, 0, 0.1);
+  --md-admonition-icon-color: #ff9100;
+  --md-admonition-title-bg-color: rgba(255, 145, 0, 0.1);
+}
+
+.admonition.warning,
+.admonition.caution {
+  --md-admonition-bg-color: rgba(255, 152, 0, 0.1);
+  --md-admonition-icon-color: #ff9800;
+  --md-admonition-title-bg-color: rgba(255, 152, 0, 0.1);
+}
+
+.admonition.failure,
+.admonition.fail,
+.admonition.missing {
+  --md-admonition-bg-color: rgba(255, 82, 82, 0.1);
+  --md-admonition-icon-color: #ff5252;
+  --md-admonition-title-bg-color: rgba(255, 82, 82, 0.1);
+}
+
+.admonition.danger {
+  --md-admonition-bg-color: rgba(255, 23, 68, 0.1);
+  --md-admonition-icon-color: #ff1744;
+  --md-admonition-title-bg-color: rgba(255, 23, 68, 0.1);
+}
+
+.admonition.error {
+  --md-admonition-bg-color: rgba(255, 23, 68, 0.1);
+  --md-admonition-icon-color: #ff1744;
+  --md-admonition-title-bg-color: rgba(255, 23, 68, 0.1);
+}
+
+.admonition.bug {
+  --md-admonition-bg-color: rgba(156, 39, 176, 0.1);
+  --md-admonition-icon-color: #9c27b0;
+  --md-admonition-title-bg-color: rgba(156, 39, 176, 0.1);
+}
+
+.admonition.example,
+.admonition.snippet {
+  --md-admonition-bg-color: rgba(96, 125, 139, 0.1);
+  --md-admonition-icon-color: #607d8b;
+  --md-admonition-title-bg-color: rgba(96, 125, 139, 0.1);
+}
+
+.admonition.quote,
+.admonition.cite {
+  --md-admonition-bg-color: rgba(158, 158, 158, 0.1);
+  --md-admonition-icon-color: #9e9e9e;
+  --md-admonition-title-bg-color: rgba(158, 158, 158, 0.1);
+}

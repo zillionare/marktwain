@@ -28,6 +28,7 @@ import {
   sanitizeTitle,
 } from '@/utils'
 import { copyPlain } from '@/utils/clipboard'
+import { fileUpload } from '@/utils/file'
 
 /**********************************
  * Post 结构接口
@@ -64,6 +65,22 @@ export const useStore = defineStore(`store`, () => {
   // 是否开启微信外链接底部引用
   const isCiteStatus = useStorage(`isCiteStatus`, defaultStyleConfig.isCiteStatus)
   const toggleCiteStatus = useToggle(isCiteStatus)
+
+  // 转图功能相关状态
+  const originalMarkdown = ref<string>(``) // 保存原始 markdown (v0)
+  const convertedMarkdown = ref<string>(``) // 保存转换后的 markdown
+  const isConverted = ref<boolean>(false) // 标记是否已转换
+  const conversionMap = ref<Map<string, string>>(new Map()) // 存储转换映射关系
+  const isConverting = ref<boolean>(false) // 标记是否正在转换中
+
+  // 转图配置
+  const conversionConfig = useStorage(`conversionConfig`, {
+    screenWidth: 800, // 屏幕宽度
+    devicePixelRatio: 1, // 设备像素比
+    convertAdmonition: true, // 转换 Admonition
+    convertMathBlock: true, // 转换数学公式
+    convertFencedBlock: true, // 转换代码块
+  })
 
   // 是否开启 AI 工具箱
   const showAIToolbox = useStorage(`showAIToolbox`, true)
@@ -675,6 +692,188 @@ export const useStore = defineStore(`store`, () => {
     }
   }
 
+  // 转图功能相关函数
+  // 保存原始 markdown
+  const saveOriginalMarkdown = () => {
+    const currentContent = editor.value!.getValue()
+    originalMarkdown.value = currentContent
+    isConverted.value = false
+    conversionMap.value.clear()
+  }
+
+  // 将数据URL转换为File对象
+  const dataURLtoFile = (dataurl: string, filename: string): File => {
+    const arr = dataurl.split(`,`)
+    const mime = arr[0].match(/:(.*?);/)![1]
+    const bstr = atob(arr[1])
+    let n = bstr.length
+    const u8arr = new Uint8Array(n)
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n)
+    }
+    return new File([u8arr], filename, { type: mime })
+  }
+
+  // 生成元素ID
+  const generateElementId = (element: HTMLElement): string => {
+    const elementType = element.className.includes(`admonition`)
+      ? `admonition`
+      : element.className.includes(`katex`) ? `math` : `code`
+    const contentHash = btoa(element.textContent?.slice(0, 50) || ``)
+    return `${elementType}-${contentHash}`
+  }
+
+  // 获取markdown匹配模式
+  const getMarkdownPattern = (elementId: string): RegExp => {
+    const [type] = elementId.split(`-`)
+    switch (type) {
+      case `admonition`:
+        return /^!!!\s+\w+\s*\n[\s\S]*?\n\s*\n\s*\n/gm
+      case `math`:
+        return /\$\$.*?\$\$/gs
+      case `code`:
+        return /```[\s\S]*?```/g
+      default:
+        return /^$/
+    }
+  }
+
+  // 转换单个元素为图片
+  const convertElementToImage = async (element: HTMLElement): Promise<{ elementId: string, imageUrl: string }> => {
+    try {
+      // 1. 设置预览区宽度
+      const previewWrapper = document.querySelector(`#output-wrapper`) as HTMLElement
+      const previewElement = document.querySelector(`.preview`) as HTMLElement
+      const originalWidth = previewWrapper?.style.width
+      const originalPreviewWidth = previewElement?.style.width
+
+      if (previewWrapper) {
+        previewWrapper.style.width = `${conversionConfig.value.screenWidth}px`
+      }
+      if (previewElement) {
+        previewElement.style.width = `${conversionConfig.value.screenWidth}px`
+      }
+
+      // 2. 生成图片
+      const imageDataUrl = await toPng(element, {
+        pixelRatio: conversionConfig.value.devicePixelRatio,
+        backgroundColor: isDark.value ? `` : `#fff`,
+      })
+
+      // 3. 恢复预览区宽度
+      if (previewWrapper && originalWidth !== undefined) {
+        previewWrapper.style.width = originalWidth
+      }
+      if (previewElement && originalPreviewWidth !== undefined) {
+        previewElement.style.width = originalPreviewWidth
+      }
+
+      // 4. 上传到图床
+      const imageFile = dataURLtoFile(imageDataUrl, `converted-${Date.now()}.png`)
+      const imageUrl = await fileUpload(originalMarkdown.value, imageFile)
+
+      // 5. 记录转换映射
+      const elementId = generateElementId(element)
+      conversionMap.value.set(elementId, imageUrl)
+
+      return { elementId, imageUrl }
+    }
+    catch (error) {
+      console.error(`转换失败:`, error)
+      throw error
+    }
+  }
+
+  // 转换元素为图片
+  const convertElementsToImages = async () => {
+    const previewElement = document.querySelector(`#output-wrapper > .preview`)
+    if (!previewElement)
+      return
+
+    const elementsToConvert = []
+
+    // 根据配置识别需要转换的元素
+    if (conversionConfig.value.convertAdmonition) {
+      elementsToConvert.push(...previewElement.querySelectorAll(`.admonition`))
+    }
+    if (conversionConfig.value.convertMathBlock) {
+      elementsToConvert.push(...previewElement.querySelectorAll(`.block_katex`))
+    }
+    if (conversionConfig.value.convertFencedBlock) {
+      elementsToConvert.push(...previewElement.querySelectorAll(`pre code`))
+    }
+
+    // 依次转换每个元素
+    for (const element of elementsToConvert) {
+      await convertElementToImage(element as HTMLElement)
+    }
+  }
+
+  // 替换为图床链接
+  const replaceWithImageLinks = () => {
+    let newMarkdown = originalMarkdown.value
+
+    // 根据转换映射替换内容
+    for (const [elementId, imageUrl] of conversionMap.value) {
+      const markdownPattern = getMarkdownPattern(elementId)
+      const imageMarkdown = `![](${imageUrl})`
+      newMarkdown = newMarkdown.replace(markdownPattern, imageMarkdown)
+    }
+
+    convertedMarkdown.value = newMarkdown
+
+    // 更新编辑器内容
+    editor.value!.setValue(newMarkdown)
+    isConverted.value = true
+  }
+
+  // 执行转图操作
+  const convertToImages = async () => {
+    try {
+      isConverting.value = true
+
+      // 1. 保存原始内容
+      saveOriginalMarkdown()
+
+      // 2. 转换元素为图片
+      await convertElementsToImages()
+
+      // 3. 替换为图床链接
+      replaceWithImageLinks()
+
+      return true
+    }
+    catch (error) {
+      console.error(`转图失败:`, error)
+      throw error
+    }
+    finally {
+      isConverting.value = false
+    }
+  }
+
+  // 恢复原始 markdown
+  const restoreOriginalMarkdown = () => {
+    if (!isConverted.value || !originalMarkdown.value) {
+      return false
+    }
+
+    editor.value!.setValue(originalMarkdown.value)
+    isConverted.value = false
+    conversionMap.value.clear()
+    return true
+  }
+
+  // 导出转图后的 markdown
+  const exportConvertedMarkdown = () => {
+    if (!isConverted.value || !convertedMarkdown.value) {
+      return false
+    }
+
+    downloadMD(convertedMarkdown.value, `${posts.value[currentPostIndex.value].title}-converted`)
+    return true
+  }
+
   // 是否打开重置样式对话框
   const isOpenConfirmDialog = ref(false)
 
@@ -732,6 +931,17 @@ export const useStore = defineStore(`store`, () => {
     exportEditorContent2MD,
     exportEditorContent2PDF,
     downloadAsCardImage,
+
+    // 转图功能相关
+    originalMarkdown,
+    convertedMarkdown,
+    isConverted,
+    conversionMap,
+    isConverting,
+    conversionConfig,
+    convertToImages,
+    restoreOriginalMarkdown,
+    exportConvertedMarkdown,
 
     importDefaultContent,
     clearContent,

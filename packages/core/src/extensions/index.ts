@@ -1,4 +1,5 @@
 // Markdown 扩展导出
+export * from './admon'
 export * from './alert'
 export * from './footnotes'
 export * from './katex'

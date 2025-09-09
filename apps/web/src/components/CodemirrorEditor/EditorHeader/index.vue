@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   ChevronDownIcon,
+  Image,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
@@ -20,6 +21,8 @@ const {
   primaryColor,
   isOpenPostSlider,
   editor,
+  isConverting,
+  isConverted: _isConverted,
 } = storeToRefs(store)
 
 const {
@@ -27,6 +30,7 @@ const {
   citeStatusChanged,
   countStatusChanged,
   formatContent,
+  convertToImages,
 } = store
 
 // 工具函数，添加格式
@@ -87,6 +91,17 @@ const copyMode = useStorage(addPrefix(`copyMode`), `txt`)
 const { copy: copyContent } = useClipboard({
   legacy: true,
 })
+
+// 转图处理函数
+async function handleConvertToImages() {
+  try {
+    await convertToImages()
+    toast.success(`转图完成`)
+  }
+  catch (error) {
+    toast.error(`转图失败: ${(error as Error).message}`)
+  }
+}
 
 // 复制到微信公众号
 async function copy() {
@@ -222,6 +237,17 @@ async function copy() {
       >
         <PanelLeftOpen v-show="!isOpenPostSlider" class="size-4" />
         <PanelLeftClose v-show="isOpenPostSlider" class="size-4" />
+      </Button>
+
+      <!-- 转图按钮 -->
+      <Button
+        variant="outline"
+        :disabled="isConverting"
+        class="flex items-center gap-2"
+        @click="handleConvertToImages"
+      >
+        <Image class="w-4 h-4" />
+        {{ isConverting ? '转换中...' : '转图' }}
       </Button>
 
       <!-- 复制按钮组 -->
