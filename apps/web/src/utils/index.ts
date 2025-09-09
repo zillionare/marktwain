@@ -315,7 +315,7 @@ export async function processClipboardContent(primaryColor: string) {
 
   // 隐藏跨域样式表链接
   crossOriginLinks.forEach((link) => {
-    link.style.display = `none`
+    ;(link as HTMLElement).style.display = `none`
   })
 
   // 先合并 CSS 和修改 HTML 结构
@@ -323,7 +323,7 @@ export async function processClipboardContent(primaryColor: string) {
 
   // 恢复跨域样式表链接
   crossOriginLinks.forEach((link) => {
-    link.style.display = ``
+    ;(link as HTMLElement).style.display = ``
   })
 
   // 处理样式和颜色变量

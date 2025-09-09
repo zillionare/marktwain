@@ -80,6 +80,13 @@ export const useStore = defineStore(`store`, () => {
     convertAdmonition: true, // 转换 Admonition
     convertMathBlock: true, // 转换数学公式
     convertFencedBlock: true, // 转换代码块
+  } as {
+    screenWidth: number
+    devicePixelRatio: number
+    convertAdmonition: boolean
+    convertMathBlock: boolean
+    convertFencedBlock: boolean
+    [key: string]: any // 添加索引签名以支持动态访问
   })
 
   // 是否开启 AI 工具箱
@@ -770,20 +777,56 @@ export const useStore = defineStore(`store`, () => {
         (link as HTMLElement).style.display = `none`
       })
 
-      // 3. 生成图片
-      const imageDataUrl = await toPng(element, {
+      // 3. 创建包装容器来添加留白，但不改变原元素的定位
+      const wrapper = document.createElement(`div`)
+      wrapper.style.cssText = `
+        display: inline-block;
+        margin: 5px 10px 5px 5px;
+        padding: 5px 10px 5px 5px;
+        background: ${isDark.value ? `` : `#fff`};
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        border-radius: 4px;
+        border: none;
+        outline: none;
+      `
+
+      // 将元素包装起来，但保持原元素的样式不变
+      const parent = element.parentNode
+      const originalBorder = element.style.border
+      const originalOutline = element.style.outline
+
+      // 临时移除可能的边框
+      element.style.border = `none`
+      element.style.outline = `none`
+
+      if (parent) {
+        parent.insertBefore(wrapper, element)
+        wrapper.appendChild(element)
+      }
+
+      // 4. 生成图片
+      const imageDataUrl = await toPng(wrapper, {
         pixelRatio: conversionConfig.value.devicePixelRatio,
         backgroundColor: isDark.value ? `` : `#fff`,
         // 禁用 web fonts 嵌入以避免跨域问题
         skipFonts: true,
       })
 
-      // 4. 恢复跨域样式表链接
+      // 5. 恢复原始结构和样式
+      element.style.border = originalBorder
+      element.style.outline = originalOutline
+
+      if (parent) {
+        parent.insertBefore(element, wrapper)
+        parent.removeChild(wrapper)
+      }
+
+      // 6. 恢复跨域样式表链接
       crossOriginLinks.forEach((link) => {
         (link as HTMLElement).style.display = ``
       })
 
-      // 5. 恢复预览区宽度
+      // 7. 恢复预览区宽度
       if (previewWrapper && originalWidth !== undefined) {
         previewWrapper.style.width = originalWidth
       }
@@ -791,28 +834,91 @@ export const useStore = defineStore(`store`, () => {
         previewElement.style.width = originalPreviewWidth
       }
 
-      // 6. 调试：显示转图预览
+      // 8. 显示转图预览并等待用户确认
       console.log(`转图预览:`, imageDataUrl)
-      const previewWindow = window.open(``, `_blank`, `width=800,height=600`)
-      if (previewWindow) {
-        previewWindow.document.write(`
-          <html>
-            <head><title>转图预览</title></head>
-            <body style="margin:0; padding:20px; background:#f5f5f5;">
-              <h2>转图预览效果</h2>
-              <div style="background:white; padding:20px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-                <img src="${imageDataUrl}" style="max-width:100%; height:auto; border:1px solid #ddd;" />
-              </div>
-              <p style="margin-top:20px; color:#666;">
-                如果效果满意，请确认继续上传到图床
-              </p>
-              <button onclick="window.close()" style="padding:8px 16px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer;">
-                关闭预览
-              </button>
-            </body>
-          </html>
-        `)
-        previewWindow.document.close()
+
+      // 创建确认对话框
+      const confirmed = await new Promise<boolean>((resolve) => {
+        const previewWindow = window.open(``, `_blank`, `width=900,height=700,scrollbars=yes,resizable=yes`)
+        if (previewWindow) {
+          previewWindow.document.write(`
+            <html>
+              <head>
+                <title>转图预览 - 确认上传</title>
+                <style>
+                  body { margin:0; padding:20px; background:#f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+                  .container { max-width: 800px; margin: 0 auto; }
+                  .preview-card { background:white; padding:20px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); margin-bottom:20px; }
+                  .preview-img { max-width:100%; height:auto; border-radius:4px; }
+                  .button-group { display:flex; gap:12px; justify-content:center; margin-top:20px; }
+                  .btn { padding:10px 20px; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:500; transition:all 0.2s; }
+                  .btn-primary { background:#007bff; color:white; }
+                  .btn-primary:hover { background:#0056b3; }
+                  .btn-secondary { background:#6c757d; color:white; }
+                  .btn-secondary:hover { background:#545b62; }
+                  .btn-danger { background:#dc3545; color:white; }
+                  .btn-danger:hover { background:#c82333; }
+                  .info { color:#666; margin:10px 0; }
+                </style>
+              </head>
+              <body>
+                <div class="container">
+                  <h2>转图预览效果</h2>
+                  <div class="preview-card">
+                    <img src="${imageDataUrl}" class="preview-img" />
+                  </div>
+                  <div class="info">
+                    <p><strong>元素类型:</strong> ${element.tagName.toLowerCase()}</p>
+                    <p><strong>转换时间:</strong> ${new Date().toLocaleString()}</p>
+                    <p>请检查转换效果，如果满意请点击"确认上传"，否则点击"跳过"或"取消全部"</p>
+                  </div>
+                  <div class="button-group">
+                    <button class="btn btn-primary" onclick="confirmUpload()">确认上传</button>
+                    <button class="btn btn-secondary" onclick="skipElement()">跳过此元素</button>
+                    <button class="btn btn-danger" onclick="cancelAll()">取消全部</button>
+                  </div>
+                </div>
+                <script>
+                  function confirmUpload() {
+                    window.opener.postMessage({ action: 'confirm', result: true }, '*');
+                    window.close();
+                  }
+                  function skipElement() {
+                    window.opener.postMessage({ action: 'skip', result: false }, '*');
+                    window.close();
+                  }
+                  function cancelAll() {
+                    window.opener.postMessage({ action: 'cancel', result: false }, '*');
+                    window.close();
+                  }
+                </script>
+              </body>
+            </html>
+          `)
+          previewWindow.document.close()
+        }
+
+        // 监听消息
+        const handleMessage = (event: MessageEvent) => {
+          if (event.data.action === `confirm`) {
+            resolve(true)
+            window.removeEventListener(`message`, handleMessage)
+          }
+          else if (event.data.action === `skip`) {
+            resolve(false)
+            window.removeEventListener(`message`, handleMessage)
+          }
+          else if (event.data.action === `cancel`) {
+            resolve(false)
+            window.removeEventListener(`message`, handleMessage)
+          }
+        }
+        window.addEventListener(`message`, handleMessage)
+      })
+
+      if (!confirmed) {
+        console.log(`用户取消了此元素的转换`)
+        return { elementId: ``, imageUrl: `` }
       }
 
       // 7. 上传到图床
@@ -841,18 +947,41 @@ export const useStore = defineStore(`store`, () => {
 
     // 根据配置识别需要转换的元素
     if (conversionConfig.value.convertAdmonition) {
-      elementsToConvert.push(...previewElement.querySelectorAll(`.admonition`))
+      const admonitions = previewElement.querySelectorAll(`.admonition`)
+      elementsToConvert.push(...admonitions)
+      console.log(`找到 ${admonitions.length} 个 Admonition 元素`)
     }
     if (conversionConfig.value.convertMathBlock) {
-      elementsToConvert.push(...previewElement.querySelectorAll(`.block_katex`))
+      const mathBlocks = previewElement.querySelectorAll(`.block_katex`)
+      elementsToConvert.push(...mathBlocks)
+      console.log(`找到 ${mathBlocks.length} 个 Math Block 元素`)
     }
     if (conversionConfig.value.convertFencedBlock) {
-      elementsToConvert.push(...previewElement.querySelectorAll(`pre code`))
+      const fencedBlocks = previewElement.querySelectorAll(`pre code`)
+      elementsToConvert.push(...fencedBlocks)
+      console.log(`找到 ${fencedBlocks.length} 个 Fenced Block 元素`)
     }
 
+    console.log(`总共找到 ${elementsToConvert.length} 个需要转换的元素`)
+
     // 依次转换每个元素
-    for (const element of elementsToConvert) {
-      await convertElementToImage(element as HTMLElement)
+    for (let i = 0; i < elementsToConvert.length; i++) {
+      const element = elementsToConvert[i] as HTMLElement
+      console.log(`正在转换第 ${i + 1}/${elementsToConvert.length} 个元素:`, element)
+
+      try {
+        const result = await convertElementToImage(element)
+        if (!result.elementId || !result.imageUrl) {
+          console.log(`用户跳过了第 ${i + 1} 个元素`)
+          continue
+        }
+        console.log(`第 ${i + 1} 个元素转换成功:`, result.imageUrl)
+      }
+      catch (error) {
+        console.error(`第 ${i + 1} 个元素转换失败:`, error)
+        // 继续转换下一个元素，不中断整个流程
+        continue
+      }
     }
   }
 
