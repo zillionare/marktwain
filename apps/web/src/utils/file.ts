@@ -632,9 +632,7 @@ export function fileUpload(content: string, file: File) {
     case `formCustom`:
       return formCustomUpload(content, file)
     default:
-      // return file.size / 1024 < 1024
-      //     ? giteeUpload(content, file.name)
-      //     : ghFileUpload(content, file.name);
-      return ghFileUpload(content, file.name)
+      // 暂时使用 Gitee 作为默认图床，因为 GitHub token 已过期
+      return giteeUpload(content, file.name)
   }
 }

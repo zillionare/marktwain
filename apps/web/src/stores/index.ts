@@ -754,13 +754,36 @@ export const useStore = defineStore(`store`, () => {
         previewElement.style.width = `${conversionConfig.value.screenWidth}px`
       }
 
-      // 2. 生成图片
+      // 2. 临时移除跨域样式表链接，避免 html2canvas 库访问跨域 cssRules 时出错
+      const crossOriginLinks = Array.from(document.querySelectorAll(`link[rel="stylesheet"]`)).filter((link) => {
+        try {
+          const linkUrl = new URL((link as HTMLLinkElement).href, window.location.origin)
+          return linkUrl.origin !== window.location.origin
+        }
+        catch {
+          return false
+        }
+      })
+
+      // 隐藏跨域样式表链接
+      crossOriginLinks.forEach((link) => {
+        (link as HTMLElement).style.display = `none`
+      })
+
+      // 3. 生成图片
       const imageDataUrl = await toPng(element, {
         pixelRatio: conversionConfig.value.devicePixelRatio,
         backgroundColor: isDark.value ? `` : `#fff`,
+        // 禁用 web fonts 嵌入以避免跨域问题
+        skipFonts: true,
       })
 
-      // 3. 恢复预览区宽度
+      // 4. 恢复跨域样式表链接
+      crossOriginLinks.forEach((link) => {
+        (link as HTMLElement).style.display = ``
+      })
+
+      // 5. 恢复预览区宽度
       if (previewWrapper && originalWidth !== undefined) {
         previewWrapper.style.width = originalWidth
       }
@@ -768,11 +791,35 @@ export const useStore = defineStore(`store`, () => {
         previewElement.style.width = originalPreviewWidth
       }
 
-      // 4. 上传到图床
+      // 6. 调试：显示转图预览
+      console.log(`转图预览:`, imageDataUrl)
+      const previewWindow = window.open(``, `_blank`, `width=800,height=600`)
+      if (previewWindow) {
+        previewWindow.document.write(`
+          <html>
+            <head><title>转图预览</title></head>
+            <body style="margin:0; padding:20px; background:#f5f5f5;">
+              <h2>转图预览效果</h2>
+              <div style="background:white; padding:20px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                <img src="${imageDataUrl}" style="max-width:100%; height:auto; border:1px solid #ddd;" />
+              </div>
+              <p style="margin-top:20px; color:#666;">
+                如果效果满意，请确认继续上传到图床
+              </p>
+              <button onclick="window.close()" style="padding:8px 16px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer;">
+                关闭预览
+              </button>
+            </body>
+          </html>
+        `)
+        previewWindow.document.close()
+      }
+
+      // 7. 上传到图床
       const imageFile = dataURLtoFile(imageDataUrl, `converted-${Date.now()}.png`)
       const imageUrl = await fileUpload(originalMarkdown.value, imageFile)
 
-      // 5. 记录转换映射
+      // 7. 记录转换映射
       const elementId = generateElementId(element)
       conversionMap.value.set(elementId, imageUrl)
 

@@ -239,13 +239,28 @@ async function getHljsStyles(): Promise<string> {
     return ``
 
   try {
+    // 检查是否是跨域链接
+    const linkUrl = new URL(hljsLink.href, window.location.origin)
+    const isCrossOrigin = linkUrl.origin !== window.location.origin
+
+    if (isCrossOrigin) {
+      console.warn(`Cannot fetch cross-origin highlight.js styles: ${hljsLink.href}`)
+      // 对于跨域链接，我们直接返回空字符串，让页面使用已经加载的样式
+      return ``
+    }
+
     const response = await fetch(hljsLink.href)
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+
     const cssText = await response.text()
-    console.log(cssText, `cssText`)
+    console.log(`Successfully fetched highlight.js styles`)
     return `<style>${cssText}</style>`
   }
   catch (error) {
     console.warn(`Failed to fetch highlight.js styles:`, error)
+    // 即使获取失败，页面中已经加载的样式仍然会生效
     return ``
   }
 }
@@ -287,8 +302,29 @@ export async function processClipboardContent(primaryColor: string) {
     clipboardDiv.innerHTML = hljsStyles + clipboardDiv.innerHTML
   }
 
+  // 临时移除跨域样式表链接，避免 juice 库访问跨域 cssRules 时出错
+  const crossOriginLinks = Array.from(document.querySelectorAll(`link[rel="stylesheet"]`)).filter((link) => {
+    try {
+      const linkUrl = new URL((link as HTMLLinkElement).href, window.location.origin)
+      return linkUrl.origin !== window.location.origin
+    }
+    catch {
+      return false
+    }
+  })
+
+  // 隐藏跨域样式表链接
+  crossOriginLinks.forEach((link) => {
+    link.style.display = `none`
+  })
+
   // 先合并 CSS 和修改 HTML 结构
   clipboardDiv.innerHTML = modifyHtmlStructure(mergeCss(clipboardDiv.innerHTML))
+
+  // 恢复跨域样式表链接
+  crossOriginLinks.forEach((link) => {
+    link.style.display = ``
+  })
 
   // 处理样式和颜色变量
   clipboardDiv.innerHTML = clipboardDiv.innerHTML
