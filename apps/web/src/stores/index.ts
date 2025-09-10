@@ -771,7 +771,7 @@ export const useStore = defineStore(`store`, () => {
       console.log(`找到 ${mathBlocks.length} 个 Math Block 元素`)
     }
     if (conversionConfig.value.convertFencedBlock) {
-      const fencedBlocks = previewElement.querySelectorAll(`pre code`)
+      const fencedBlocks = previewElement.querySelectorAll(`pre`)
       elementsToConvert.push(...fencedBlocks)
       console.log(`找到 ${fencedBlocks.length} 个 Fenced Block 元素`)
     }
