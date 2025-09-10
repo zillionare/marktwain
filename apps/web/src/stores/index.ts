@@ -4,12 +4,13 @@ import {
   themeMap,
   widthOptions,
 } from '@md/shared/configs'
+import { snapdom } from '@zumer/snapdom'
 import CodeMirror from 'codemirror'
-import { toPng } from 'html-to-image'
 import { v4 as uuid } from 'uuid'
 import DEFAULT_CONTENT from '@/assets/example/markdown.md?raw'
-
 import DEFAULT_CSS_CONTENT from '@/assets/example/theme-css.txt?raw'
+
+import { useBatchImagePreview } from '@/composables/useBatchImagePreview'
 import { altKey, shiftKey } from '@/configs/shortcut-key'
 import {
   addPrefix,
@@ -28,7 +29,6 @@ import {
   sanitizeTitle,
 } from '@/utils'
 import { copyPlain } from '@/utils/clipboard'
-import { fileUpload } from '@/utils/file'
 
 /**********************************
  * Post 结构接口
@@ -635,16 +635,20 @@ export const useStore = defineStore(`store`, () => {
   // 下载卡片
   const downloadAsCardImage = async () => {
     const el = document.querySelector<HTMLElement>(`#output-wrapper>.preview`)!
-    const url = await toPng(el, {
+    const imgElement = await snapdom.toJpg(el, {
       backgroundColor: isDark.value ? `` : `#fff`,
-      skipFonts: true,
-      pixelRatio: Math.max(window.devicePixelRatio || 1, 2),
-      style: {
-        margin: `0`,
-      },
+      dpr: conversionConfig.value.devicePixelRatio || 1,
     })
 
-    downloadFile(url, `${sanitizeTitle(posts.value[currentPostIndex.value].title)}.png`, `image/png`)
+    // 将 HTMLImageElement 转换为 data URL
+    const canvas = document.createElement(`canvas`)
+    const ctx = canvas.getContext(`2d`)!
+    canvas.width = imgElement.width
+    canvas.height = imgElement.height
+    ctx.drawImage(imgElement, 0, 0)
+    const dataUrl = canvas.toDataURL(`image/png`)
+
+    downloadFile(dataUrl, `${sanitizeTitle(posts.value[currentPostIndex.value].title)}.png`, `image/png`)
   }
 
   // 导出编辑器内容为 PDF
@@ -708,28 +712,6 @@ export const useStore = defineStore(`store`, () => {
     conversionMap.value.clear()
   }
 
-  // 将数据URL转换为File对象
-  const dataURLtoFile = (dataurl: string, filename: string): File => {
-    const arr = dataurl.split(`,`)
-    const mime = arr[0].match(/:(.*?);/)![1]
-    const bstr = atob(arr[1])
-    let n = bstr.length
-    const u8arr = new Uint8Array(n)
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n)
-    }
-    return new File([u8arr], filename, { type: mime })
-  }
-
-  // 生成元素ID
-  const generateElementId = (element: HTMLElement): string => {
-    const elementType = element.className.includes(`admonition`)
-      ? `admonition`
-      : element.className.includes(`katex`) ? `math` : `code`
-    const contentHash = btoa(element.textContent?.slice(0, 50) || ``)
-    return `${elementType}-${contentHash}`
-  }
-
   // 获取markdown匹配模式
   const getMarkdownPattern = (elementId: string): RegExp => {
     const [type] = elementId.split(`-`)
@@ -745,195 +727,27 @@ export const useStore = defineStore(`store`, () => {
     }
   }
 
-  // 转换单个元素为图片
-  const convertElementToImage = async (element: HTMLElement): Promise<{ elementId: string, imageUrl: string }> => {
+  // 转换单个元素为图片（批量模式）
+  const convertElementToImage = async (element: HTMLElement, _type: string, _index: number) => {
+    const prevWidth = element.style.width
+
     try {
-      // 1. 设置预览区宽度
-      const previewWrapper = document.querySelector(`#output-wrapper`) as HTMLElement
-      const previewElement = document.querySelector(`.preview`) as HTMLElement
-      const originalWidth = previewWrapper?.style.width
-      const originalPreviewWidth = previewElement?.style.width
+      element.style.width = `${conversionConfig.value.screenWidth}px`
 
-      if (previewWrapper) {
-        previewWrapper.style.width = `${conversionConfig.value.screenWidth}px`
-      }
-      if (previewElement) {
-        previewElement.style.width = `${conversionConfig.value.screenWidth}px`
-      }
+      console.log(`正在截图`, element)
 
-      // 2. 临时移除跨域样式表链接，避免 html2canvas 库访问跨域 cssRules 时出错
-      const crossOriginLinks = Array.from(document.querySelectorAll(`link[rel="stylesheet"]`)).filter((link) => {
-        try {
-          const linkUrl = new URL((link as HTMLLinkElement).href, window.location.origin)
-          return linkUrl.origin !== window.location.origin
-        }
-        catch {
-          return false
-        }
+      const imgElement = await snapdom.toJpg(element, {
+        dpr: conversionConfig.value.devicePixelRatio || 2,
       })
 
-      // 隐藏跨域样式表链接
-      crossOriginLinks.forEach((link) => {
-        (link as HTMLElement).style.display = `none`
-      })
-
-      // 3. 创建包装容器来添加留白，但不改变原元素的定位
-      const wrapper = document.createElement(`div`)
-      wrapper.style.cssText = `
-        display: inline-block;
-        margin: 5px 10px 5px 5px;
-        padding: 5px 10px 5px 5px;
-        background: ${isDark.value ? `` : `#fff`};
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-        border-radius: 4px;
-        border: none;
-        outline: none;
-      `
-
-      // 将元素包装起来，但保持原元素的样式不变
-      const parent = element.parentNode
-      const originalBorder = element.style.border
-      const originalOutline = element.style.outline
-
-      // 临时移除可能的边框
-      element.style.border = `none`
-      element.style.outline = `none`
-
-      if (parent) {
-        parent.insertBefore(wrapper, element)
-        wrapper.appendChild(element)
-      }
-
-      // 4. 生成图片
-      const imageDataUrl = await toPng(wrapper, {
-        pixelRatio: conversionConfig.value.devicePixelRatio,
-        backgroundColor: isDark.value ? `` : `#fff`,
-        // 禁用 web fonts 嵌入以避免跨域问题
-        skipFonts: true,
-      })
-
-      // 5. 恢复原始结构和样式
-      element.style.border = originalBorder
-      element.style.outline = originalOutline
-
-      if (parent) {
-        parent.insertBefore(element, wrapper)
-        parent.removeChild(wrapper)
-      }
-
-      // 6. 恢复跨域样式表链接
-      crossOriginLinks.forEach((link) => {
-        (link as HTMLElement).style.display = ``
-      })
-
-      // 7. 恢复预览区宽度
-      if (previewWrapper && originalWidth !== undefined) {
-        previewWrapper.style.width = originalWidth
-      }
-      if (previewElement && originalPreviewWidth !== undefined) {
-        previewElement.style.width = originalPreviewWidth
-      }
-
-      // 8. 显示转图预览并等待用户确认
-      console.log(`转图预览:`, imageDataUrl)
-
-      // 创建确认对话框
-      const confirmed = await new Promise<boolean>((resolve) => {
-        const previewWindow = window.open(``, `_blank`, `width=900,height=700,scrollbars=yes,resizable=yes`)
-        if (previewWindow) {
-          previewWindow.document.write(`
-            <html>
-              <head>
-                <title>转图预览 - 确认上传</title>
-                <style>
-                  body { margin:0; padding:20px; background:#f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-                  .container { max-width: 800px; margin: 0 auto; }
-                  .preview-card { background:white; padding:20px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); margin-bottom:20px; }
-                  .preview-img { max-width:100%; height:auto; border-radius:4px; }
-                  .button-group { display:flex; gap:12px; justify-content:center; margin-top:20px; }
-                  .btn { padding:10px 20px; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:500; transition:all 0.2s; }
-                  .btn-primary { background:#007bff; color:white; }
-                  .btn-primary:hover { background:#0056b3; }
-                  .btn-secondary { background:#6c757d; color:white; }
-                  .btn-secondary:hover { background:#545b62; }
-                  .btn-danger { background:#dc3545; color:white; }
-                  .btn-danger:hover { background:#c82333; }
-                  .info { color:#666; margin:10px 0; }
-                </style>
-              </head>
-              <body>
-                <div class="container">
-                  <h2>转图预览效果</h2>
-                  <div class="preview-card">
-                    <img src="${imageDataUrl}" class="preview-img" />
-                  </div>
-                  <div class="info">
-                    <p><strong>元素类型:</strong> ${element.tagName.toLowerCase()}</p>
-                    <p><strong>转换时间:</strong> ${new Date().toLocaleString()}</p>
-                    <p>请检查转换效果，如果满意请点击"确认上传"，否则点击"跳过"或"取消全部"</p>
-                  </div>
-                  <div class="button-group">
-                    <button class="btn btn-primary" onclick="confirmUpload()">确认上传</button>
-                    <button class="btn btn-secondary" onclick="skipElement()">跳过此元素</button>
-                    <button class="btn btn-danger" onclick="cancelAll()">取消全部</button>
-                  </div>
-                </div>
-                <script>
-                  function confirmUpload() {
-                    window.opener.postMessage({ action: 'confirm', result: true }, '*');
-                    window.close();
-                  }
-                  function skipElement() {
-                    window.opener.postMessage({ action: 'skip', result: false }, '*');
-                    window.close();
-                  }
-                  function cancelAll() {
-                    window.opener.postMessage({ action: 'cancel', result: false }, '*');
-                    window.close();
-                  }
-                </script>
-              </body>
-            </html>
-          `)
-          previewWindow.document.close()
-        }
-
-        // 监听消息
-        const handleMessage = (event: MessageEvent) => {
-          if (event.data.action === `confirm`) {
-            resolve(true)
-            window.removeEventListener(`message`, handleMessage)
-          }
-          else if (event.data.action === `skip`) {
-            resolve(false)
-            window.removeEventListener(`message`, handleMessage)
-          }
-          else if (event.data.action === `cancel`) {
-            resolve(false)
-            window.removeEventListener(`message`, handleMessage)
-          }
-        }
-        window.addEventListener(`message`, handleMessage)
-      })
-
-      if (!confirmed) {
-        console.log(`用户取消了此元素的转换`)
-        return { elementId: ``, imageUrl: `` }
-      }
-
-      // 7. 上传到图床
-      const imageFile = dataURLtoFile(imageDataUrl, `converted-${Date.now()}.png`)
-      const imageUrl = await fileUpload(originalMarkdown.value, imageFile)
-
-      // 7. 记录转换映射
-      const elementId = generateElementId(element)
-      conversionMap.value.set(elementId, imageUrl)
-
-      return { elementId, imageUrl }
+      return imgElement.src
     }
     catch (error) {
       console.error(`转换失败:`, error)
       throw error
+    }
+    finally {
+      element.style.width = prevWidth
     }
   }
 
@@ -964,18 +778,24 @@ export const useStore = defineStore(`store`, () => {
 
     console.log(`总共找到 ${elementsToConvert.length} 个需要转换的元素`)
 
+    // 获取批量预览的 addImage 函数
+    const { addImage } = useBatchImagePreview()
+
     // 依次转换每个元素
     for (let i = 0; i < elementsToConvert.length; i++) {
       const element = elementsToConvert[i] as HTMLElement
       console.log(`正在转换第 ${i + 1}/${elementsToConvert.length} 个元素:`, element)
 
       try {
-        const result = await convertElementToImage(element)
-        if (!result.elementId || !result.imageUrl) {
-          console.log(`用户跳过了第 ${i + 1} 个元素`)
-          continue
-        }
-        console.log(`第 ${i + 1} 个元素转换成功:`, result.imageUrl)
+        const elementType = element.classList.contains(`admonition`)
+          ? `admonition`
+          : element.classList.contains(`block_katex`) ? `math` : `code`
+
+        const imgDataUrl = await convertElementToImage(element, elementType, i)
+        console.log(`第 ${i + 1} 个元素转换成功:`, element)
+
+        // 添加到批量预览
+        addImage(elementType, i, imgDataUrl, element.textContent || ``)
       }
       catch (error) {
         console.error(`第 ${i + 1} 个元素转换失败:`, error)
@@ -1011,11 +831,12 @@ export const useStore = defineStore(`store`, () => {
       // 1. 保存原始内容
       saveOriginalMarkdown()
 
-      // 2. 转换元素为图片
-      await convertElementsToImages()
+      // 2. 显示批量预览窗口
+      const { showBatchPreview } = useBatchImagePreview()
+      showBatchPreview(originalMarkdown.value)
 
-      // 3. 替换为图床链接
-      replaceWithImageLinks()
+      // 3. 转换元素为图片
+      await convertElementsToImages()
 
       return true
     }
@@ -1026,6 +847,11 @@ export const useStore = defineStore(`store`, () => {
     finally {
       isConverting.value = false
     }
+  }
+
+  // 确认替换为图床链接
+  const confirmReplaceWithImageLinks = () => {
+    replaceWithImageLinks()
   }
 
   // 恢复原始 markdown
@@ -1116,6 +942,7 @@ export const useStore = defineStore(`store`, () => {
     isConverting,
     conversionConfig,
     convertToImages,
+    confirmReplaceWithImageLinks,
     restoreOriginalMarkdown,
     exportConvertedMarkdown,
 

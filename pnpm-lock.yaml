@@ -96,6 +96,9 @@ importers:
       '@vueuse/core':
         specifier: ^13.9.0
         version: 13.9.0(vue@3.5.18(typescript@5.9.2))
+      '@zumer/snapdom':
+        specifier: ^1.9.11
+        version: 1.9.11
       axios:
         specifier: ^1.8.4
         version: 1.11.0
@@ -4020,6 +4023,9 @@ packages:
 
   '@xtuc/long@4.2.2':
     resolution: {integrity: sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==}
+
+  '@zumer/snapdom@1.9.11':
+    resolution: {integrity: sha512-7yEDRCz9AaksPaKEZxH6BlIZ2tpNN0/gI/8coCYgRIYE1ZIDQ8f5KsMPADtupcdj4t3et97+BP9AQYifGOvYdw==}
 
   abbrev@3.0.1:
     resolution: {integrity: sha512-AO2ac6pjRB3SJmGJo+v5/aK6Omggp6fsLrs6wN9bd35ulu4cCwaAU9+7ZhXjeqHVkaHThLuzH0nZr0YpCDhygg==}
@@ -14482,6 +14488,8 @@ snapshots:
   '@xtuc/ieee754@1.2.0': {}
 
   '@xtuc/long@4.2.2': {}
+
+  '@zumer/snapdom@1.9.11': {}
 
   abbrev@3.0.1: {}
 

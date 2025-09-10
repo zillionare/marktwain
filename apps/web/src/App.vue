@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BatchImagePreview from '@/components/BatchImagePreview.vue'
 import { Toaster } from '@/components/ui/sonner'
 import CodemirrorEditor from '@/views/CodemirrorEditor.vue'
 
@@ -8,6 +9,7 @@ const store = useStore()
 <template>
   <AppSplash />
   <CodemirrorEditor />
+  <BatchImagePreview />
   <Toaster
     rich-colors
     position="top-center"
