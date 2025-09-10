@@ -1,6 +1,6 @@
 <div align="center">
 
-[![](https://cdn-doocs.oss-cn-shenzhen.aliyuncs.com/gh/doocs/md/images/logo-2.png)](https://github.com/zillionare/marktwain)
+[![](https://fastly.jsdelivr.net/gh/zillionare/images@main/images/hot/logo/marktwain.png)](https://github.com/zillionare/marktwain)
 
 </div>
 
@@ -8,29 +8,32 @@
 
 <div align="center">
 
-[![status](https://img.shields.io/github/actions/workflow/status/doocs/md/deploy.yml?style=flat-square&labelColor=564341&color=42cc23)](https://github.com/zillionare/marktwain/actions) [![node](https://img.shields.io/badge/node-%3E%3D20-42cc23?style=flat-square&labelColor=564341)](https://nodejs.org/en/about/previous-releases) [![pr](https://img.shields.io/badge/prs-welcome-42cc23?style=flat-square&labelColor=564341)](https://github.com/zillionare/marktwain/pulls) [![stars](https://img.shields.io/github/stars/doocs/md?style=flat-square&labelColor=564341&color=42cc23)](https://github.com/zillionare/marktwain/stargazers) [![forks](https://img.shields.io/github/forks/doocs/md?style=flat-square&labelColor=564341&color=42cc23)](https://github.com/zillionare/marktwain)<br> [![release](https://img.shields.io/github/v/release/doocs/md?style=flat-square&labelColor=564341&color=42cc23)](https://github.com/zillionare/marktwain/releases) [![npm](https://img.shields.io/npm/v/@doocs/md-cli?style=flat-square&labelColor=564341&color=42cc23)](https://www.npmjs.com/package/@doocs/md-cli) [![docker](https://img.shields.io/badge/docker-latest-42cc23?style=flat-square&labelColor=564341)](https://hub.docker.com/r/doocs/md)
-
 </div>
 
 ## 项目介绍
 
-Markdown 文档自动即时渲染为微信图文，让你不再为微信内容排版而发愁！只要你会基本的 Markdown 语法（现在有了 AI，你甚至不需要会 Markdown），就能做出一篇样式简洁而又美观大方的微信图文。
+本项目是 [Doocs/md](https://github.com/doocs/md) 的 fork。Doocs/md 解决了快速编辑公众号文章的问题，并提供了优雅的默认样式。
+
+MarkTwain 帮助你在此基础上，可以把文章发表到任意平台上。我们能做到这一点，是因为我们把特殊语法转换成为图片。
 
 欢迎给项目点个 ⭐️，我们会持续更新和维护。
 
 ## 在线编辑器地址
 
-[https://marktwain.github.io](https://marktwain.github.io)
+[MarkTwain](https://zillionare.github.io/marktwain)
 
 注：推荐使用 Chrome 浏览器，效果最佳。
 
-## 为何开发这款编辑器
-
-现有的开源微信 Markdown 编辑器样式繁杂，排版过程中往往需要额外调整，影响使用效率。为了解决这一问题，我们打造了一款更加简洁、优雅的编辑器，提供更流畅的排版体验。
-
-欢迎各位朋友随时提交 PR，让这款微信 Markdown 编辑器变得更好！如果你有新的想法，也欢迎在 [Discussions 讨论区](https://github.com/zillionare/marktwain/discussions)反馈。
-
 ## 功能特性
+
+### Marktwain 新功能
+
+- [x] 支持 common mark 的 Admonition (类似 GFM Alerts)
+- [x] 支持将 admonition, fenced block 和 math block 转换成图片，上传图床
+- [x] 将转图后的 markdown 替换为图片链接
+- [x] 代码加行号功能。
+
+### doocs/md 支持的功能
 
 - [x] 支持 Markdown 所有基础语法、数学公式
 - [x] 提供对 Mermaid 图表的渲染和 [GFM 警告块](https://github.com/orgs/community/discussions/16925)的支持
@@ -79,7 +82,7 @@ GitHub 图床支持以下配置选项：
   - 默认：自动生成 `YYYY/MM/DD` 格式
 
 - **域名前缀**: 自定义图片访问域名
-  - CDN 加速示例：`https://cdn.jsdelivr.net/gh/owner/repo@main/`
+  - CDN 加速示例：`https://fastly.jsdelivr.net/gh/owner/repo@main/`
   - 自定义域名示例：`https://img.example.com/`
   - 不填写时使用原始 GitHub 链接
 
@@ -90,7 +93,7 @@ GitHub 图床支持以下配置选项：
 - 仓库：`zillionare/imgbed2`
 - 分支：`main`
 - 仓库内路径：`images/{year}/{month}`
-- 域名前缀：`https://cdn.jsdelivr.net/gh/zillionare/imgbed2@main/`
+- 域名前缀：`https://fastly.jsdelivr.net/gh/zillionare/imgbed2@main/`
 
 上传后的文件将存储在：
 
@@ -101,7 +104,7 @@ github.com/zillionare/imgbed2@main/images/2025/09/1757504316806-538c0834-78c2-44
 生成的图片链接：
 
 ```
-https://cdn.jsdelivr.net/gh/zillionare/imgbed2@main/images/2025/09/1757504316806-538c0834-78c2-4416-bf25-57be7c92f19e.png
+https://fastly.jsdelivr.net/gh/zillionare/imgbed2@main/images/2025/09/1757504316806-538c0834-78c2-4416-bf25-57be7c92f19e.png
 ```
 
 ![demo1](https://cdn-doocs.oss-cn-shenzhen.aliyuncs.com/gh/doocs/md/images/demo1.gif)

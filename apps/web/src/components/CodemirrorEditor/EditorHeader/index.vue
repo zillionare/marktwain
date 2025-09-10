@@ -23,6 +23,7 @@ const {
   editor,
   isConverting,
   isConverted: _isConverted,
+  isImageReplaced,
 } = storeToRefs(store)
 
 const {
@@ -31,6 +32,7 @@ const {
   countStatusChanged,
   formatContent,
   convertToImages,
+  copyConvertedMarkdownV1,
 } = store
 
 // 工具函数，添加格式
@@ -110,6 +112,15 @@ async function copy() {
     const mdContent = editor.value?.getValue() || ``
     await copyContent(mdContent)
     toast.success(`已复制 Markdown 源码到剪贴板。`)
+    return
+  }
+
+  // 如果是转图后 MD，调用专用函数并返回
+  if (copyMode.value === `image-replaced-md`) {
+    const success = await copyConvertedMarkdownV1()
+    if (!success) {
+      toast.error(`复制转图后 MD 失败，请检查是否已完成图片替换操作`)
+    }
     return
   }
 
@@ -277,6 +288,12 @@ async function copy() {
               </DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="md">
                 MD 格式
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem
+                value="image-replaced-md"
+                :disabled="!isImageReplaced"
+              >
+                转图后 MD
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>

@@ -12,6 +12,8 @@ export interface ImageItem {
   uploaded: boolean
   uploading: boolean
   altText: string
+  fileSize?: number // 文件大小（字节）
+  error?: string // 错误信息
 }
 
 interface BatchImagePreviewState {
@@ -103,6 +105,19 @@ export function useBatchImagePreview() {
     const contentHash = generateContentHash(content)
     const uploadedImages = getUploadedImages(state.markdownHash)
 
+    // 计算文件大小
+    let fileSize = 0
+    try {
+      const base64Data = imageUrl.split(`,`)[1]
+      if (base64Data) {
+        // Base64 编码后的大小约为原始数据的3/4
+        fileSize = Math.round((base64Data.length * 3) / 4)
+      }
+    }
+    catch (error) {
+      console.warn(`计算文件大小失败:`, error)
+    }
+
     const imageItem: ImageItem = {
       id: imageId,
       type,
@@ -112,6 +127,8 @@ export function useBatchImagePreview() {
       uploaded: uploadedImages.has(imageId),
       uploading: false,
       altText: `${type} ${index}`,
+      fileSize,
+      error: undefined,
     }
 
     state.images.push(imageItem)
@@ -129,6 +146,7 @@ export function useBatchImagePreview() {
     }
 
     imageItem.uploading = true
+    imageItem.error = undefined // 清除之前的错误
 
     try {
       console.log(`上传图片:`, imageId, imageItem.imageUrl)
@@ -153,11 +171,21 @@ export function useBatchImagePreview() {
       updateConversionMap(imageId, uploadedUrl)
 
       console.log(`图片上传成功:`, imageId, uploadedUrl)
+
+      // 不自动关闭预览，让用户可以选择“生成转图后 MD”
+      // const allUploaded = state.images.every(img => img.uploaded)
+      // if (allUploaded && state.images.length > 0) {
+      //   setTimeout(() => {
+      //     hideBatchPreview()
+      //   }, 1500)
+      // }
+
       return uploadedUrl
     }
     catch (error) {
       console.error(`图片上传失败:`, error)
       imageItem.uploading = false
+      imageItem.error = error instanceof Error ? error.message : `上传失败`
       throw error
     }
   }
@@ -165,8 +193,56 @@ export function useBatchImagePreview() {
   const uploadAllImages = async () => {
     const unuploadedImages = state.images.filter(img => !img.uploaded && !img.uploading)
 
-    for (const imageItem of unuploadedImages) {
-      await uploadImage(imageItem.id)
+    if (unuploadedImages.length === 0) {
+      return
+    }
+
+    console.log(`开始并发上传 ${unuploadedImages.length} 张图片`)
+
+    // 使用 Promise.allSettled 实现并发上传
+    const uploadPromises = unuploadedImages.map(imageItem =>
+      uploadImage(imageItem.id).catch((error) => {
+        console.error(`图片 ${imageItem.id} 上传失败:`, error)
+        return null // 返回 null 表示失败，但不影响其他上传
+      }),
+    )
+
+    const results = await Promise.allSettled(uploadPromises)
+
+    // 统计上传结果
+    const successCount = results.filter(result =>
+      result.status === `fulfilled` && result.value !== null,
+    ).length
+    const failureCount = results.filter(result =>
+      result.status === `rejected` || (result.status === `fulfilled` && result.value === null),
+    ).length
+
+    console.log(`批量上传完成: 成功 ${successCount}，失败 ${failureCount}`)
+
+    // 不自动关闭预览，让用户可以选择"生成转图后 MD"
+    // const allUploaded = state.images.every(img => img.uploaded)
+    // if (allUploaded && state.images.length > 0) {
+    //   setTimeout(() => {
+    //     hideBatchPreview()
+    //   }, 1500)
+    // }
+  }
+
+  const retryUpload = async (imageId: string) => {
+    const imageItem = state.images.find(img => img.id === imageId)
+    if (!imageItem) {
+      return
+    }
+
+    // 重置错误状态
+    imageItem.error = undefined
+
+    try {
+      await uploadImage(imageId)
+      console.log(`重试上传成功: ${imageId}`)
+    }
+    catch (error) {
+      console.error(`重试上传失败: ${imageId}`, error)
     }
   }
 
@@ -196,6 +272,7 @@ export function useBatchImagePreview() {
     setProcessing,
     uploadImage,
     uploadAllImages,
+    retryUpload,
     downloadImage,
     totalImages,
     uploadedCount,

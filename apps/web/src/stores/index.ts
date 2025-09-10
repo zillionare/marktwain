@@ -69,7 +69,9 @@ export const useStore = defineStore(`store`, () => {
   // 转图功能相关状态
   const originalMarkdown = ref<string>(``) // 保存原始 markdown (v0)
   const convertedMarkdown = ref<string>(``) // 保存转换后的 markdown
+  const convertedMarkdownV1 = ref<string>(``) // 保存替换后的 v1 版本 markdown
   const isConverted = ref<boolean>(false) // 标记是否已转换
+  const isImageReplaced = ref<boolean>(false) // 标记是否已替换为图片链接
   const conversionMap = ref<Map<string, string>>(new Map()) // 存储转换映射关系
   const isConverting = ref<boolean>(false) // 标记是否正在转换中
 
@@ -723,7 +725,8 @@ export const useStore = defineStore(`store`, () => {
     const currentContent = editor.value!.getValue()
     originalMarkdown.value = currentContent
     isConverted.value = false
-    conversionMap.value.clear()
+    // 注意：不清空 conversionMap，因为图片上传后需要这些数据
+    // conversionMap.value.clear()
   }
 
   // 获取markdown匹配模式
@@ -792,8 +795,8 @@ export const useStore = defineStore(`store`, () => {
 
     console.log(`总共找到 ${elementsToConvert.length} 个需要转换的元素`)
 
-    // 获取批量预览的 addImage 函数
-    const { addImage } = useBatchImagePreview()
+    // 获取批量预览的 addImage 和 setProcessing 函数
+    const { addImage, setProcessing } = useBatchImagePreview()
 
     // 依次转换每个元素
     for (let i = 0; i < elementsToConvert.length; i++) {
@@ -817,6 +820,9 @@ export const useStore = defineStore(`store`, () => {
         continue
       }
     }
+
+    // 转换完成，设置处理状态为 false
+    setProcessing(false)
   }
 
   // 替换为图床链接
@@ -872,6 +878,8 @@ export const useStore = defineStore(`store`, () => {
   const updateConversionMap = (elementId: string, imageUrl: string) => {
     conversionMap.value.set(elementId, imageUrl)
     console.log(`更新转换映射:`, elementId, imageUrl)
+    console.log(`当前 conversionMap 大小:`, conversionMap.value.size)
+    console.log(`当前 conversionMap 内容:`, Array.from(conversionMap.value.entries()))
   }
 
   // 恢复原始 markdown
@@ -894,6 +902,273 @@ export const useStore = defineStore(`store`, () => {
 
     downloadMD(convertedMarkdown.value, `${posts.value[currentPostIndex.value].title}-converted`)
     return true
+  }
+
+  // Step 1: 在markdown编辑区搜索并编号各类块元素
+  interface MarkdownBlock {
+    type: `admonition` | `math` | `code`
+    content: string
+    startIndex: number
+    endIndex: number
+    sequenceIndex: number
+  }
+
+  const findMarkdownBlocks = (markdown: string): MarkdownBlock[] => {
+    const blocks: MarkdownBlock[] = []
+    let sequenceIndex = 0
+
+    // 查找 Admonition 块 (!!! 语法)
+    const admonitionRegex = /^!!![\s\S]*?(?=\n\s*\n|$)/gm
+    let match
+    match = admonitionRegex.exec(markdown)
+    while (match !== null) {
+      blocks.push({
+        type: `admonition`,
+        content: match[0],
+        startIndex: match.index,
+        endIndex: match.index + match[0].length,
+        sequenceIndex: sequenceIndex++,
+      })
+      match = admonitionRegex.exec(markdown)
+    }
+
+    // 查找数学公式块 ($$...$$)
+    const mathRegex = /\$\$[\s\S]*?\$\$/g
+    match = mathRegex.exec(markdown)
+    while (match !== null) {
+      blocks.push({
+        type: `math`,
+        content: match[0],
+        startIndex: match.index,
+        endIndex: match.index + match[0].length,
+        sequenceIndex: sequenceIndex++,
+      })
+      match = mathRegex.exec(markdown)
+    }
+
+    // 查找代码块 (```...```)
+    const codeRegex = /```[\s\S]*?```/g
+    match = codeRegex.exec(markdown)
+    while (match !== null) {
+      blocks.push({
+        type: `code`,
+        content: match[0],
+        startIndex: match.index,
+        endIndex: match.index + match[0].length,
+        sequenceIndex: sequenceIndex++,
+      })
+      match = codeRegex.exec(markdown)
+    }
+
+    // 按在文档中出现的顺序排序
+    return blocks.sort((a, b) => a.startIndex - b.startIndex)
+  }
+
+  // Step 2: 在HTML预览区找出转图块
+  interface HtmlBlock {
+    type: `admonition` | `math` | `code`
+    element: HTMLElement
+    sequenceIndex: number
+  }
+
+  const findHtmlBlocks = (): HtmlBlock[] => {
+    const previewElement = document.querySelector(`#output-wrapper > .preview`)
+    if (!previewElement)
+      return []
+
+    const blocks: HtmlBlock[] = []
+    let sequenceIndex = 0
+
+    // 查找 Admonition 元素
+    if (conversionConfig.value.convertAdmonition) {
+      const admonitions = previewElement.querySelectorAll(`.admonition`)
+      admonitions.forEach((element) => {
+        blocks.push({
+          type: `admonition`,
+          element: element as HTMLElement,
+          sequenceIndex: sequenceIndex++,
+        })
+      })
+    }
+
+    // 查找数学公式块
+    if (conversionConfig.value.convertMathBlock) {
+      const mathBlocks = previewElement.querySelectorAll(`.block_katex`)
+      mathBlocks.forEach((element) => {
+        blocks.push({
+          type: `math`,
+          element: element as HTMLElement,
+          sequenceIndex: sequenceIndex++,
+        })
+      })
+    }
+
+    // 查找代码块
+    if (conversionConfig.value.convertFencedBlock) {
+      const codeBlocks = previewElement.querySelectorAll(`pre`)
+      codeBlocks.forEach((element) => {
+        blocks.push({
+          type: `code`,
+          element: element as HTMLElement,
+          sequenceIndex: sequenceIndex++,
+        })
+      })
+    }
+
+    return blocks
+  }
+
+  // Step 3: 一一对应匹配
+  const matchMarkdownAndHtmlBlocks = (markdownBlocks: MarkdownBlock[], htmlBlocks: HtmlBlock[]): boolean => {
+    if (markdownBlocks.length !== htmlBlocks.length) {
+      // 弹窗提示不匹配
+      const message = `块元素数量不匹配：\n- Markdown 中找到 ${markdownBlocks.length} 个块\n- HTML 预览中找到 ${htmlBlocks.length} 个块\n\n请检查文档结构是否正确`
+      console.warn(message)
+      toast.error(message)
+      return false
+    }
+
+    // 检查类型匹配
+    for (let i = 0; i < markdownBlocks.length; i++) {
+      const mdBlock = markdownBlocks[i]
+      const htmlBlock = htmlBlocks[i]
+
+      if (mdBlock.type !== htmlBlock.type) {
+        const message = `第 ${i + 1} 个块类型不匹配：\n- Markdown: ${mdBlock.type}\n- HTML: ${htmlBlock.type}\n\n请检查文档结构是否正确`
+        console.warn(message)
+        toast.error(message)
+        return false
+      }
+    }
+
+    return true
+  }
+
+  // Step 4: 替换markdown内容生成v1版本
+  const generateV1MarkdownWithImageLinks = (markdownBlocks: MarkdownBlock[], imageUrls: string[]): string => {
+    if (markdownBlocks.length !== imageUrls.length) {
+      throw new Error(`块数量与图片URL数量不匹配`)
+    }
+
+    let result = originalMarkdown.value
+
+    // 从后往前替换，避免索引偏移问题
+    for (let i = markdownBlocks.length - 1; i >= 0; i--) {
+      const block = markdownBlocks[i]
+      const imageUrl = imageUrls[i]
+      const imageMarkdown = `![](${imageUrl})`
+
+      result = result.substring(0, block.startIndex)
+        + imageMarkdown
+        + result.substring(block.endIndex)
+    }
+
+    return result
+  }
+
+  // 主要的图片替换功能
+  const replaceBlocksWithImageLinks = async (): Promise<boolean> => {
+    try {
+      if (!originalMarkdown.value) {
+        toast.error(`没有原始 Markdown 内容`)
+        return false
+      }
+
+      console.log(`开始图片替换，当前 conversionMap 大小:`, conversionMap.value.size)
+      console.log(`当前 conversionMap 内容:`, Array.from(conversionMap.value.entries()))
+
+      if (conversionMap.value.size === 0) {
+        toast.error(`没有转换映射数据，请先进行转图操作`)
+        return false
+      }
+
+      // Step 1: 查找 Markdown 块
+      const markdownBlocks = findMarkdownBlocks(originalMarkdown.value)
+      console.log(`找到的 Markdown 块:`, markdownBlocks)
+
+      // Step 2: 查找 HTML 块
+      const htmlBlocks = findHtmlBlocks()
+      console.log(`找到的 HTML 块:`, htmlBlocks)
+
+      // Step 3: 检查匹配
+      if (!matchMarkdownAndHtmlBlocks(markdownBlocks, htmlBlocks)) {
+        return false
+      }
+
+      // 获取图片URL列表（按序号排序）
+      const imageUrls: string[] = []
+      for (let i = 0; i < markdownBlocks.length; i++) {
+        const elementId = `${markdownBlocks[i].type}-${i}`
+        const imageUrl = conversionMap.value.get(elementId)
+        if (!imageUrl) {
+          toast.error(`缺少第 ${i + 1} 个块的图片URL`)
+          return false
+        }
+        imageUrls.push(imageUrl)
+      }
+
+      // Step 4: 生成 v1 版本
+      convertedMarkdownV1.value = generateV1MarkdownWithImageLinks(markdownBlocks, imageUrls)
+      isImageReplaced.value = true
+
+      toast.success(`成功生成转图后的 Markdown 版本`)
+      return true
+    }
+    catch (error) {
+      console.error(`替换块失败:`, error)
+      toast.error(`替换失败: ${(error as Error).message}`)
+      return false
+    }
+  }
+
+  // Step 5 & 6: 复制和导出v1版本的函数
+  const copyConvertedMarkdownV1 = async (): Promise<boolean> => {
+    if (!isImageReplaced.value || !convertedMarkdownV1.value) {
+      toast.error(`没有转图后的 Markdown 内容，请先进行图片替换操作`)
+      return false
+    }
+
+    try {
+      await navigator.clipboard.writeText(convertedMarkdownV1.value)
+      toast.success(`转图后 MD 内容已复制到剪贴板`)
+      return true
+    }
+    catch (error) {
+      console.error(`复制失败:`, error)
+      // 降级到传统复制方式
+      const textarea = document.createElement(`textarea`)
+      textarea.value = convertedMarkdownV1.value
+      document.body.appendChild(textarea)
+      textarea.select()
+      const success = document.execCommand(`copy`)
+      document.body.removeChild(textarea)
+
+      if (success) {
+        toast.success(`转图后 MD 内容已复制到剪贴板`)
+        return true
+      }
+      else {
+        toast.error(`复制失败，请手动复制`)
+        return false
+      }
+    }
+  }
+
+  const exportConvertedMarkdownV1 = (): boolean => {
+    if (!isImageReplaced.value || !convertedMarkdownV1.value) {
+      toast.error(`没有转图后的 Markdown 内容，请先进行图片替换操作`)
+      return false
+    }
+
+    try {
+      downloadMD(convertedMarkdownV1.value, `${posts.value[currentPostIndex.value].title}-image-replaced`)
+      return true
+    }
+    catch (error) {
+      console.error(`导出失败:`, error)
+      toast.error(`导出失败: ${(error as Error).message}`)
+      return false
+    }
   }
 
   // 是否打开重置样式对话框
@@ -960,7 +1235,9 @@ export const useStore = defineStore(`store`, () => {
     // 转图功能相关
     originalMarkdown,
     convertedMarkdown,
+    convertedMarkdownV1,
     isConverted,
+    isImageReplaced,
     conversionMap,
     isConverting,
     conversionConfig,
@@ -969,6 +1246,11 @@ export const useStore = defineStore(`store`, () => {
     confirmReplaceWithImageLinks,
     restoreOriginalMarkdown,
     exportConvertedMarkdown,
+
+    // 图片替换功能
+    replaceBlocksWithImageLinks,
+    copyConvertedMarkdownV1,
+    exportConvertedMarkdownV1,
 
     importDefaultContent,
     clearContent,

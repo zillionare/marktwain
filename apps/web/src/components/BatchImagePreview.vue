@@ -7,13 +7,14 @@ const {
   hideBatchPreview,
   uploadImage,
   uploadAllImages,
+  retryUpload,
   downloadImage,
   totalImages,
   uploadedCount,
   uploadingCount,
 } = useBatchImagePreview()
 
-const { confirmReplaceWithImageLinks } = useStore()
+const { replaceBlocksWithImageLinks } = useStore()
 
 function handleOverlayClick() {
   hideBatchPreview()
@@ -23,9 +24,12 @@ function close() {
   hideBatchPreview()
 }
 
-function confirmReplace() {
-  confirmReplaceWithImageLinks()
-  hideBatchPreview()
+// 新增图片替换功能
+async function handleImageReplacement() {
+  const success = await replaceBlocksWithImageLinks()
+  if (success) {
+    hideBatchPreview()
+  }
 }
 
 function handleImageLoad() {
@@ -41,6 +45,8 @@ function getStatusClass(imageItem: ImageItem): string {
     return `status-uploaded`
   if (imageItem.uploading)
     return `status-uploading`
+  if (imageItem.error)
+    return `status-error`
   return `status-pending`
 }
 
@@ -49,7 +55,19 @@ function getStatusText(imageItem: ImageItem): string {
     return `已上传`
   if (imageItem.uploading)
     return `上传中`
+  if (imageItem.error)
+    return `上传失败`
   return `待上传`
+}
+
+// 格式化文件大小
+function formatFileSize(bytes?: number): string {
+  if (!bytes)
+    return `未知大小`
+  if (bytes < 1024)
+    return `${bytes} B`
+  const kb = bytes / 1024
+  return `${kb.toFixed(1)} KB`
 }
 </script>
 
@@ -72,9 +90,8 @@ function getStatusText(imageItem: ImageItem): string {
         </div>
         <div class="header-right">
           <button
-            v-if="!batchImagePreviewState.processing && totalImages > 0 && uploadedCount < totalImages"
+            v-if="!batchImagePreviewState.processing && totalImages > 0 && uploadingCount === 0 && uploadedCount < totalImages"
             class="header-upload-all-btn"
-            :disabled="uploadingCount > 0"
             @click="uploadAllImages"
           >
             <div v-if="uploadingCount > 0" class="btn-loading">
@@ -127,6 +144,10 @@ function getStatusText(imageItem: ImageItem): string {
                   <span class="meta-value">{{ imageItem.id }}</span>
                 </div>
                 <div class="meta-row">
+                  <span class="meta-label">大小:</span>
+                  <span class="meta-value">{{ formatFileSize(imageItem.fileSize) }}</span>
+                </div>
+                <div class="meta-row">
                   <span class="meta-label">内容 Hash:</span>
                   <span class="meta-value hash-value">{{ imageItem.contentHash }}</span>
                 </div>
@@ -135,6 +156,10 @@ function getStatusText(imageItem: ImageItem): string {
                   <span class="meta-value status-value" :class="getStatusClass(imageItem)">
                     {{ getStatusText(imageItem) }}
                   </span>
+                </div>
+                <div v-if="imageItem.error" class="meta-row error-row">
+                  <span class="meta-label">错误:</span>
+                  <span class="meta-value error-value">{{ imageItem.error }}</span>
                 </div>
               </div>
 
@@ -155,8 +180,9 @@ function getStatusText(imageItem: ImageItem): string {
                 <button
                   v-if="!imageItem.uploaded"
                   class="action-btn upload-btn"
+                  :class="{ 'retry-btn': imageItem.error }"
                   :disabled="imageItem.uploading || !imageItem.imageUrl"
-                  @click="uploadImage(imageItem.id)"
+                  @click="imageItem.error ? retryUpload(imageItem.id) : uploadImage(imageItem.id)"
                 >
                   <div v-if="imageItem.uploading" class="btn-loading">
                     <div class="btn-spinner" />
@@ -164,11 +190,14 @@ function getStatusText(imageItem: ImageItem): string {
                   </div>
                   <div v-else class="btn-content">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17,8 12,3 7,8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
+                      <path v-if="imageItem.error" d="M4 12l1.41 1.41L11 7.83l5.59 5.58L18 12l-7-7z" />
+                      <template v-else>
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17,8 12,3 7,8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                      </template>
                     </svg>
-                    上传
+                    {{ imageItem.error ? '重试' : '上传' }}
                   </div>
                 </button>
 
@@ -193,24 +222,11 @@ function getStatusText(imageItem: ImageItem): string {
           取消
         </button>
         <button
-          v-if="uploadedCount < totalImages"
+          v-if="uploadedCount > 0"
           class="action-btn primary-btn"
-          :disabled="uploadingCount > 0"
-          @click="uploadAllImages"
+          @click="handleImageReplacement"
         >
-          <div v-if="uploadingCount > 0" class="btn-loading">
-            <div class="btn-spinner" />
-            批量上传中...
-          </div>
-          <div v-else>
-            批量上传全部
-          </div>
-        </button>
-        <button
-          class="action-btn success-btn"
-          @click="confirmReplace"
-        >
-          确认替换
+          生成转图后 MD
         </button>
       </div>
     </div>
@@ -465,6 +481,23 @@ function getStatusText(imageItem: ImageItem): string {
   color: #10b981;
 }
 
+.status-error {
+  color: #ef4444;
+}
+
+.error-row {
+  background-color: #fef2f2;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border-left: 3px solid #ef4444;
+}
+
+.error-value {
+  color: #dc2626;
+  font-weight: 500;
+  word-break: break-word;
+}
+
 .image-item-actions {
   display: flex;
   gap: 8px;
@@ -508,6 +541,15 @@ function getStatusText(imageItem: ImageItem): string {
 
 .upload-btn:hover:not(:disabled) {
   background-color: #2563eb;
+}
+
+.upload-btn.retry-btn {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.upload-btn.retry-btn:hover:not(:disabled) {
+  background-color: #d97706;
 }
 
 .uploaded-indicator {

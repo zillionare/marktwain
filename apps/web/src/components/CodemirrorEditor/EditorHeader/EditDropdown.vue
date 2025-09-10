@@ -3,7 +3,7 @@ import { ClipboardPasteIcon, Contact2Icon, CopyIcon, Redo2Icon, RotateCcwIcon, T
 
 const { toggleShowInsertFormDialog, toggleShowUploadImgDialog, toggleShowInsertMpCardDialog } = useDisplayStore()
 
-const { copyToClipboard, pasteFromClipboard, undo, redo, restoreOriginalMarkdown, isConverted } = useStore()
+const { copyToClipboard, pasteFromClipboard, undo, redo, restoreOriginalMarkdown, isConverted, copyConvertedMarkdownV1, isImageReplaced } = useStore()
 </script>
 
 <template>
@@ -41,6 +41,13 @@ const { copyToClipboard, pasteFromClipboard, undo, redo, restoreOriginalMarkdown
       <MenubarItem @click="pasteFromClipboard()">
         <ClipboardPasteIcon class="mr-2 h-4 w-4" />
         粘贴
+      </MenubarItem>
+      <MenubarItem
+        :disabled="!isImageReplaced"
+        @click="copyConvertedMarkdownV1()"
+      >
+        <CopyIcon class="mr-2 h-4 w-4" />
+        转图后 MD
       </MenubarItem>
       <MenubarSeparator v-if="isConverted" />
       <MenubarItem

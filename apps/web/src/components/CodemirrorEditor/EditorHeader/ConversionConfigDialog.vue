@@ -74,7 +74,7 @@ defineExpose({
             class="w-full"
           />
           <p class="text-xs text-muted-foreground">
-            设置转图时的预览宽度，建议 800-1200px
+            设置转图时的预览宽度，建议 500-700px
           </p>
         </div>
 

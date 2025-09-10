@@ -15,8 +15,8 @@ const {
   exportEditorContent2MD,
   downloadAsCardImage,
   exportEditorContent2PDF,
-  exportConvertedMarkdown,
-  isConverted,
+  exportConvertedMarkdownV1,
+  isImageReplaced,
 } = store
 
 const editorStateDialogVisible = ref(false)
@@ -39,8 +39,8 @@ const importMarkdownContent = useImportMarkdownContent()
         导出 .md
       </MenubarItem>
       <MenubarItem
-        v-if="isConverted"
-        @click="exportConvertedMarkdown()"
+        :disabled="!isImageReplaced"
+        @click="exportConvertedMarkdownV1()"
       >
         <Download class="mr-2 size-4" />
         导出转图后 MD

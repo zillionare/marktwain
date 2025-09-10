@@ -504,7 +504,7 @@ function onDrop(e: DragEvent) {
                 <Input
                   v-bind="field"
                   v-model="field.value"
-                  placeholder="如：https://cdn.jsdelivr.net/gh/owner/repo@main/，不填会使用 raw.githubusercontent.com"
+                  placeholder="如：https://fastly.jsdelivr.net/gh/owner/repo@main/，不填会使用 raw.githubusercontent.com"
                 />
               </FormItem>
             </Field>
