@@ -69,6 +69,15 @@ function formatFileSize(bytes?: number): string {
   const kb = bytes / 1024
   return `${kb.toFixed(1)} KB`
 }
+
+// 格式化URL显示
+function formatUrl(url: string): string {
+  if (url.length <= 50)
+    return url
+  const start = url.substring(0, 25)
+  const end = url.substring(url.length - 20)
+  return `${start}...${end}`
+}
 </script>
 
 <template>
@@ -143,6 +152,10 @@ function formatFileSize(bytes?: number): string {
                   <span class="meta-label">ID:</span>
                   <span class="meta-value">{{ imageItem.id }}</span>
                 </div>
+                <div v-if="imageItem.startLine && imageItem.endLine" class="meta-row">
+                  <span class="meta-label">起止行:</span>
+                  <span class="meta-value">{{ imageItem.startLine }}-{{ imageItem.endLine }}</span>
+                </div>
                 <div class="meta-row">
                   <span class="meta-label">大小:</span>
                   <span class="meta-value">{{ formatFileSize(imageItem.fileSize) }}</span>
@@ -155,6 +168,12 @@ function formatFileSize(bytes?: number): string {
                   <span class="meta-label">状态:</span>
                   <span class="meta-value status-value" :class="getStatusClass(imageItem)">
                     {{ getStatusText(imageItem) }}
+                  </span>
+                </div>
+                <div v-if="imageItem.uploaded && imageItem.imageUrl.startsWith('http')" class="meta-row">
+                  <span class="meta-label">链接:</span>
+                  <span class="meta-value link-value">
+                    <a :href="imageItem.imageUrl" target="_blank" class="upload-link">{{ formatUrl(imageItem.imageUrl) }}</a>
                   </span>
                 </div>
                 <div v-if="imageItem.error" class="meta-row error-row">
@@ -496,6 +515,23 @@ function formatFileSize(bytes?: number): string {
   color: #dc2626;
   font-weight: 500;
   word-break: break-word;
+}
+
+.link-value {
+  word-break: break-all;
+  max-width: 200px;
+}
+
+.upload-link {
+  color: #3b82f6;
+  text-decoration: none;
+  font-size: 12px;
+  transition: color 0.2s;
+}
+
+.upload-link:hover {
+  color: #2563eb;
+  text-decoration: underline;
 }
 
 .image-item-actions {

@@ -267,6 +267,10 @@ export function initRenderer(opts: IOpts): RendererAPI {
       // tab to 4 spaces
       highlighted = highlighted.replace(/\t/g, `    `)
 
+      // 生成唯一的 data-id 用于转图功能
+      const dataId = `code-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      console.log(`Code block renderer called, generating dataId:`, dataId)
+
       // 声明 span 在使用之前
       const span = `<span class="mac-sign" style="padding: 10px 14px 0;">${macCodeSvg}</span>`
 
@@ -290,7 +294,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
 
         const lineNumbersElement = `<div class="line-numbers">${lineNumbers}</div>`
         const code = `<code class="language-${lang} with-line-numbers" ${styles(`code`)}>${highlighted}</code>`
-        return `<pre class="hljs code__pre" ${styles(`code_pre`)}>${span}<div class="code-container">${lineNumbersElement}${code}</div></pre>`
+        return `<pre class="hljs code__pre" mktwain-data-id="${dataId}" ${styles(`code_pre`)}>${span}<div class="code-container">${lineNumbersElement}${code}</div></pre>`
       }
       else {
         highlighted = highlighted
@@ -299,7 +303,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
           .replace(/(>[^<]+)|(^[^<]+)/g, str => str.replace(/\s/g, `&nbsp;`))
       }
       const code = `<code class="language-${lang}" ${styles(`code`)}>${highlighted}</code>`
-      return `<pre class="hljs code__pre" ${styles(`code_pre`)}>${span}${code}</pre>`
+      return `<pre class="hljs code__pre" mktwain-data-id="${dataId}" ${styles(`code_pre`)}>${span}${code}</pre>`
     },
 
     codespan({ text }: Tokens.Codespan): string {

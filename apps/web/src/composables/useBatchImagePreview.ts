@@ -14,6 +14,8 @@ export interface ImageItem {
   altText: string
   fileSize?: number // 文件大小（字节）
   error?: string // 错误信息
+  startLine?: number // 起始行号
+  endLine?: number // 结束行号
 }
 
 interface BatchImagePreviewState {
@@ -100,7 +102,7 @@ export function useBatchImagePreview() {
     state.processing = false
   }
 
-  const addImage = (type: string, index: number, imageUrl: string, content: string) => {
+  const addImage = (type: string, index: number, imageUrl: string, content: string, startLine?: number, endLine?: number) => {
     const imageId = generateImageId(type, index)
     const contentHash = generateContentHash(content)
     const uploadedImages = getUploadedImages(state.markdownHash)
@@ -129,6 +131,8 @@ export function useBatchImagePreview() {
       altText: `${type} ${index}`,
       fileSize,
       error: undefined,
+      startLine,
+      endLine,
     }
 
     state.images.push(imageItem)

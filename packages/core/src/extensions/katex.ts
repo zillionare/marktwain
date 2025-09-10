@@ -32,7 +32,12 @@ function createRenderer(display: boolean, inlineStyle: string, blockStyle: strin
       return `<span ${inlineStyle}>${svg.outerHTML}</span>`
     }
 
-    return `<section ${blockStyle}>${svg.outerHTML}</section>`
+    // 生成唯一的 data-id 用于转图功能
+    const dataId = `math-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    console.log(`Math block createRenderer called, generating dataId:`, dataId)
+
+    // 为数学块添加 block_katex 类名和 data-id，便于转图功能识别
+    return `<section class="block_katex" mktwain-data-id="${dataId}" ${blockStyle}>${svg.outerHTML}</section>`
   }
 }
 

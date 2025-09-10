@@ -78,8 +78,13 @@ export function markedAdmon(options: AdmonOptions = {}): MarkedExtension {
     let text = this.parser.parse(tokens)
     text = text.replace(/<p .*?>/g, `<p style="${getStyleString(meta.contentStyle)}">`)
 
+    // 生成唯一的 data-id 用于转图功能
+    const dataId = `admon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    console.log(`Admonition renderAdmon called, generating dataId:`, dataId)
+
     // 使用 div 结构而不是 blockquote，以匹配 CSS 样式
-    let tmpl = `<div class="${meta.className} ${meta.variant}" style="${getStyleString(meta.wrapperStyle)}">\n`
+    let tmpl = `<div class="${meta.className} ${meta.variant}" style="${getStyleString(meta.wrapperStyle)}" mktwain-data-id="${dataId}">
+`
     tmpl += `<div class="${meta.titleClassName}" style="${getStyleString(meta.titleStyle)}">`
     tmpl += meta.title
     tmpl += `</div>\n`
