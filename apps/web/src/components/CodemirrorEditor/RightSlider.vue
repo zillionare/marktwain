@@ -237,6 +237,25 @@ const formatOptions = ref<Format[]>([`rgb`, `hex`, `hsl`, `hsv`])
         </div>
       </div>
       <div class="space-y-2">
+        <h2>代码行号</h2>
+        <div class="grid grid-cols-5 justify-items-center gap-2">
+          <Button
+            class="w-full" variant="outline" :class="{
+              'border-black dark:border-white border-2': store.isShowLineNumbers,
+            }" @click="!store.isShowLineNumbers && store.showLineNumbersChanged()"
+          >
+            开启
+          </Button>
+          <Button
+            class="w-full" variant="outline" :class="{
+              'border-black dark:border-white border-2': !store.isShowLineNumbers,
+            }" @click="store.isShowLineNumbers && store.showLineNumbersChanged()"
+          >
+            关闭
+          </Button>
+        </div>
+      </div>
+      <div class="space-y-2">
         <h2>自定义 CSS 面板</h2>
         <div class="grid grid-cols-5 justify-items-center gap-2">
           <Button
