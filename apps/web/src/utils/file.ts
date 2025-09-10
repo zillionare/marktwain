@@ -43,6 +43,8 @@ function getConfig(useDefault: boolean, platform: string) {
     repo: repoUrl[1],
     branch: customConfig.branch || `master`,
     accessToken: customConfig.accessToken,
+    pathInRepo: customConfig.pathInRepo || ``,
+    urlPrefix: customConfig.urlPrefix || ``,
   }
 }
 
@@ -56,6 +58,57 @@ function getDir() {
   const month = (date.getMonth() + 1).toString().padStart(2, `0`)
   const day = date.getDate().toString().padStart(2, `0`)
   return `${year}/${month}/${day}`
+}
+
+/**
+ * 获取路径，支持变量替换
+ * @param customPath 自定义路径，支持 {year} 和 {month} 变量
+ * @returns string
+ */
+function getPathWithVariables(customPath?: string): string {
+  if (!customPath) {
+    return getDir()
+  }
+
+  const date = new Date()
+  const year = date.getFullYear().toString()
+  const month = (date.getMonth() + 1).toString().padStart(2, `0`)
+
+  return customPath
+    .replace(/\{year\}/g, year)
+    .replace(/\{month\}/g, month)
+}
+
+/**
+ * 构建 GitHub 图片访问 URL
+ * @param username GitHub 用户名
+ * @param repo 仓库名
+ * @param branch 分支名
+ * @param path 文件路径
+ * @param urlPrefix 自定义域名前缀
+ * @param useDefault 是否使用默认配置
+ * @returns string
+ */
+function buildGitHubImageUrl(
+  username: string,
+  repo: string,
+  branch: string,
+  path: string,
+  urlPrefix?: string,
+  useDefault: boolean = false,
+): string {
+  // 如果配置了自定义域名前缀，使用自定义前缀
+  if (urlPrefix) {
+    return `${urlPrefix.replace(/\/$/, ``)}/${path}`
+  }
+
+  // 如果是默认配置，使用 jsdelivr CDN
+  if (useDefault) {
+    return `https://fastly.jsdelivr.net/gh/${username}/${repo}@${branch}/${path}`
+  }
+
+  // 否则返回原始 GitHub 链接
+  return `https://raw.githubusercontent.com/${username}/${repo}/${branch}/${path}`
 }
 
 /**
@@ -76,13 +129,17 @@ function getDateFilename(filename: string) {
 
 async function ghFileUpload(content: string, filename: string) {
   const useDefault = localStorage.getItem(`imgHost`) === `default`
-  const { username, repo, branch, accessToken } = getConfig(
+  const { username, repo, branch, accessToken, pathInRepo, urlPrefix } = getConfig(
     useDefault,
     `github`,
   )
-  const dir = getDir()
-  const url = `https://api.github.com/repos/${username}/${repo}/contents/${dir}/`
+
+  // 使用自定义路径或默认路径
+  const dir = getPathWithVariables(pathInRepo)
   const dateFilename = getDateFilename(filename)
+  const fullPath = `${dir}/${dateFilename}`
+
+  const url = `https://api.github.com/repos/${username}/${repo}/contents/${fullPath}`
   const res = await fetch<{ content: {
     download_url: string
   } }, {
@@ -95,7 +152,7 @@ async function ghFileUpload(content: string, filename: string) {
       }
     }
   }>({
-    url: url + dateFilename,
+    url,
     method: `put`,
     headers: {
       Authorization: `token ${accessToken}`,
@@ -106,12 +163,11 @@ async function ghFileUpload(content: string, filename: string) {
       message: `Upload by ${window.location.href}`,
     },
   })
-  const githubResourceUrl = `raw.githubusercontent.com/${username}/${repo}/${branch}/`
-  const cdnResourceUrl = `fastly.jsdelivr.net/gh/${username}/${repo}@${branch}/`
+
   res.content = res.data?.content || res.content
-  return useDefault
-    ? res.content.download_url.replace(githubResourceUrl, cdnResourceUrl)
-    : res.content.download_url
+
+  // 使用统一的 URL 构建逻辑
+  return buildGitHubImageUrl(username, repo, branch, fullPath, urlPrefix, useDefault)
 }
 
 // -----------------------------------------------------------------------

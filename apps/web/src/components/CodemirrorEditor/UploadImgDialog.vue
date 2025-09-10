@@ -15,11 +15,13 @@ const githubSchema = toTypedSchema(yup.object({
   repo: yup.string().required(`GitHub 仓库不能为空`),
   branch: yup.string().optional(),
   accessToken: yup.string().required(`GitHub Token 不能为空`),
+  pathInRepo: yup.string().optional(),
+  urlPrefix: yup.string().optional(),
 }))
 
 const githubConfig = ref(localStorage.getItem(`githubConfig`)
   ? JSON.parse(localStorage.getItem(`githubConfig`)!)
-  : { repo: ``, branch: ``, accessToken: `` })
+  : { repo: ``, branch: ``, accessToken: ``, pathInRepo: ``, urlPrefix: `` })
 
 function githubSubmit(formValues: any) {
   localStorage.setItem(`githubConfig`, JSON.stringify(formValues))
@@ -461,7 +463,7 @@ function onDrop(e: DragEvent) {
                 <Input
                   v-bind="field"
                   v-model="field.value"
-                  placeholder="如：github.com/yanglbme/resource"
+                  placeholder="如：owner/repo"
                 />
               </FormItem>
             </Field>
@@ -483,6 +485,26 @@ function onDrop(e: DragEvent) {
                   v-model="field.value"
                   type="password"
                   placeholder="如：cc1d0c1426d0fd0902bd2d7184b14da61b8abc46"
+                />
+              </FormItem>
+            </Field>
+
+            <Field v-slot="{ field, errorMessage }" name="pathInRepo">
+              <FormItem label="仓库内路径" :error="errorMessage">
+                <Input
+                  v-bind="field"
+                  v-model="field.value"
+                  placeholder="如：images/{year}/{month}，可不填，默认为自动生成"
+                />
+              </FormItem>
+            </Field>
+
+            <Field v-slot="{ field, errorMessage }" name="urlPrefix">
+              <FormItem label="域名前缀" :error="errorMessage">
+                <Input
+                  v-bind="field"
+                  v-model="field.value"
+                  placeholder="如：https://cdn.jsdelivr.net/gh/owner/repo@main/，不填会使用 raw.githubusercontent.com"
                 />
               </FormItem>
             </Field>

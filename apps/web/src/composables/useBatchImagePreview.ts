@@ -1,4 +1,7 @@
 import { computed, reactive, readonly } from 'vue'
+import { useStore } from '@/stores'
+import { toBase64 } from '@/utils'
+import { fileUpload } from '@/utils/file'
 
 export interface ImageItem {
   id: string
@@ -64,7 +67,23 @@ function saveUploadedImage(markdownHash: string, imageId: string) {
   }
 }
 
+// 将 data URL 转换为 File 对象
+function dataURLtoFile(dataURL: string, filename: string): File {
+  const arr = dataURL.split(`,`)
+  const mime = arr[0].match(/:(.*?);/)![1]
+  const bstr = atob(arr[1])
+  let n = bstr.length
+  const u8arr = new Uint8Array(n)
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n)
+  }
+  return new File([u8arr], filename, { type: mime })
+}
+
 export function useBatchImagePreview() {
+  const store = useStore()
+  const { updateConversionMap } = store
+
   const showBatchPreview = (markdownContent: string) => {
     state.visible = true
     state.images = []
@@ -112,24 +131,34 @@ export function useBatchImagePreview() {
     imageItem.uploading = true
 
     try {
-      // 这里添加上传逻辑
       console.log(`上传图片:`, imageId, imageItem.imageUrl)
 
-      // 模拟上传过程
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // 将 data URL 转换为 File 对象
+      const filename = `${imageId}.png`
+      const file = dataURLtoFile(imageItem.imageUrl, filename)
 
-      // 标记为已上传
+      // 使用真实的上传 API
+      const base64Content = await toBase64(file)
+      const uploadedUrl = await fileUpload(base64Content, file)
+
+      // 更新图片 URL 为上传后的链接
+      imageItem.imageUrl = uploadedUrl
       imageItem.uploaded = true
       imageItem.uploading = false
 
       // 保存到 localStorage
       saveUploadedImage(state.markdownHash, imageId)
 
-      console.log(`图片上传完成:`, imageId)
+      // 更新全局转换映射
+      updateConversionMap(imageId, uploadedUrl)
+
+      console.log(`图片上传成功:`, imageId, uploadedUrl)
+      return uploadedUrl
     }
     catch (error) {
       console.error(`图片上传失败:`, error)
       imageItem.uploading = false
+      throw error
     }
   }
 

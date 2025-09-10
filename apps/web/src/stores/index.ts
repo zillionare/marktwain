@@ -58,10 +58,6 @@ export const useStore = defineStore(`store`, () => {
   const isMacCodeBlock = useStorage(`isMacCodeBlock`, defaultStyleConfig.isMacCodeBlock)
   const toggleMacCodeBlock = useToggle(isMacCodeBlock)
 
-  // 是否显示代码行号
-  const isShowLineNumbers = useStorage(addPrefix(`show_line_numbers`), defaultStyleConfig.isShowLineNumbers)
-  const toggleShowLineNumbers = useToggle(isShowLineNumbers)
-
   // 是否在左侧编辑
   const isEditOnLeft = useStorage(`isEditOnLeft`, true)
   const toggleEditOnLeft = useToggle(isEditOnLeft)
@@ -376,7 +372,6 @@ export const useStore = defineStore(`store`, () => {
     isUseIndent: isUseIndent.value,
     isUseJustify: isUseJustify.value,
     isMacCodeBlock: isMacCodeBlock.value,
-    isShowLineNumbers: isShowLineNumbers.value,
   })
 
   const readingTime = reactive({
@@ -402,7 +397,6 @@ export const useStore = defineStore(`store`, () => {
       isUseJustify: isUseJustify.value,
       countStatus: isCountStatus.value,
       isMacCodeBlock: isMacCodeBlock.value,
-      isShowLineNumbers: isShowLineNumbers.value,
     })
 
     const raw = editor.value!.getValue()
@@ -501,7 +495,6 @@ export const useStore = defineStore(`store`, () => {
     isCiteStatus.value = defaultStyleConfig.isCiteStatus
     isMacCodeBlock.value = defaultStyleConfig.isMacCodeBlock
     isCountStatus.value = defaultStyleConfig.isCountStatus
-    isShowLineNumbers.value = defaultStyleConfig.isShowLineNumbers
 
     theme.value = defaultStyleConfig.theme
     fontFamily.value = defaultStyleConfig.fontFamily
@@ -616,10 +609,6 @@ export const useStore = defineStore(`store`, () => {
 
   const useJustifyChanged = withAfterRefresh(() => {
     toggleUseJustify()
-  })
-
-  const showLineNumbersChanged = withAfterRefresh(() => {
-    toggleShowLineNumbers()
   })
 
   const aiToolboxChanged = withAfterRefresh(() => {
@@ -865,6 +854,12 @@ export const useStore = defineStore(`store`, () => {
     replaceWithImageLinks()
   }
 
+  // 更新转换映射（用于上传后更新 URL）
+  const updateConversionMap = (elementId: string, imageUrl: string) => {
+    conversionMap.value.set(elementId, imageUrl)
+    console.log(`更新转换映射:`, elementId, imageUrl)
+  }
+
   // 恢复原始 markdown
   const restoreOriginalMarkdown = () => {
     if (!isConverted.value || !originalMarkdown.value) {
@@ -911,8 +906,6 @@ export const useStore = defineStore(`store`, () => {
     useIndentChanged,
     isUseJustify,
     useJustifyChanged,
-    isShowLineNumbers,
-    showLineNumbersChanged,
 
     isCountStatus,
     countStatusChanged,
@@ -955,6 +948,7 @@ export const useStore = defineStore(`store`, () => {
     isConverting,
     conversionConfig,
     convertToImages,
+    updateConversionMap,
     confirmReplaceWithImageLinks,
     restoreOriginalMarkdown,
     exportConvertedMarkdown,
@@ -1050,7 +1044,6 @@ export function getAllStoreStates() {
     isCountStatus: store.isCountStatus,
     isUseIndent: store.isUseIndent,
     isUseJustify: store.isUseJustify,
-    isShowLineNumbers: store.isShowLineNumbers,
     isOpenRightSlider: store.isOpenRightSlider,
     isOpenPostSlider: store.isOpenPostSlider,
     theme: store.theme,
