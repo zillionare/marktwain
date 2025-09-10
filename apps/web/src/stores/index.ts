@@ -97,6 +97,10 @@ export const useStore = defineStore(`store`, () => {
   const isCountStatus = useStorage(`isCountStatus`, defaultStyleConfig.isCountStatus)
   const toggleCountStatus = useToggle(isCountStatus)
 
+  // 是否显示代码行号
+  const isShowLineNumbers = useStorage(`isShowLineNumbers`, defaultStyleConfig.isShowLineNumbers)
+  const toggleShowLineNumbers = useToggle(isShowLineNumbers)
+
   // 是否开启段落首行缩进
   const isUseIndent = useStorage(addPrefix(`use_indent`), false)
   const toggleUseIndent = useToggle(isUseIndent)
@@ -372,6 +376,7 @@ export const useStore = defineStore(`store`, () => {
     isUseIndent: isUseIndent.value,
     isUseJustify: isUseJustify.value,
     isMacCodeBlock: isMacCodeBlock.value,
+    isShowLineNumbers: isShowLineNumbers.value,
   })
 
   const readingTime = reactive({
@@ -397,6 +402,7 @@ export const useStore = defineStore(`store`, () => {
       isUseJustify: isUseJustify.value,
       countStatus: isCountStatus.value,
       isMacCodeBlock: isMacCodeBlock.value,
+      isShowLineNumbers: isShowLineNumbers.value,
     })
 
     const raw = editor.value!.getValue()
@@ -495,6 +501,7 @@ export const useStore = defineStore(`store`, () => {
     isCiteStatus.value = defaultStyleConfig.isCiteStatus
     isMacCodeBlock.value = defaultStyleConfig.isMacCodeBlock
     isCountStatus.value = defaultStyleConfig.isCountStatus
+    isShowLineNumbers.value = defaultStyleConfig.isShowLineNumbers
 
     theme.value = defaultStyleConfig.theme
     fontFamily.value = defaultStyleConfig.fontFamily
@@ -589,6 +596,13 @@ export const useStore = defineStore(`store`, () => {
 
   const legendChanged = withAfterRefresh((newVal) => {
     legend.value = newVal
+  })
+
+  const showLineNumbersChanged = withAfterRefresh(() => {
+    toggleShowLineNumbers()
+    renderer.setOptions({
+      isShowLineNumbers: isShowLineNumbers.value,
+    })
   })
 
   const macCodeBlockChanged = withAfterRefresh(() => {
@@ -909,6 +923,9 @@ export const useStore = defineStore(`store`, () => {
 
     isCountStatus,
     countStatusChanged,
+
+    isShowLineNumbers,
+    showLineNumbersChanged,
 
     output,
     editor,
