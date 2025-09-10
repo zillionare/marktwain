@@ -267,22 +267,30 @@ export function initRenderer(opts: IOpts): RendererAPI {
       // tab to 4 spaces
       highlighted = highlighted.replace(/\t/g, `    `)
 
-      // 如果开启行号，添加行号
+      // 声明 span 在使用之前
+      const span = `<span class="mac-sign" style="padding: 10px 14px 0;">${macCodeSvg}</span>`
+
+      // 如果开启行号，创建单独的 line-numbers 元素
       if (opts.isShowLineNumbers) {
-        const lines = highlighted.split(/\r\n|\n/)
-        const numberedLines = lines.map((line, index) => {
-          const lineNumber = (index + 1).toString().padStart(lines.length.toString().length, ` `)
-          return `<span class="line-number">${lineNumber}</span><span class="line-content">${line || `&nbsp;`}</span>`
-        })
-        highlighted = numberedLines.join(`<br/>`)
-        // 处理空格和特殊字符
-        highlighted = highlighted.replace(/(>[^<]+)|(^[^<]+)/g, (str) => {
-          // 不对行号部分进行空格替换
-          if (str.includes(`line-number`)) {
-            return str
-          }
-          return str.replace(/\s/g, `&nbsp;`)
-        })
+        const lines = text.split(/\r\n|\n/)
+        const lineCount = lines.length
+        const maxLineNumberWidth = lineCount.toString().length
+
+        // 创建行号列表，与代码行数保持一致
+        const lineNumbers = lines.map((_, index) => {
+          const lineNumber = (index + 1).toString().padStart(maxLineNumberWidth, ` `)
+          return lineNumber
+        }).join(`\n`)
+
+        // 处理高亮代码的换行和空格
+        highlighted = highlighted
+          .replace(/\r\n/g, `<br/>`)
+          .replace(/\n/g, `<br/>`)
+          .replace(/(>[^<]+)|(^[^<]+)/g, str => str.replace(/\s/g, `&nbsp;`))
+
+        const lineNumbersElement = `<div class="line-numbers">${lineNumbers}</div>`
+        const code = `<code class="language-${lang} with-line-numbers" ${styles(`code`)}>${highlighted}</code>`
+        return `<pre class="hljs code__pre" ${styles(`code_pre`)}>${span}<div class="code-container">${lineNumbersElement}${code}</div></pre>`
       }
       else {
         highlighted = highlighted
@@ -290,9 +298,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
           .replace(/\n/g, `<br/>`)
           .replace(/(>[^<]+)|(^[^<]+)/g, str => str.replace(/\s/g, `&nbsp;`))
       }
-      const span = `<span class="mac-sign" style="padding: 10px 14px 0;">${macCodeSvg}</span>`
-      const codeClass = opts.isShowLineNumbers ? `language-${lang} line-numbers` : `language-${lang}`
-      const code = `<code class="${codeClass}" ${styles(`code`)}>${highlighted}</code>`
+      const code = `<code class="language-${lang}" ${styles(`code`)}>${highlighted}</code>`
       return `<pre class="hljs code__pre" ${styles(`code_pre`)}>${span}${code}</pre>`
     },
 

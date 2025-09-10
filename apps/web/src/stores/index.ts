@@ -59,7 +59,7 @@ export const useStore = defineStore(`store`, () => {
   const toggleMacCodeBlock = useToggle(isMacCodeBlock)
 
   // 是否显示代码行号
-  const isShowLineNumbers = useStorage(addPrefix(`show_line_numbers`), false)
+  const isShowLineNumbers = useStorage(addPrefix(`show_line_numbers`), defaultStyleConfig.isShowLineNumbers)
   const toggleShowLineNumbers = useToggle(isShowLineNumbers)
 
   // 是否在左侧编辑
@@ -501,6 +501,7 @@ export const useStore = defineStore(`store`, () => {
     isCiteStatus.value = defaultStyleConfig.isCiteStatus
     isMacCodeBlock.value = defaultStyleConfig.isMacCodeBlock
     isCountStatus.value = defaultStyleConfig.isCountStatus
+    isShowLineNumbers.value = defaultStyleConfig.isShowLineNumbers
 
     theme.value = defaultStyleConfig.theme
     fontFamily.value = defaultStyleConfig.fontFamily

@@ -93,43 +93,60 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
 }
 
-/* 行号样式 */
+/* 行号样式 - 按照用户原始要求实现 */
+.code-container {
+  display: flex;
+  position: relative;
+}
+
 .line-numbers {
-  display: block;
-  counter-reset: line;
-}
-
-.line-numbers .line-number {
-  display: inline-block;
-  width: 2.5em;
+  /* 继承代码块的背景色和字体样式 */
+  background: inherit;
+  font-family: inherit;
+  line-height: 1.57 !important;
+  padding: 0.5em 1em;
   text-align: right;
-  margin-right: 1em;
-  padding-right: 0.5em;
-  color: #999;
-  border-right: 1px solid #ddd;
   user-select: none;
-  font-family: 'Courier New', Consolas, Monaco, monospace;
-  font-size: 0.9em;
+  white-space: pre;
+  min-width: 3em;
+  box-sizing: border-box;
+  border-right: 1px solid rgba(128, 128, 128, 0.3);
+  margin: 0;
+  /* 使用 .hljs 的颜色以确保兼容性 */
+  color: inherit;
+  opacity: 0.6;
+}
+
+.with-line-numbers {
+  margin-left: 0;
+  padding-left: 1em;
+  flex: 1;
+  background: inherit;
   line-height: 1.5;
 }
 
-.line-numbers .line-content {
-  display: inline;
+/* 确保代码块和行号的高度一致 */
+.code-container .line-numbers,
+.code-container .with-line-numbers {
   line-height: 1.5;
+  font-size: inherit;
 }
 
-/* 确保每行都在新行显示 */
-.line-numbers br + .line-number {
-  display: block;
+/* 修复可能的样式冲突 */
+.hljs.code__pre .code-container {
+  background: inherit;
+  border: none;
+  margin: 0;
+  padding: 0;
 }
 
-/* 深色模式下的行号样式 */
-.dark .line-numbers .line-number {
-  color: #666;
-  border-right-color: #444;
+/* 确保行号与代码块有相同的背景 */
+.code-container .line-numbers {
+  background: inherit;
 }
