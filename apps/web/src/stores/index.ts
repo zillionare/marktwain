@@ -888,11 +888,20 @@ export const useStore = defineStore(`store`, () => {
   const findMarkdownBlocks = (markdown: string): MarkdownBlock[] => {
     const allBlocks: MarkdownBlock[] = []
     let sequenceIndex = 0
-    let blockIdCounter = 0
 
-    // 生成唯一块ID
+    // 每种类型使用独立计数器，与渲染器中的 ID 生成逻辑保持一致
+    const counters: Record<string, number> = {
+      admonition: 0,
+      code: 0,
+      math: 0,
+    }
+
+    // 生成唯一块ID，与渲染器中的 ID 生成逻辑保持一致
+    // 使用统一格式: mktwain-{type}-{counter}
+    // 每种类型使用独立计数器
     const generateBlockId = (type: string) => {
-      return `mktwain-${type}-${Date.now()}-${++blockIdCounter}`
+      counters[type] = counters[type] + 1
+      return `mktwain-${type}-${counters[type]}`
     }
 
     // 查找 Admonition 块 (!!! 语法)
@@ -936,6 +945,13 @@ export const useStore = defineStore(`store`, () => {
       const startLine = getLineNumber(markdown, match.index)
       const endLine = getLineNumber(markdown, match.index + match[0].length)
 
+      console.log(`\n=== Math 匹配结果 ===`)
+      console.log(`匹配的内容:`, JSON.stringify(match[0]))
+      console.log(`起始位置:`, match.index)
+      console.log(`结束位置:`, match.index + match[0].length)
+      console.log(`起始行号:`, startLine)
+      console.log(`结束行号:`, endLine)
+
       allBlocks.push({
         type: `math`,
         content: match[0],
@@ -956,6 +972,13 @@ export const useStore = defineStore(`store`, () => {
       const startLine = getLineNumber(markdown, match.index)
       const endLine = getLineNumber(markdown, match.index + match[0].length)
 
+      console.log(`\n=== Code 匹配结果 ===`)
+      console.log(`匹配的内容:`, JSON.stringify(match[0]))
+      console.log(`起始位置:`, match.index)
+      console.log(`结束位置:`, match.index + match[0].length)
+      console.log(`起始行号:`, startLine)
+      console.log(`结束行号:`, endLine)
+
       allBlocks.push({
         type: `code`,
         content: match[0],
@@ -972,6 +995,11 @@ export const useStore = defineStore(`store`, () => {
     // 按在文档中出现的顺序排序
     allBlocks.sort((a, b) => a.startIndex - b.startIndex)
 
+    console.log(`\n=== 所有块（排序后）===`)
+    allBlocks.forEach((block, index) => {
+      console.log(`${index + 1}. ${block.type} 块 [${block.startIndex}-${block.endIndex}]`)
+    })
+
     // 过滤掉嵌套块
     const nonNestedBlocks = allBlocks.filter(block => !isNestedBlock(block, allBlocks))
 
@@ -980,6 +1008,8 @@ export const useStore = defineStore(`store`, () => {
       type: b.type,
       startLine: b.startLine,
       endLine: b.endLine,
+      startIndex: b.startIndex,
+      endIndex: b.endIndex,
       content: `${b.content.substring(0, 50)}...`,
     })))
 
@@ -1125,6 +1155,7 @@ export const useStore = defineStore(`store`, () => {
           markdownBlock.content,
           markdownBlock.startLine,
           markdownBlock.endLine,
+          markdownBlock.id, // 传递真实的 markdownBlock.id
         )
       }
       catch (error) {

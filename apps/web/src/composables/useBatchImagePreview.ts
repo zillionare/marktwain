@@ -97,18 +97,20 @@ function addImage(
   content: string,
   startLine?: number,
   endLine?: number,
+  id?: string, // 添加 id 参数
 ) {
-  const id = generateImageId(type, index)
+  // 如果提供了 id，则使用它，否则生成一个新的 id
+  const imageId = id || generateImageId(type, index)
   const contentHash = generateContentHash(content)
   const uploadedImages = getUploadedImages(state.markdownHash)
 
   const imageItem: ImageItem = {
-    id,
+    id: imageId, // 使用传入的 id 或生成的 id
     type,
     index,
     imageUrl,
     contentHash,
-    uploaded: uploadedImages.has(id),
+    uploaded: uploadedImages.has(imageId),
     uploading: false,
     altText: `${type} block ${index + 1}`,
     startLine,
@@ -134,10 +136,17 @@ async function replaceBlocksWithImageLinks(): Promise<boolean> {
       return false
     }
 
-    // 构建转换映射
+    // 构建转换映射，优先使用真实的ID
     const imageMap = new Map<string, string>()
     state.images.forEach((img) => {
-      imageMap.set(`${img.type}-${img.index}`, img.imageUrl)
+      if (img.id) {
+        // 使用真实的ID
+        imageMap.set(img.id, img.imageUrl)
+      }
+      else {
+        // 回退到旧的方式（type-index）
+        imageMap.set(`${img.type}-${img.index}`, img.imageUrl)
+      }
     })
 
     // 替换 Markdown 中的内容
