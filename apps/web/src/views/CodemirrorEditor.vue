@@ -394,7 +394,7 @@ onMounted(() => {
     editorDom.value = store.posts[store.currentPostIndex].content
   }
   else {
-    editorDom.value = convertedMarkdownV1.value || `这里是空的`
+    editorDom.value = convertedMarkdownV1.value || `请先执行转图操作`
   }
 
   nextTick(() => {
@@ -421,7 +421,7 @@ watch(activeTab, (newTab) => {
     editor.value.setValue(store.posts[store.currentPostIndex].content)
   }
   else {
-    editor.value.setValue(convertedMarkdownV1.value || `这里是空的`)
+    editor.value.setValue(convertedMarkdownV1.value || `请先执行转图操作`)
   }
 
   // 刷新预览区
@@ -467,19 +467,13 @@ onUnmounted(() => {
 
 <template>
   <div class="container flex flex-col">
-    <EditorHeader
-      @start-copy="startCopy"
-      @end-copy="endCopy"
-    />
+    <EditorHeader @start-copy="startCopy" @end-copy="endCopy" />
 
     <main class="container-main flex flex-1 flex-col">
-      <div
-        class="container-main-section border-radius-10 relative flex flex-1 overflow-hidden border"
-      >
+      <div class="container-main-section border-radius-10 relative flex flex-1 overflow-hidden border">
         <ResizablePanelGroup direction="horizontal">
           <ResizablePanel
-            :default-size="15"
-            :max-size="store.isOpenPostSlider ? 30 : 0"
+            :default-size="15" :max-size="store.isOpenPostSlider ? 30 : 0"
             :min-size="store.isOpenPostSlider ? 10 : 0"
           >
             <PostSlider />
@@ -487,10 +481,8 @@ onUnmounted(() => {
           <ResizableHandle />
           <ResizablePanel class="flex">
             <div
-              v-show="!store.isMobile || (store.isMobile && showEditor)"
-              ref="codeMirrorWrapper"
-              class="codeMirror-wrapper relative flex-1"
-              :class="{
+              v-show="!store.isMobile || (store.isMobile && showEditor)" ref="codeMirrorWrapper"
+              class="codeMirror-wrapper relative flex-1" :class="{
                 'order-1 border-l': !store.isEditOnLeft,
                 'border-r': store.isEditOnLeft,
               }"
@@ -498,44 +490,34 @@ onUnmounted(() => {
               <!-- 添加 tab 控制 -->
               <div class="flex border-b">
                 <button
-                  class="px-4 py-2 font-medium"
-                  :class="{
+                  class="px-4 py-2 font-medium" :class="{
                     'border-b-2 border-blue-500 text-blue-500': activeTab === 'original',
                     'text-gray-500': activeTab !== 'original',
-                  }"
-                  @click="activeTab = 'original'"
+                  }" @click="activeTab = 'original'"
                 >
                   原始文档
                 </button>
                 <button
-                  class="px-4 py-2 font-medium"
-                  :class="{
+                  class="px-4 py-2 font-medium" :class="{
                     'border-b-2 border-blue-500 text-blue-500': activeTab === 'converted',
                     'text-gray-500': activeTab !== 'converted',
-                  }"
-                  @click="activeTab = 'converted'"
+                  }" @click="activeTab = 'converted'"
                 >
                   转图后
                 </button>
               </div>
 
               <div v-if="activeTab === 'converted' && !convertedMarkdownV1" class="p-4 text-gray-500">
-                这里是空的
+                请先执行转图操作
               </div>
 
               <template v-else>
                 <SearchTab v-if="editor" ref="searchTabRef" :editor="editor" />
-                <AIFixedBtn
-                  :is-mobile="store.isMobile"
-                  :show-editor="showEditor"
-                />
+                <AIFixedBtn :is-mobile="store.isMobile" :show-editor="showEditor" />
 
                 <EditorContextMenu>
                   <textarea
-                    id="editor"
-                    ref="editorRef"
-                    type="textarea"
-                    placeholder="Your markdown text here."
+                    id="editor" ref="editorRef" type="textarea" placeholder="Your markdown text here."
                     :value="activeTab === 'original' ? store.posts[store.currentPostIndex]?.content : convertedMarkdownV1"
                   />
                 </EditorContextMenu>
@@ -546,20 +528,9 @@ onUnmounted(() => {
               class="relative flex-1 overflow-x-hidden transition-width"
               :class="[store.isOpenRightSlider ? 'w-0' : 'w-100']"
             >
-              <div
-                id="preview"
-                ref="previewRef"
-                class="preview-wrapper w-full p-5"
-              >
-                <div
-                  id="output-wrapper"
-                  class="w-full"
-                  :class="{ output_night: !backLight }"
-                >
-                  <div
-                    class="preview border-x shadow-xl"
-                    :class="[store.previewWidth]"
-                  >
+              <div id="preview" ref="previewRef" class="preview-wrapper w-full p-5">
+                <div id="output-wrapper" class="w-full" :class="{ output_night: !backLight }">
+                  <div class="preview border-x shadow-xl" :class="[store.previewWidth]">
                     <section id="output" class="w-full" v-html="output" />
                     <div v-if="isCoping" class="loading-mask">
                       <div class="loading-mask-box">
@@ -569,11 +540,7 @@ onUnmounted(() => {
                     </div>
                   </div>
                 </div>
-                <BackTop
-                  target="preview"
-                  :right="store.isMobile ? 24 : 20"
-                  :bottom="store.isMobile ? 90 : 20"
-                />
+                <BackTop target="preview" :right="store.isMobile ? 24 : 20" :bottom="store.isMobile ? 90 : 20" />
               </div>
 
               <FloatingToc />
@@ -589,30 +556,21 @@ onUnmounted(() => {
         <!-- 切换编辑/预览按钮 -->
         <button
           class="bg-primary flex items-center justify-center rounded-full p-3 text-white shadow-lg transition active:scale-95 hover:scale-105 dark:bg-gray-700 dark:text-white dark:ring-2 dark:ring-white/30"
-          aria-label="切换编辑/预览"
-          @click="toggleView"
+          aria-label="切换编辑/预览" @click="toggleView"
         >
           <component :is="showEditor ? Eye : Pen" class="h-5 w-5" />
         </button>
       </div>
 
       <AIPolishButton
-        v-if="store.showAIToolbox"
-        ref="AIPolishBtnRef"
-        :position="position"
+        v-if="store.showAIToolbox" ref="AIPolishBtnRef" :position="position"
         @click="AIPolishPopoverRef?.show"
       />
 
       <AIPolishPopover
-        v-if="store.showAIToolbox"
-        ref="AIPolishPopoverRef"
-        :position="position"
-        :selected-text="selectedText"
-        :is-dragging="isDragging"
-        :is-mobile="store.isMobile"
-        @close-btn="AIPolishBtnRef?.close"
-        @recalc-pos="recalcPos"
-        @start-drag="startDrag"
+        v-if="store.showAIToolbox" ref="AIPolishPopoverRef" :position="position"
+        :selected-text="selectedText" :is-dragging="isDragging" :is-mobile="store.isMobile"
+        @close-btn="AIPolishBtnRef?.close" @recalc-pos="recalcPos" @start-drag="startDrag"
       />
 
       <UploadImgDialog @upload-image="uploadImage" />
