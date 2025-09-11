@@ -22,7 +22,6 @@ const {
   isOpenPostSlider,
   editor,
   isConverting,
-  isConverted: _isConverted,
   isImageReplaced,
 } = storeToRefs(store)
 
@@ -124,6 +123,27 @@ async function copy() {
     return
   }
 
+  // 如果是复制富文本，执行新的复制逻辑
+  if (copyMode.value === `rich-text`) {
+    try {
+      const clipboardDiv = document.getElementById(`output`)!
+      const htmlContent = clipboardDiv.innerHTML
+      const plainText = clipboardDiv.textContent || ``
+
+      const clipboardItem = new ClipboardItem({
+        'text/html': new Blob([htmlContent], { type: `text/html` }),
+        'text/plain': new Blob([plainText], { type: `text/plain` }),
+      })
+
+      await navigator.clipboard.write([clipboardItem])
+      toast.success(`已复制富文本到剪贴板`)
+    }
+    catch (error) {
+      toast.error(`复制富文本失败，请联系开发者。${error}`)
+    }
+    return
+  }
+
   // 以下处理非 Markdown 的复制流程
   emit(`startCopy`)
 
@@ -187,9 +207,7 @@ async function copy() {
 </script>
 
 <template>
-  <header
-    class="header-container h-15 flex flex-wrap items-center justify-between px-5"
-  >
+  <header class="header-container h-15 flex flex-wrap items-center justify-between px-5">
     <!-- 左侧菜单：移动端隐藏 -->
     <div class="space-x-2 hidden sm:flex">
       <Menubar class="menubar border-0">
@@ -199,35 +217,23 @@ async function copy() {
           <MenubarTrigger> 格式</MenubarTrigger>
           <MenubarContent class="w-60" align="start">
             <MenubarCheckboxItem
-              v-for="{ label, kbd, cmd } in formatItems"
-              :key="label"
-              @click="
+              v-for="{ label, kbd, cmd } in formatItems" :key="label" @click="
                 cmd === 'formatContent' ? formatContent() : addFormat(cmd)
               "
             >
               {{ label }}
               <MenubarShortcut>
-                <kbd
-                  v-for="item in kbd"
-                  :key="item"
-                  class="mx-1 bg-gray-2 dark:bg-stone-9"
-                >
+                <kbd v-for="item in kbd" :key="item" class="mx-1 bg-gray-2 dark:bg-stone-9">
                   {{ item }}
                 </kbd>
               </MenubarShortcut>
             </MenubarCheckboxItem>
             <MenubarSeparator />
-            <MenubarCheckboxItem
-              :checked="isCiteStatus"
-              @click="citeStatusChanged()"
-            >
+            <MenubarCheckboxItem :checked="isCiteStatus" @click="citeStatusChanged()">
               微信外链转底部引用
             </MenubarCheckboxItem>
             <MenubarSeparator />
-            <MenubarCheckboxItem
-              :checked="isCountStatus"
-              @click="countStatusChanged()"
-            >
+            <MenubarCheckboxItem :checked="isCountStatus" @click="countStatusChanged()">
               统计字数和阅读时间
             </MenubarCheckboxItem>
           </MenubarContent>
@@ -241,30 +247,19 @@ async function copy() {
     <!-- 右侧操作区：移动端保留核心按钮 -->
     <div class="space-x-2 flex flex-wrap">
       <!-- 展开/收起左侧内容栏 -->
-      <Button
-        variant="outline"
-        size="icon"
-        @click="isOpenPostSlider = !isOpenPostSlider"
-      >
+      <Button variant="outline" size="icon" @click="isOpenPostSlider = !isOpenPostSlider">
         <PanelLeftOpen v-show="!isOpenPostSlider" class="size-4" />
         <PanelLeftClose v-show="isOpenPostSlider" class="size-4" />
       </Button>
 
       <!-- 转图按钮 -->
-      <Button
-        variant="outline"
-        :disabled="isConverting"
-        class="flex items-center gap-2"
-        @click="handleConvertToImages"
-      >
+      <Button variant="outline" :disabled="isConverting" class="flex items-center gap-2" @click="handleConvertToImages">
         <Image class="w-4 h-4" />
         {{ isConverting ? '转换中...' : '转图' }}
       </Button>
 
       <!-- 复制按钮组 -->
-      <div
-        class="bg-background space-x-1 text-background-foreground mx-2 flex items-center border rounded-md"
-      >
+      <div class="bg-background space-x-1 text-background-foreground mx-2 flex items-center border rounded-md">
         <Button variant="ghost" class="shadow-none" @click="copy">
           复制
         </Button>
@@ -280,6 +275,9 @@ async function copy() {
               <DropdownMenuRadioItem value="txt">
                 公众号格式
               </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="rich-text" :disabled="!isImageReplaced">
+                转图后富文本
+              </DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="html">
                 HTML 格式
               </DropdownMenuRadioItem>
@@ -288,12 +286,6 @@ async function copy() {
               </DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="md">
                 MD 格式
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem
-                value="image-replaced-md"
-                :disabled="!isImageReplaced"
-              >
-                转图后 MD
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
@@ -304,11 +296,7 @@ async function copy() {
       <PostInfo class="hidden sm:inline-flex" />
 
       <!-- 设置按钮 -->
-      <Button
-        variant="outline"
-        size="icon"
-        @click="store.isOpenRightSlider = !store.isOpenRightSlider"
-      >
+      <Button variant="outline" size="icon" @click="store.isOpenRightSlider = !store.isOpenRightSlider">
         <Settings class="size-4" />
       </Button>
     </div>
