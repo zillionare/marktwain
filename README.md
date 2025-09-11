@@ -242,3 +242,7 @@ docker run -d -p 8080:80 doocs/md:latest
     </tr>
   </tbody>
 </table>
+
+## 版本对照
+
+- 0.2对应 doocs/md v2.0.4
