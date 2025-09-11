@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ClipboardPasteIcon, Contact2Icon, CopyIcon, Redo2Icon, RotateCcwIcon, TableIcon, Undo2Icon, UploadCloudIcon } from 'lucide-vue-next'
+import { ClipboardPasteIcon, Contact2Icon, CopyIcon, Redo2Icon, TableIcon, Undo2Icon, UploadCloudIcon } from 'lucide-vue-next'
 
 const { toggleShowInsertFormDialog, toggleShowUploadImgDialog, toggleShowInsertMpCardDialog } = useDisplayStore()
 
-const { copyToClipboard, pasteFromClipboard, undo, redo, restoreOriginalMarkdown, isConverted, copyConvertedMarkdownV1, isImageReplaced } = useStore()
+const { copyToClipboard, pasteFromClipboard, undo, redo } = useStore()
 </script>
 
 <template>
@@ -41,21 +41,6 @@ const { copyToClipboard, pasteFromClipboard, undo, redo, restoreOriginalMarkdown
       <MenubarItem @click="pasteFromClipboard()">
         <ClipboardPasteIcon class="mr-2 h-4 w-4" />
         粘贴
-      </MenubarItem>
-      <MenubarItem
-        :disabled="!isImageReplaced"
-        @click="copyConvertedMarkdownV1()"
-      >
-        <CopyIcon class="mr-2 h-4 w-4" />
-        转图后 MD
-      </MenubarItem>
-      <MenubarSeparator v-if="isConverted" />
-      <MenubarItem
-        v-if="isConverted"
-        @click="restoreOriginalMarkdown()"
-      >
-        <RotateCcwIcon class="mr-2 h-4 w-4" />
-        恢复原始 MD
       </MenubarItem>
     </MenubarContent>
   </MenubarMenu>

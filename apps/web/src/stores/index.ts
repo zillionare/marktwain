@@ -1095,7 +1095,7 @@ export const useStore = defineStore(`store`, () => {
           }
           else {
             console.error(`  匹配失败: ${block.type} - ${block.id}`)
-            console.debug(`  可用的 data-id:`, Array.from(dataIdToElement.keys()))
+            console.info(`  可用的 data-id:`, Array.from(dataIdToElement.keys()))
             allFound = false
           }
         }
