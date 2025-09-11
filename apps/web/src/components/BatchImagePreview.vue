@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { ImageItem } from '@/composables/useBatchImagePreview'
 import { batchImagePreviewState, useBatchImagePreview } from '@/composables/useBatchImagePreview'
-import { useStore } from '@/stores'
 
 const {
   hideBatchPreview,
@@ -9,12 +8,11 @@ const {
   uploadAllImages,
   retryUpload,
   downloadImage,
+  replaceBlocksWithImageLinks,
   totalImages,
   uploadedCount,
   uploadingCount,
 } = useBatchImagePreview()
-
-const { replaceBlocksWithImageLinks } = useStore()
 
 function handleOverlayClick() {
   hideBatchPreview()

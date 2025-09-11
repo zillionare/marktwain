@@ -855,7 +855,7 @@ export const useStore = defineStore(`store`, () => {
     }
   }
 
-  // 在markdown编辑区搜索并编号各类块元素
+  // 在编辑区搜索并编号各类块元素
   interface MarkdownBlock {
     type: `admonition` | `math` | `code`
     content: string
@@ -908,7 +908,10 @@ export const useStore = defineStore(`store`, () => {
       console.log(`结束位置:`, match.index + match[0].length)
 
       const startLine = getLineNumber(markdown, match.index)
-      const endLine = getLineNumber(markdown, match.index + match[0].length)
+      // 修复 endLine 计算：Admonition 块以两个连续换行符结束，但这些换行符不属于块本身
+      // 我们需要找到块内容实际结束的位置（最后一个非换行字符）
+      const blockContent = match[0].replace(/\n\s*\n$/, ``) // 移除结尾的换行符
+      const endLine = getLineNumber(markdown, match.index + blockContent.length)
 
       console.log(`起始行号:`, startLine)
       console.log(`结束行号:`, endLine)
