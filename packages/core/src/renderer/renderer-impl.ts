@@ -249,6 +249,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
         }, 0) as any as number
         return `<pre class="mermaid">${text}</pre>`
       }
+
       const langText = lang.split(` `)[0]
       const language = hljs.getLanguage(langText) ? langText : `plaintext`
 
@@ -267,8 +268,19 @@ export function initRenderer(opts: IOpts): RendererAPI {
       // tab to 4 spaces
       highlighted = highlighted.replace(/\t/g, `    `)
 
-      // 生成唯一的 data-id 用于转图功能
-      const dataId = `code-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      // 生成唯一的 data-id 用于转图功能，与 findMarkdownBlocks 中的 ID 生成逻辑保持一致
+      // 使用统一格式: mktwain-{type}-{counter}
+      // 使用独立计数器确保同类型块的编号一致性
+      if (!(globalThis as any)._marktwainBlockCounters) {
+        (globalThis as any)._marktwainBlockCounters = {
+          admonition: 0,
+          code: 0,
+          math: 0,
+        }
+      }
+      const counters = (globalThis as any)._marktwainBlockCounters
+      counters.code = counters.code + 1
+      const dataId = `mktwain-code-${counters.code}`
       console.log(`Code block renderer called, generating dataId:`, dataId)
 
       // 声明 span 在使用之前

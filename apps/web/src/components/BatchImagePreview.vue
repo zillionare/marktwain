@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { ImageItem } from '@/composables/useBatchImagePreview'
 import { batchImagePreviewState, useBatchImagePreview } from '@/composables/useBatchImagePreview'
-import { useStore } from '@/stores'
 
 const {
   hideBatchPreview,
@@ -9,12 +8,16 @@ const {
   uploadAllImages,
   retryUpload,
   downloadImage,
+  replaceBlocksWithImageLinks,
   totalImages,
   uploadedCount,
   uploadingCount,
 } = useBatchImagePreview()
 
-const { replaceBlocksWithImageLinks } = useStore()
+// 添加计算属性，检查是否所有图片都已上传
+const isAllImagesUploaded = computed(() => {
+  return batchImagePreviewState.images.every(img => img.uploaded)
+})
 
 function handleOverlayClick() {
   hideBatchPreview()
@@ -26,14 +29,49 @@ function close() {
 
 // 新增图片替换功能
 async function handleImageReplacement() {
+  // 检查是否所有图片都已上传
+  const allUploaded = batchImagePreviewState.images.every(img => img.uploaded)
+  if (!allUploaded) {
+    // 如果有未上传的图片，先上传所有图片
+    const unuploadedImages = batchImagePreviewState.images.filter(img => !img.uploaded && !img.uploading)
+    if (unuploadedImages.length > 0) {
+      await uploadAllImages()
+      // 等待所有上传完成
+      await new Promise((resolve) => {
+        const checkUploadStatus = () => {
+          const stillUploading = batchImagePreviewState.images.some(img => img.uploading)
+          if (!stillUploading) {
+            resolve(null)
+          }
+          else {
+            setTimeout(checkUploadStatus, 100)
+          }
+        }
+        checkUploadStatus()
+      })
+    }
+  }
+
+  // 再次检查是否所有图片都已上传
+  const stillAllUploaded = batchImagePreviewState.images.every(img => img.uploaded)
+  if (!stillAllUploaded) {
+    console.error(`仍有图片未上传完成`)
+    toast.error(`请等待所有图片上传完成后再试`)
+    return
+  }
+
   const success = await replaceBlocksWithImageLinks()
   if (success) {
+    toast.success(`转图后 Markdown 生成成功`)
     hideBatchPreview()
     // 通知父组件切换到 v1 模式
     const event = new CustomEvent(`switchToV1`, {
       detail: { switchToV1: true },
     })
     window.dispatchEvent(event)
+  }
+  else {
+    toast.error(`转图后 Markdown 生成失败`)
   }
 }
 
@@ -248,6 +286,7 @@ function formatUrl(url: string): string {
         <button
           v-if="uploadedCount > 0"
           class="action-btn primary-btn"
+          :disabled="!isAllImagesUploaded"
           @click="handleImageReplacement"
         >
           生成转图后 MD

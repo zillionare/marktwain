@@ -78,8 +78,19 @@ export function markedAdmon(options: AdmonOptions = {}): MarkedExtension {
     let text = this.parser.parse(tokens)
     text = text.replace(/<p .*?>/g, `<p style="${getStyleString(meta.contentStyle)}">`)
 
-    // 生成唯一的 data-id 用于转图功能
-    const dataId = `admon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    // 生成唯一的 data-id 用于转图功能，与 findMarkdownBlocks 中的 ID 生成逻辑保持一致
+    // 使用统一格式: mktwain-{type}-{counter}
+    // 使用独立计数器确保同类型块的编号一致性
+    if (!(globalThis as any)._marktwainBlockCounters) {
+      (globalThis as any)._marktwainBlockCounters = {
+        admonition: 0,
+        code: 0,
+        math: 0,
+      }
+    }
+    const counters = (globalThis as any)._marktwainBlockCounters
+    counters.admonition = counters.admonition + 1
+    const dataId = `mktwain-admonition-${counters.admonition}`
     console.log(`Admonition renderAdmon called, generating dataId:`, dataId)
 
     // 使用 div 结构而不是 blockquote，以匹配 CSS 样式
