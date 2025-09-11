@@ -858,6 +858,38 @@ export const useStore = defineStore(`store`, () => {
 })
 
 export const useDisplayStore = defineStore(`display`, () => {
+  // CSS Editor visibility
+  const isShowCssEditor = ref(false)
+  const toggleShowCssEditor = useToggle(isShowCssEditor)
+
+  // Upload Image Dialog visibility
+  const isShowUploadImgDialog = ref(false)
+  const toggleShowUploadImgDialog = useToggle(isShowUploadImgDialog)
+
+  // Insert Form Dialog visibility
+  const isShowInsertFormDialog = ref(false)
+  const toggleShowInsertFormDialog = useToggle(isShowInsertFormDialog)
+
+  // Insert MP Card Dialog visibility
+  const isShowInsertMpCardDialog = ref(false)
+  const toggleShowInsertMpCardDialog = useToggle(isShowInsertMpCardDialog)
+
+  // AI Dialog visibility
+  const aiDialogVisible = ref(false)
+  const toggleAIDialog = useToggle(aiDialogVisible)
+
+  return {
+    isShowCssEditor,
+    toggleShowCssEditor,
+    isShowUploadImgDialog,
+    toggleShowUploadImgDialog,
+    isShowInsertFormDialog,
+    toggleShowInsertFormDialog,
+    isShowInsertMpCardDialog,
+    toggleShowInsertMpCardDialog,
+    aiDialogVisible,
+    toggleAIDialog,
+  }
 })
 
 // 获取所有状态的方法
