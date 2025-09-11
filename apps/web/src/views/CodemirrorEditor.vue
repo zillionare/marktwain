@@ -21,10 +21,13 @@ import { fileUpload } from '@/utils/file'
 const store = useStore()
 const displayStore = useDisplayStore()
 
-const { isDark, output, editor } = storeToRefs(store)
+const { isDark, output, editor, convertedMarkdownV1 } = storeToRefs(store)
 const { editorRefresh } = store
 
 const { toggleShowUploadImgDialog } = displayStore
+
+// 添加 tab 控制相关状态
+const activeTab = ref<`original` | `converted`>(`original`)
 
 const backLight = ref(false)
 const isCoping = ref(false)
@@ -347,14 +350,17 @@ function createFormTextArea(dom: HTMLTextAreaElement) {
     changeTimer.value = setTimeout(() => {
       editorRefresh()
 
-      const currentPost = store.posts[store.currentPostIndex]
-      const content = editor.getValue()
-      if (content === currentPost.content) {
-        return
-      }
+      // 只有在原始文档 tab 激活时才更新 store 中的内容
+      if (activeTab.value === `original`) {
+        const currentPost = store.posts[store.currentPostIndex]
+        const content = editor.getValue()
+        if (content === currentPost.content) {
+          return
+        }
 
-      currentPost.updateDatetime = new Date()
-      currentPost.content = content
+        currentPost.updateDatetime = new Date()
+        currentPost.content = content
+      }
     }, 300)
   })
 
@@ -383,7 +389,13 @@ onMounted(() => {
     return
   }
 
-  editorDom.value = store.posts[store.currentPostIndex].content
+  // 根据当前激活的 tab 设置初始内容
+  if (activeTab.value === `original`) {
+    editorDom.value = store.posts[store.currentPostIndex].content
+  }
+  else {
+    editorDom.value = convertedMarkdownV1.value || `这里是空的`
+  }
 
   nextTick(() => {
     editor.value = createFormTextArea(editorDom)
@@ -398,6 +410,24 @@ onMounted(() => {
 watch(isDark, () => {
   const theme = isDark.value ? `darcula` : `xq-light`
   toRaw(editor.value)?.setOption?.(`theme`, theme)
+})
+
+// 监听 tab 切换，更新编辑器内容
+watch(activeTab, (newTab) => {
+  if (!editor.value)
+    return
+
+  if (newTab === `original`) {
+    editor.value.setValue(store.posts[store.currentPostIndex].content)
+  }
+  else {
+    editor.value.setValue(convertedMarkdownV1.value || `这里是空的`)
+  }
+
+  // 刷新预览区
+  nextTick(() => {
+    editorRefresh()
+  })
 })
 
 // 历史记录的定时器
@@ -465,20 +495,51 @@ onUnmounted(() => {
                 'border-r': store.isEditOnLeft,
               }"
             >
-              <SearchTab v-if="editor" ref="searchTabRef" :editor="editor" />
-              <AIFixedBtn
-                :is-mobile="store.isMobile"
-                :show-editor="showEditor"
-              />
+              <!-- 添加 tab 控制 -->
+              <div class="flex border-b">
+                <button
+                  class="px-4 py-2 font-medium"
+                  :class="{
+                    'border-b-2 border-blue-500 text-blue-500': activeTab === 'original',
+                    'text-gray-500': activeTab !== 'original',
+                  }"
+                  @click="activeTab = 'original'"
+                >
+                  原始文档
+                </button>
+                <button
+                  class="px-4 py-2 font-medium"
+                  :class="{
+                    'border-b-2 border-blue-500 text-blue-500': activeTab === 'converted',
+                    'text-gray-500': activeTab !== 'converted',
+                  }"
+                  @click="activeTab = 'converted'"
+                >
+                  转图后
+                </button>
+              </div>
 
-              <EditorContextMenu>
-                <textarea
-                  id="editor"
-                  ref="editorRef"
-                  type="textarea"
-                  placeholder="Your markdown text here."
+              <div v-if="activeTab === 'converted' && !convertedMarkdownV1" class="p-4 text-gray-500">
+                这里是空的
+              </div>
+
+              <template v-else>
+                <SearchTab v-if="editor" ref="searchTabRef" :editor="editor" />
+                <AIFixedBtn
+                  :is-mobile="store.isMobile"
+                  :show-editor="showEditor"
                 />
-              </EditorContextMenu>
+
+                <EditorContextMenu>
+                  <textarea
+                    id="editor"
+                    ref="editorRef"
+                    type="textarea"
+                    placeholder="Your markdown text here."
+                    :value="activeTab === 'original' ? store.posts[store.currentPostIndex]?.content : convertedMarkdownV1"
+                  />
+                </EditorContextMenu>
+              </template>
             </div>
             <div
               v-show="!store.isMobile || (store.isMobile && !showEditor)"
