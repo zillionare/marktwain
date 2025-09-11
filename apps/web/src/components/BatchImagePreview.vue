@@ -29,6 +29,11 @@ async function handleImageReplacement() {
   const success = await replaceBlocksWithImageLinks()
   if (success) {
     hideBatchPreview()
+    // 通知父组件切换到 v1 模式
+    const event = new CustomEvent(`switchToV1`, {
+      detail: { switchToV1: true },
+    })
+    window.dispatchEvent(event)
   }
 }
 

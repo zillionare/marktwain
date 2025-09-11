@@ -176,13 +176,31 @@ export function useBatchImagePreview() {
 
       console.log(`图片上传成功:`, imageId, uploadedUrl)
 
-      // 不自动关闭预览，让用户可以选择“生成转图后 MD”
-      // const allUploaded = state.images.every(img => img.uploaded)
-      // if (allUploaded && state.images.length > 0) {
-      //   setTimeout(() => {
-      //     hideBatchPreview()
-      //   }, 1500)
-      // }
+      // 检查是否所有图片都上传成功
+      const allUploaded = state.images.every(img => img.uploaded)
+      if (allUploaded && state.images.length > 0) {
+        console.log(`所有图片上传完成，自动进行图片替换并切换到 v1`)
+        // 延迟一点执行，让用户看到上传完成状态
+        setTimeout(async () => {
+          try {
+            // 自动进行图片替换
+            const { replaceBlocksWithImageLinks } = useStore()
+            const success = await replaceBlocksWithImageLinks()
+            if (success) {
+              // 关闭预览框
+              hideBatchPreview()
+              // 通知父组件切换到 v1 模式
+              const event = new CustomEvent(`switchToV1`, {
+                detail: { switchToV1: true },
+              })
+              window.dispatchEvent(event)
+            }
+          }
+          catch (error) {
+            console.error(`自动替换失败:`, error)
+          }
+        }, 1000)
+      }
 
       return uploadedUrl
     }

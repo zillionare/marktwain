@@ -1,55 +1,9 @@
-import { initRenderer } from '@md/core'
-import {
-  defaultStyleConfig,
-  themeMap,
-  widthOptions,
-} from '@md/shared/configs'
-import { snapdom } from '@zumer/snapdom'
-import CodeMirror from 'codemirror'
-import { v4 as uuid } from 'uuid'
-import DEFAULT_CONTENT from '@/assets/example/markdown.md?raw'
-import DEFAULT_CSS_CONTENT from '@/assets/example/theme-css.txt?raw'
-
-import { useBatchImagePreview } from '@/composables/useBatchImagePreview'
-import { altKey, shiftKey } from '@/configs/shortcut-key'
-import {
-  addPrefix,
-  css2json,
-  customCssWithTemplate,
-  customizeTheme,
-  downloadFile,
-  downloadMD,
-  exportHTML,
-  exportPDF,
-  exportPureHTML,
-  formatDoc,
-  postProcessHtml,
-  processHtmlContent,
-  renderMarkdown,
-  sanitizeTitle,
-} from '@/utils'
-import { copyPlain } from '@/utils/clipboard'
-
-/**********************************
- * Post 结构接口
- *********************************/
-interface Post {
-  id: string
-  title: string
-  content: string
-  history: {
-    datetime: string
-    content: string
-  }[]
-  createDatetime: Date
-  updateDatetime: Date
-  // 父标签
-  parentId?: string | null
-  // 展开状态
-  collapsed?: boolean
-}
-
 export const useStore = defineStore(`store`, () => {
+  // 内容编辑器
+  const editor = ref<CodeMirror.EditorFromTextArea | null>(null)
+  // 预备弃用的旧字段
+  const editorContent = useStorage(`__editor_content`, DEFAULT_CONTENT)
+
   // 是否开启深色模式
   const isDark = useDark()
   const toggleDark = useToggle(isDark)
@@ -66,12 +20,28 @@ export const useStore = defineStore(`store`, () => {
   const isCiteStatus = useStorage(`isCiteStatus`, defaultStyleConfig.isCiteStatus)
   const toggleCiteStatus = useToggle(isCiteStatus)
 
-  // 转图功能相关状态
-  const originalMarkdown = ref<string>(``) // 保存原始 markdown
-  const convertedMarkdownV1 = ref<string>(``) // 保存替换后的 v1 版本 markdown
-  const isImageReplaced = ref<boolean>(false) // 标记是否已替换为图片链接
-  const conversionMap = ref<Map<string, string>>(new Map()) // 存储转换映射关系
-  const isConverting = ref<boolean>(false) // 标记是否正在转换中
+  // 转图功能（使用新的 composable）
+  const imageConversion = useImageConversion()
+  const {
+    originalMarkdown,
+    convertedMarkdownV1,
+    isImageReplaced,
+    conversionMap,
+    isConverting,
+    updateConversionMap,
+    replaceBlocksWithImageLinks,
+    copyConvertedMarkdownV1,
+    exportConvertedMarkdownV1,
+  } = imageConversion
+
+  // 编辑器模式状态（v0: 原始内容，v1: 转图后内容）
+  const editorMode = useStorage(`editorMode`, `v0`) // `v0` | `v1`
+
+  // 转图操作的包装器，传入编辑器内容
+  const convertToImages = async () => {
+    const editorContent = editor.value?.getValue() || ``
+    return await imageConversion.convertToImages(editorContent)
+  }
 
   // 转图配置
   const conversionConfig = useStorage(`conversionConfig`, {
@@ -127,11 +97,6 @@ export const useStore = defineStore(`store`, () => {
   const previewWidth = useStorage(`previewWidth`, widthOptions[0].value)
 
   const fontSizeNumber = computed(() => Number(fontSize.value.replace(`px`, ``)))
-
-  // 内容编辑器
-  const editor = ref<CodeMirror.EditorFromTextArea | null>(null)
-  // 预备弃用的旧字段
-  const editorContent = useStorage(`__editor_content`, DEFAULT_CONTENT)
 
   const isOpenRightSlider = useStorage(addPrefix(`is_open_right_slider`), false)
   const isOpenPostSlider = useStorage(addPrefix(`is_open_post_slider`), false)
@@ -405,7 +370,17 @@ export const useStore = defineStore(`store`, () => {
       isShowLineNumbers: isShowLineNumbers.value,
     })
 
-    const raw = editor.value!.getValue()
+    // 根据当前模式选择渲染内容
+    let raw: string
+    if (editorMode.value === `v1` && isImageReplaced.value && convertedMarkdownV1.value) {
+      // v1 模式：渲染转图后的内容
+      raw = convertedMarkdownV1.value
+    }
+    else {
+      // v0 模式：渲染编辑器原始内容
+      raw = editor.value?.getValue() || ``
+    }
+
     const { html: baseHtml, readingTime: readingTimeResult } = renderMarkdown(raw, renderer)
     readingTime.chars = raw.length
     readingTime.words = readingTimeResult.words
@@ -431,6 +406,15 @@ export const useStore = defineStore(`store`, () => {
     output.value = div.innerHTML
   }
 
+  // 编辑器模式状态（v0: 原始内容，v1: 转图后内容）
+  const setEditorMode = (mode: `v0` | `v1`) => {
+    editorMode.value = mode
+    // 切换模式时刷新预览
+    nextTick(() => {
+      editorRefresh()
+    })
+  }
+
   // 更新 CSS
   const updateCss = () => {
     const json = css2json(cssEditor.value!.getValue())
@@ -448,6 +432,7 @@ export const useStore = defineStore(`store`, () => {
 
     editorRefresh()
   }
+
   // 初始化 CSS 编辑器
   onMounted(() => {
     const cssEditorDom = document.querySelector<HTMLTextAreaElement>(
@@ -531,11 +516,11 @@ export const useStore = defineStore(`store`, () => {
   }
 
   // 为函数添加刷新编辑器的功能
-  const withAfterRefresh = (fn: (...rest: any[]) => void) => (
-    ...rest: any[]
-  ) => {
-    fn(...rest)
-    editorRefresh()
+  const withAfterRefresh = (fn: (...rest: any[]) => void) => {
+    return (...rest: any[]) => {
+      fn(...rest)
+      editorRefresh()
+    }
   }
 
   const getTheme = (size: string, color: string) => {
@@ -718,517 +703,6 @@ export const useStore = defineStore(`store`, () => {
   }
 
   // 转图功能相关函数
-  // 保存原始 markdown
-  const saveOriginalMarkdown = () => {
-    const currentContent = editor.value!.getValue()
-    originalMarkdown.value = currentContent
-    // 注意：不清空 conversionMap，因为图片上传后需要这些数据
-    // conversionMap.value.clear()
-  }
-
-  // 转换单个元素为图片（批量模式）
-  const convertElementToImage = async (element: HTMLElement, _type: string, _index: number) => {
-    const prevWidth = element.style.width
-
-    try {
-      console.log(`\n=== 开始截图 第${_index + 1}个元素 ===`)
-      console.log(`元素类型:`, _type)
-      console.log(`元素标签:`, element.tagName)
-      console.log(`元素类名:`, element.className)
-      console.log(`元素ID:`, element.id)
-      console.log(`元素内容长度:`, element.textContent?.length || 0)
-      console.log(`元素innerHTML长度:`, element.innerHTML?.length || 0)
-
-      // 检查元素位置和尺寸（设置宽度之前）
-      const rectBefore = element.getBoundingClientRect()
-      console.log(`设置宽度前 - 元素位置和尺寸:`, {
-        x: rectBefore.x,
-        y: rectBefore.y,
-        width: rectBefore.width,
-        height: rectBefore.height,
-        offsetWidth: element.offsetWidth,
-        offsetHeight: element.offsetHeight,
-        scrollWidth: element.scrollWidth,
-        scrollHeight: element.scrollHeight,
-      })
-
-      // 检查元素样式
-      const computedStyle = getComputedStyle(element)
-      console.log(`元素样式:`, {
-        visibility: computedStyle.visibility,
-        display: computedStyle.display,
-        opacity: computedStyle.opacity,
-        position: computedStyle.position,
-        zIndex: computedStyle.zIndex,
-        overflow: computedStyle.overflow,
-        background: computedStyle.background,
-        backgroundColor: computedStyle.backgroundColor,
-      })
-
-      // 检查元素是否在视窗内
-      const isInViewport = rectBefore.top >= 0 && rectBefore.left >= 0
-        && rectBefore.bottom <= window.innerHeight
-        && rectBefore.right <= window.innerWidth
-      console.log(`元素是否在视窗内:`, isInViewport)
-      console.log(`视窗尺寸:`, { width: window.innerWidth, height: window.innerHeight })
-
-      // 设置元素宽度
-      element.style.width = `${conversionConfig.value.screenWidth}px`
-      console.log(`设置宽度为:`, `${conversionConfig.value.screenWidth}px`)
-
-      // 等待元素渲染完成
-      await new Promise(resolve => setTimeout(resolve, 200))
-
-      // 检查设置宽度后的尺寸
-      const rectAfter = element.getBoundingClientRect()
-      console.log(`设置宽度后 - 元素位置和尺寸:`, {
-        x: rectAfter.x,
-        y: rectAfter.y,
-        width: rectAfter.width,
-        height: rectAfter.height,
-        offsetWidth: element.offsetWidth,
-        offsetHeight: element.offsetHeight,
-        scrollWidth: element.scrollWidth,
-        scrollHeight: element.scrollHeight,
-      })
-
-      // 检查截图配置
-      const screenshotConfig = {
-        dpr: conversionConfig.value.devicePixelRatio || 2,
-      }
-      console.log(`截图配置:`, screenshotConfig)
-      console.log(`设备像素比率:`, window.devicePixelRatio)
-
-      // 滚动到元素位置确保可见
-      element.scrollIntoView({ behavior: `instant`, block: `center` })
-      await new Promise(resolve => setTimeout(resolve, 100))
-
-      console.log(`准备调用 snapdom.toJpg...`)
-      const imgElement = await snapdom.toJpg(element, screenshotConfig)
-      console.log(`snapdom.toJpg 调用完成`)
-
-      console.log(`截图结果分析:`)
-      console.log(`- 返回对象类型:`, typeof imgElement)
-      console.log(`- 是否为HTMLImageElement:`, imgElement instanceof HTMLImageElement)
-      console.log(`- src 属性存在:`, !!imgElement.src)
-      console.log(`- 图片URL长度:`, imgElement.src?.length || 0)
-
-      if (imgElement.src) {
-        console.log(`- 图片URL前100字符:`, imgElement.src.substring(0, 100))
-        console.log(`- 是否为data URL:`, imgElement.src.startsWith(`data:`))
-
-        // 分析 data URL 结构
-        if (imgElement.src.startsWith(`data:`)) {
-          const [header, data] = imgElement.src.split(`,`)
-          console.log(`- Data URL header:`, header)
-          console.log(`- Base64 数据长度:`, data?.length || 0)
-
-          // 估算实际文件大小（Base64 编码后约为原始数据的 4/3）
-          const estimatedSize = data ? Math.round((data.length * 3) / 4) : 0
-          console.log(`- 估算文件大小:`, estimatedSize, `bytes`)
-
-          if (estimatedSize < 1000) {
-            console.error(`🚨 错误: 图片数据过小，截图可能失败！`)
-            console.error(`- 可能原因: 元素不可见、尺寸为0、或截图库配置问题`)
-          }
-        }
-      }
-      else {
-        console.error(`🚨 错误: 截图返回的对象没有 src 属性`)
-      }
-
-      return imgElement.src
-    }
-    catch (error) {
-      console.error(`转换失败 [${_type}-${_index}]:`, error)
-      console.error(`错误详情:`, {
-        name: (error as Error).name,
-        message: (error as Error).message,
-        stack: (error as Error).stack,
-      })
-      throw error
-    }
-    finally {
-      element.style.width = prevWidth
-      console.log(`恢复元素原始宽度:`, prevWidth || `auto`)
-      console.log(`=== 截图处理完成 ===\n`)
-    }
-  }
-
-  // 在markdown编辑区搜索并编号各类块元素
-  interface MarkdownBlock {
-    type: `admonition` | `math` | `code`
-    content: string
-    startIndex: number
-    endIndex: number
-    startLine: number
-    endLine: number
-    sequenceIndex: number
-    id: string // 唯一标识符
-  }
-
-  // 计算字符位置对应的行号
-  const getLineNumber = (markdown: string, charIndex: number): number => {
-    return markdown.substring(0, charIndex).split(`\n`).length
-  }
-
-  // 检查是否为嵌套块（一个块在其他块的起始行内）
-  const isNestedBlock = (block: MarkdownBlock, allBlocks: MarkdownBlock[]): boolean => {
-    return allBlocks.some((otherBlock) => {
-      // 跳过自己
-      if (otherBlock === block)
-        return false
-
-      // 检查是否在其他块的范围内
-      return block.startIndex > otherBlock.startIndex
-        && block.endIndex < otherBlock.endIndex
-    })
-  }
-
-  const findMarkdownBlocks = (markdown: string): MarkdownBlock[] => {
-    const allBlocks: MarkdownBlock[] = []
-    let sequenceIndex = 0
-    let blockIdCounter = 0
-
-    // 生成唯一块ID
-    const generateBlockId = (type: string) => {
-      return `mktwain-${type}-${Date.now()}-${++blockIdCounter}`
-    }
-
-    // 查找 Admonition 块 (!!! 语法)
-    // 从 ^!!! 开始，到连续两个空行止
-    const admonitionRegex = /^!!![\s\S]*?\n\s*\n/gm
-    let match
-    match = admonitionRegex.exec(markdown)
-    while (match !== null) {
-      console.log(`\n=== Admonition 匹配结果 ===`)
-      console.log(`匹配的内容:`, JSON.stringify(match[0]))
-      console.log(`匹配的长度:`, match[0].length)
-      console.log(`起始位置:`, match.index)
-      console.log(`结束位置:`, match.index + match[0].length)
-
-      const startLine = getLineNumber(markdown, match.index)
-      const endLine = getLineNumber(markdown, match.index + match[0].length)
-
-      console.log(`起始行号:`, startLine)
-      console.log(`结束行号:`, endLine)
-
-      allBlocks.push({
-        type: `admonition`,
-        content: match[0],
-        startIndex: match.index,
-        endIndex: match.index + match[0].length,
-        startLine,
-        endLine,
-        sequenceIndex: sequenceIndex++,
-        id: generateBlockId(`admonition`), // 新增：生成唯一ID
-      })
-      match = admonitionRegex.exec(markdown)
-    }
-
-    // 查找数学公式块 ($$...$$)
-    const mathRegex = /\$\$[\s\S]*?\$\$/g
-    match = mathRegex.exec(markdown)
-    while (match !== null) {
-      const startLine = getLineNumber(markdown, match.index)
-      const endLine = getLineNumber(markdown, match.index + match[0].length)
-
-      allBlocks.push({
-        type: `math`,
-        content: match[0],
-        startIndex: match.index,
-        endIndex: match.index + match[0].length,
-        startLine,
-        endLine,
-        sequenceIndex: sequenceIndex++,
-        id: generateBlockId(`math`), // 新增：生成唯一ID
-      })
-      match = mathRegex.exec(markdown)
-    }
-
-    // 查找代码块 (```...```)
-    const codeRegex = /```[\s\S]*?```/g
-    match = codeRegex.exec(markdown)
-    while (match !== null) {
-      const startLine = getLineNumber(markdown, match.index)
-      const endLine = getLineNumber(markdown, match.index + match[0].length)
-
-      allBlocks.push({
-        type: `code`,
-        content: match[0],
-        startIndex: match.index,
-        endIndex: match.index + match[0].length,
-        startLine,
-        endLine,
-        sequenceIndex: sequenceIndex++,
-        id: generateBlockId(`code`), // 新增：生成唯一ID
-      })
-      match = codeRegex.exec(markdown)
-    }
-
-    // 按在文档中出现的顺序排序
-    allBlocks.sort((a, b) => a.startIndex - b.startIndex)
-
-    // 过滤掉嵌套块
-    const nonNestedBlocks = allBlocks.filter(block => !isNestedBlock(block, allBlocks))
-
-    console.log(`找到 ${allBlocks.length} 个块，过滤嵌套后剩余 ${nonNestedBlocks.length} 个块`)
-    console.log(`非嵌套块详情:`, nonNestedBlocks.map(b => ({
-      type: b.type,
-      startLine: b.startLine,
-      endLine: b.endLine,
-      content: `${b.content.substring(0, 50)}...`,
-    })))
-
-    return nonNestedBlocks
-  }
-
-  // 转换元素为图片
-  const convertElementsToImages = async () => {
-    // 1. 首先基于 Markdown 内容找到需要转换的块
-    const markdownBlocks = findMarkdownBlocks(originalMarkdown.value)
-
-    if (markdownBlocks.length === 0) {
-      console.log(`没有找到需要转换的块`)
-      return
-    }
-
-    console.log(`找到 ${markdownBlocks.length} 个需要转换的块（已过滤嵌套）`)
-    console.log(`块详情:`, markdownBlocks.map(b => ({ type: b.type, id: b.id, startLine: b.startLine, endLine: b.endLine })))
-
-    // 2. 在 HTML 预览区找到对应的元素
-    const previewElement = document.querySelector(`#output-wrapper > .preview`)
-    if (!previewElement) {
-      console.error(`找不到预览元素`)
-      return
-    }
-
-    // 3. 直接通过 data-id 查找元素，无需动态添加
-    const elementsToConvert: HTMLElement[] = []
-
-    // 简化的 data-id 匹配逻辑
-    const collectElementsByDataId = (blocks: MarkdownBlock[]): boolean => {
-      let allFound = true
-
-      console.log(`\n=== 开始收集元素 ===`)
-      console.log(`需要处理的块:`, blocks.map(b => ({ type: b.type, id: b.id })))
-
-      // 查找所有具有 mktwain-data-id 属性的元素
-      const allElements = previewElement.querySelectorAll(`[mktwain-data-id]`)
-      console.log(`找到 ${allElements.length} 个具有 data-id 的元素`)
-
-      // 构建 data-id 到元素的映射
-      const dataIdToElement = new Map<string, HTMLElement>()
-      allElements.forEach((el) => {
-        const dataId = el.getAttribute(`mktwain-data-id`)
-        if (dataId) {
-          dataIdToElement.set(dataId, el as HTMLElement)
-          console.log(`映射: ${dataId} -> ${el.tagName}.${el.className}`)
-        }
-      })
-
-      // 尝试直接匹配 (理想情况)
-      blocks.forEach((block, index) => {
-        console.log(`\n处理第 ${index} 个块: ${block.type} (ID: ${block.id})`)
-
-        // 尝试直接用 block.id 匹配
-        let element = dataIdToElement.get(block.id)
-
-        if (element) {
-          elementsToConvert.push(element)
-          console.log(`  直接匹配成功: ${element.tagName}.${element.className}`)
-        }
-        else {
-          // 如果直接匹配失败，fallback 到类型匹配 (当前方案)
-          console.log(`  直接匹配失败，尝试类型匹配...`)
-
-          const typeElements = Array.from(allElements).filter((el) => {
-            if (block.type === `admonition`)
-              return el.classList.contains(`admonition`)
-            if (block.type === `math`)
-              return el.classList.contains(`block_katex`)
-            if (block.type === `code`)
-              return el.tagName === `PRE` && el.classList.contains(`hljs`)
-            return false
-          })
-
-          const typeBlocks = blocks.filter(b => b.type === block.type)
-          const blockIndex = typeBlocks.indexOf(block)
-          element = typeElements[blockIndex] as HTMLElement
-
-          if (element) {
-            elementsToConvert.push(element)
-            console.log(`  类型匹配成功: ${element.tagName}.${element.className} (索引: ${blockIndex})`)
-          }
-          else {
-            console.error(`  匹配失败: ${block.type} - ${block.id}`)
-            console.log(`  可用的 data-id:`, Array.from(dataIdToElement.keys()))
-            allFound = false
-          }
-        }
-      })
-
-      return allFound
-    }
-
-    // 直接收集所有有 data-id 的元素
-    const allSuccess = collectElementsByDataId(markdownBlocks)
-
-    if (!allSuccess) {
-      toast.error(`找不到对应的HTML元素，停止转换`)
-      return
-    }
-
-    // 4. 元素已经按照 Markdown 块的顺序收集，直接使用
-    const sortedElements = elementsToConvert
-
-    console.log(`\n=== 最终要转换的元素 ===`)
-    console.log(`总数: ${sortedElements.length}`)
-    sortedElements.forEach((element, index) => {
-      const dataId = element.getAttribute(`mktwain-data-id`)
-      const block = markdownBlocks[index] // 直接使用索引对应
-      console.log(`${index}: ${block?.type} (data-id: ${dataId})`)
-    })
-
-    // 获取批量预览的 addImage 和 setProcessing 函数
-    const { addImage, setProcessing } = useBatchImagePreview()
-
-    // 5. 依次转换每个元素
-    for (let i = 0; i < sortedElements.length; i++) {
-      const element = sortedElements[i]
-      const markdownBlock = markdownBlocks[i] // 直接使用索引对应
-      const dataId = element.getAttribute(`mktwain-data-id`)!
-
-      console.log(`\n正在转换第 ${i + 1}/${sortedElements.length} 个元素:`, {
-        type: markdownBlock.type,
-        id: markdownBlock.id,
-        startLine: markdownBlock.startLine,
-        endLine: markdownBlock.endLine,
-        dataId,
-        element,
-      })
-
-      try {
-        const elementType = markdownBlock.type
-        const imgDataUrl = await convertElementToImage(element, elementType, i)
-
-        console.log(`第 ${i + 1} 个元素转换成功`)
-
-        // 添加到批量预览，使用块ID作为图片ID
-        addImage(
-          elementType,
-          i,
-          imgDataUrl,
-          markdownBlock.content,
-          markdownBlock.startLine,
-          markdownBlock.endLine,
-        )
-      }
-      catch (error) {
-        console.error(`第 ${i + 1} 个元素转换失败:`, error)
-        // 继续转换下一个元素，不中断整个流程
-        continue
-      }
-    }
-
-    // 转换完成，设置处理状态为 false
-    setProcessing(false)
-  }
-
-  // 执行转图操作
-  const convertToImages = async () => {
-    try {
-      // 导入批量预览状态检查
-      const { state: batchState } = useBatchImagePreview()
-
-      // 检查是否已有已上传的图片
-      const hasUploadedImages = batchState.images.some(img => img.uploaded)
-      if (hasUploadedImages) {
-        toast.error(`检测到已上传的图片，无法重新转图。请完成当前操作或刷新页面后重试。`)
-        return false
-      }
-
-      isConverting.value = true
-
-      // 1. 保存原始内容
-      saveOriginalMarkdown()
-
-      // 2. 显示批量预览窗口
-      const { showBatchPreview } = useBatchImagePreview()
-      showBatchPreview(originalMarkdown.value)
-
-      // 3. 转换元素为图片
-      await convertElementsToImages()
-
-      return true
-    }
-    catch (error) {
-      console.error(`转图失败:`, error)
-      throw error
-    }
-    finally {
-      isConverting.value = false
-    }
-  }
-
-  // 更新转换映射（用于上传后更新 URL）
-  const updateConversionMap = (elementId: string, imageUrl: string) => {
-    conversionMap.value.set(elementId, imageUrl)
-    console.log(`更新转换映射:`, elementId, imageUrl)
-    console.log(`当前 conversionMap 大小:`, conversionMap.value.size)
-    console.log(`当前 conversionMap 内容:`, Array.from(conversionMap.value.entries()))
-  }
-
-  // Step 5 & 6: 复制和导出v1版本的函数
-  const copyConvertedMarkdownV1 = async (): Promise<boolean> => {
-    if (!isImageReplaced.value || !convertedMarkdownV1.value) {
-      toast.error(`没有转图后的 Markdown 内容，请先进行图片替换操作`)
-      return false
-    }
-
-    try {
-      await navigator.clipboard.writeText(convertedMarkdownV1.value)
-      toast.success(`转图后 MD 内容已复制到剪贴板`)
-      return true
-    }
-    catch (error) {
-      console.error(`复制失败:`, error)
-      // 降级到传统复制方式
-      const textarea = document.createElement(`textarea`)
-      textarea.value = convertedMarkdownV1.value
-      document.body.appendChild(textarea)
-      textarea.select()
-      const success = document.execCommand(`copy`)
-      document.body.removeChild(textarea)
-
-      if (success) {
-        toast.success(`转图后 MD 内容已复制到剪贴板`)
-        return true
-      }
-      else {
-        toast.error(`复制失败，请手动复制`)
-        return false
-      }
-    }
-  }
-
-  const exportConvertedMarkdownV1 = (): boolean => {
-    if (!isImageReplaced.value || !convertedMarkdownV1.value) {
-      toast.error(`没有转图后的 Markdown 内容，请先进行图片替换操作`)
-      return false
-    }
-
-    try {
-      downloadMD(convertedMarkdownV1.value, `${posts.value[currentPostIndex.value].title}-image-replaced`)
-      return true
-    }
-    catch (error) {
-      console.error(`导出失败:`, error)
-      toast.error(`导出失败: ${(error as Error).message}`)
-      return false
-    }
-  }
-
   // 是否打开重置样式对话框
   const isOpenConfirmDialog = ref(false)
 
@@ -1299,6 +773,11 @@ export const useStore = defineStore(`store`, () => {
     conversionConfig,
     convertToImages,
     updateConversionMap,
+    replaceBlocksWithImageLinks,
+
+    // 编辑器模式
+    editorMode,
+    setEditorMode,
 
     // 图片替换功能
     copyConvertedMarkdownV1,
@@ -1344,77 +823,8 @@ export const useStore = defineStore(`store`, () => {
 })
 
 export const useDisplayStore = defineStore(`display`, () => {
-  // 是否展示 CSS 编辑器
-  const isShowCssEditor = useStorage(`isShowCssEditor`, false)
-  const toggleShowCssEditor = useToggle(isShowCssEditor)
-
-  // 是否展示插入表格对话框
-  const isShowInsertFormDialog = ref(false)
-  const toggleShowInsertFormDialog = useToggle(isShowInsertFormDialog)
-
-  // 是否展示插入公众号名片对话框
-  const isShowInsertMpCardDialog = ref(false)
-  const toggleShowInsertMpCardDialog = useToggle(isShowInsertMpCardDialog)
-
-  // 是否展示上传图片对话框
-  const isShowUploadImgDialog = ref(false)
-  const toggleShowUploadImgDialog = useToggle(isShowUploadImgDialog)
-
-  const aiDialogVisible = ref(false)
-
-  function toggleAIDialog(value?: boolean) {
-    aiDialogVisible.value = value ?? !aiDialogVisible.value
-  }
-
-  return {
-    isShowCssEditor,
-    toggleShowCssEditor,
-    isShowInsertFormDialog,
-    toggleShowInsertFormDialog,
-    isShowInsertMpCardDialog,
-    toggleShowInsertMpCardDialog,
-    isShowUploadImgDialog,
-    toggleShowUploadImgDialog,
-    aiDialogVisible,
-    toggleAIDialog,
-  }
 })
 
 // 获取所有状态的方法
 export function getAllStoreStates() {
-  const store = useStore()
-  const displayStore = useDisplayStore()
-
-  return {
-    // 主 store 的状态
-    isDark: store.isDark,
-    isEditOnLeft: store.isEditOnLeft,
-    isMacCodeBlock: store.isMacCodeBlock,
-    isCiteStatus: store.isCiteStatus,
-    showAIToolbox: store.showAIToolbox,
-    isCountStatus: store.isCountStatus,
-    isUseIndent: store.isUseIndent,
-    isUseJustify: store.isUseJustify,
-    isOpenRightSlider: store.isOpenRightSlider,
-    isOpenPostSlider: store.isOpenPostSlider,
-    theme: store.theme,
-    fontFamily: store.fontFamily,
-    fontSize: store.fontSize,
-    primaryColor: store.primaryColor,
-    codeBlockTheme: store.codeBlockTheme,
-    legend: store.legend,
-    currentPostId: store.currentPostId,
-    currentPostIndex: store.currentPostIndex,
-    posts: store.posts,
-    cssContentConfig: store.cssContentConfig,
-    titleList: store.titleList,
-    readingTime: store.readingTime,
-
-    // displayStore 的状态
-    isShowCssEditor: displayStore.isShowCssEditor,
-    isShowInsertFormDialog: displayStore.isShowInsertFormDialog,
-    isShowUploadImgDialog: displayStore.isShowUploadImgDialog,
-    isShowInsertMpCardDialog: displayStore.isShowInsertMpCardDialog,
-    aiDialogVisible: displayStore.aiDialogVisible,
-  }
 }
