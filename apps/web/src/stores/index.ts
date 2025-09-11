@@ -80,12 +80,18 @@ export const useStore = defineStore(`store`, () => {
     convertAdmonition: true, // 转换 Admonition
     convertMathBlock: true, // 转换数学公式
     convertFencedBlock: true, // 转换代码块
+    convertH2: true, // 新增：转换 h2 标题
+    convertH3: true, // 新增：转换 h3 标题
+    convertH4: false, // 新增：转换 h4 标题
   } as {
     screenWidth: number
     devicePixelRatio: number
     convertAdmonition: boolean
     convertMathBlock: boolean
     convertFencedBlock: boolean
+    convertH2: boolean
+    convertH3: boolean
+    convertH4: boolean
     [key: string]: any // 添加索引签名以支持动态访问
   })
 
@@ -1271,6 +1277,31 @@ export const useStore = defineStore(`store`, () => {
     isOpenConfirmDialog.value = true
   }
 
+  // 重置转图相关状态
+  const resetImageConversion = () => {
+    // 清除转换后的markdown
+    convertedMarkdownV1.value = ``
+
+    // 重置图片替换状态
+    isImageReplaced.value = false
+
+    // 清空转换映射关系
+    conversionMap.value.clear()
+
+    // 重置转换中状态
+    isConverting.value = false
+
+    // 清理所有可能的上传图片记录（由于我们不知道原始内容，清理所有记录）
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith(`uploaded-images-`)) {
+        localStorage.removeItem(key)
+      }
+    }
+
+    toast.success(`转图状态已重置`)
+  }
+
   return {
     isDark,
     toggleDark,
@@ -1333,6 +1364,7 @@ export const useStore = defineStore(`store`, () => {
     conversionConfig,
     convertToImages,
     updateConversionMap,
+    resetImageConversion, // 添加重置转图功能
 
     // 图片替换功能
     copyConvertedMarkdownV1,

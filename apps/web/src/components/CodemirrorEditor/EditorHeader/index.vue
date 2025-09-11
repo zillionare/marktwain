@@ -304,6 +304,19 @@ async function copy() {
 </template>
 
 <style lang="less" scoped>
+.container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-auto-flow: dense; // 确保项目尽可能紧密地填充
+}
+
+// 或者手动设置行高
+.container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: auto; // 根据内容自动调整行高
+}
+
 .menubar {
   user-select: none;
 }

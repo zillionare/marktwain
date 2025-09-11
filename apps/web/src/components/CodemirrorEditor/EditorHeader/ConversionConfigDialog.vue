@@ -26,6 +26,21 @@ const conversionTypeOptions = [
     label: `Fenced Block`,
     description: `转换代码块为图片`,
   },
+  {
+    key: `convertH2`,
+    label: `二级标题`,
+    description: `将二级标题转为图片`,
+  },
+  {
+    key: `convertH3`,
+    label: `三级标题`,
+    description: `将三级标题转为图片`,
+  },
+  {
+    key: `convertH4`,
+    label: `四级标题`,
+    description: `将二级标题转为图片`,
+  },
 ]
 
 // 重置配置
@@ -36,6 +51,9 @@ function resetConfig() {
     convertAdmonition: true,
     convertMathBlock: true,
     convertFencedBlock: true,
+    convertH2: true,
+    convertH3: true,
+    convertH4: false,
   }
 }
 
@@ -65,13 +83,8 @@ defineExpose({
         <div class="space-y-2">
           <Label class="text-sm font-medium">屏幕宽度 (px)</Label>
           <Input
-            v-model.number="conversionConfig.screenWidth"
-            type="number"
-            min="400"
-            max="2000"
-            step="50"
-            placeholder="800"
-            class="w-full"
+            v-model.number="conversionConfig.screenWidth" type="number" min="400" max="2000" step="50"
+            placeholder="800" class="w-full"
           />
           <p class="text-xs text-muted-foreground">
             设置转图时的预览宽度，建议 500-700px
@@ -82,13 +95,8 @@ defineExpose({
         <div class="space-y-2">
           <Label class="text-sm font-medium">设备像素比</Label>
           <Input
-            v-model.number="conversionConfig.devicePixelRatio"
-            type="number"
-            min="0.5"
-            max="3"
-            step="0.1"
-            placeholder="1"
-            class="w-full"
+            v-model.number="conversionConfig.devicePixelRatio" type="number" min="0.5" max="3" step="0.1"
+            placeholder="1" class="w-full"
           />
           <p class="text-xs text-muted-foreground">
             设置图片的清晰度，1 为标准，2 为高清
@@ -98,15 +106,10 @@ defineExpose({
         <!-- 转换类型设置 -->
         <div class="space-y-3">
           <Label class="text-sm font-medium">转换类型</Label>
-          <div class="space-y-3">
-            <div
-              v-for="option in conversionTypeOptions"
-              :key="option.key"
-              class="flex items-start space-x-3"
-            >
+          <div class="space-y-3 grid grid-cols-2">
+            <div v-for="option in conversionTypeOptions" :key="option.key" class="flex items-start space-x-3">
               <Checkbox
-                :id="option.key"
-                :checked="conversionConfig[option.key]"
+                :id="option.key" :checked="conversionConfig[option.key]"
                 @update:checked="(checked) => conversionConfig[option.key] = checked"
               />
               <div class="space-y-1">
