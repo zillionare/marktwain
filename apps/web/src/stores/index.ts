@@ -699,7 +699,7 @@ export const useStore = defineStore(`store`, () => {
       editor.value!.replaceSelection(text)
     }
     catch (error) {
-      console.log(`粘贴失败`, error)
+      console.debug(`粘贴失败`, error)
     }
   }
 
@@ -731,17 +731,17 @@ export const useStore = defineStore(`store`, () => {
     const prevWidth = element.style.width
 
     try {
-      console.log(`\n=== 开始截图 第${_index + 1}个元素 ===`)
-      console.log(`元素类型:`, _type)
-      console.log(`元素标签:`, element.tagName)
-      console.log(`元素类名:`, element.className)
-      console.log(`元素ID:`, element.id)
-      console.log(`元素内容长度:`, element.textContent?.length || 0)
-      console.log(`元素innerHTML长度:`, element.innerHTML?.length || 0)
+      console.debug(`\n=== 开始截图 第${_index + 1}个元素 ===`)
+      console.debug(`元素类型:`, _type)
+      console.debug(`元素标签:`, element.tagName)
+      console.debug(`元素类名:`, element.className)
+      console.debug(`元素ID:`, element.id)
+      console.debug(`元素内容长度:`, element.textContent?.length || 0)
+      console.debug(`元素innerHTML长度:`, element.innerHTML?.length || 0)
 
       // 检查元素位置和尺寸（设置宽度之前）
       const rectBefore = element.getBoundingClientRect()
-      console.log(`设置宽度前 - 元素位置和尺寸:`, {
+      console.debug(`设置宽度前 - 元素位置和尺寸:`, {
         x: rectBefore.x,
         y: rectBefore.y,
         width: rectBefore.width,
@@ -754,7 +754,7 @@ export const useStore = defineStore(`store`, () => {
 
       // 检查元素样式
       const computedStyle = getComputedStyle(element)
-      console.log(`元素样式:`, {
+      console.debug(`元素样式:`, {
         visibility: computedStyle.visibility,
         display: computedStyle.display,
         opacity: computedStyle.opacity,
@@ -769,19 +769,19 @@ export const useStore = defineStore(`store`, () => {
       const isInViewport = rectBefore.top >= 0 && rectBefore.left >= 0
         && rectBefore.bottom <= window.innerHeight
         && rectBefore.right <= window.innerWidth
-      console.log(`元素是否在视窗内:`, isInViewport)
-      console.log(`视窗尺寸:`, { width: window.innerWidth, height: window.innerHeight })
+      console.debug(`元素是否在视窗内:`, isInViewport)
+      console.debug(`视窗尺寸:`, { width: window.innerWidth, height: window.innerHeight })
 
       // 设置元素宽度
       element.style.width = `${conversionConfig.value.screenWidth}px`
-      console.log(`设置宽度为:`, `${conversionConfig.value.screenWidth}px`)
+      console.debug(`设置宽度为:`, `${conversionConfig.value.screenWidth}px`)
 
       // 等待元素渲染完成
       await new Promise(resolve => setTimeout(resolve, 200))
 
       // 检查设置宽度后的尺寸
       const rectAfter = element.getBoundingClientRect()
-      console.log(`设置宽度后 - 元素位置和尺寸:`, {
+      console.debug(`设置宽度后 - 元素位置和尺寸:`, {
         x: rectAfter.x,
         y: rectAfter.y,
         width: rectAfter.width,
@@ -796,36 +796,36 @@ export const useStore = defineStore(`store`, () => {
       const screenshotConfig = {
         dpr: conversionConfig.value.devicePixelRatio || 2,
       }
-      console.log(`截图配置:`, screenshotConfig)
-      console.log(`设备像素比率:`, window.devicePixelRatio)
+      console.debug(`截图配置:`, screenshotConfig)
+      console.debug(`设备像素比率:`, window.devicePixelRatio)
 
       // 滚动到元素位置确保可见
       element.scrollIntoView({ behavior: `instant`, block: `center` })
       await new Promise(resolve => setTimeout(resolve, 100))
 
-      console.log(`准备调用 snapdom.toJpg...`)
+      console.debug(`准备调用 snapdom.toJpg...`)
       const imgElement = await snapdom.toJpg(element, screenshotConfig)
-      console.log(`snapdom.toJpg 调用完成`)
+      console.debug(`snapdom.toJpg 调用完成`)
 
-      console.log(`截图结果分析:`)
-      console.log(`- 返回对象类型:`, typeof imgElement)
-      console.log(`- 是否为HTMLImageElement:`, imgElement instanceof HTMLImageElement)
-      console.log(`- src 属性存在:`, !!imgElement.src)
-      console.log(`- 图片URL长度:`, imgElement.src?.length || 0)
+      console.debug(`截图结果分析:`)
+      console.debug(`- 返回对象类型:`, typeof imgElement)
+      console.debug(`- 是否为HTMLImageElement:`, imgElement instanceof HTMLImageElement)
+      console.debug(`- src 属性存在:`, !!imgElement.src)
+      console.debug(`- 图片URL长度:`, imgElement.src?.length || 0)
 
       if (imgElement.src) {
-        console.log(`- 图片URL前100字符:`, imgElement.src.substring(0, 100))
-        console.log(`- 是否为data URL:`, imgElement.src.startsWith(`data:`))
+        console.debug(`- 图片URL前100字符:`, imgElement.src.substring(0, 100))
+        console.debug(`- 是否为data URL:`, imgElement.src.startsWith(`data:`))
 
         // 分析 data URL 结构
         if (imgElement.src.startsWith(`data:`)) {
           const [header, data] = imgElement.src.split(`,`)
-          console.log(`- Data URL header:`, header)
-          console.log(`- Base64 数据长度:`, data?.length || 0)
+          console.debug(`- Data URL header:`, header)
+          console.debug(`- Base64 数据长度:`, data?.length || 0)
 
           // 估算实际文件大小（Base64 编码后约为原始数据的 4/3）
           const estimatedSize = data ? Math.round((data.length * 3) / 4) : 0
-          console.log(`- 估算文件大小:`, estimatedSize, `bytes`)
+          console.debug(`- 估算文件大小:`, estimatedSize, `bytes`)
 
           if (estimatedSize < 1000) {
             console.error(`🚨 错误: 图片数据过小，截图可能失败！`)
@@ -850,8 +850,8 @@ export const useStore = defineStore(`store`, () => {
     }
     finally {
       element.style.width = prevWidth
-      console.log(`恢复元素原始宽度:`, prevWidth || `auto`)
-      console.log(`=== 截图处理完成 ===\n`)
+      console.debug(`恢复元素原始宽度:`, prevWidth || `auto`)
+      console.debug(`=== 截图处理完成 ===\n`)
     }
   }
 
@@ -910,11 +910,11 @@ export const useStore = defineStore(`store`, () => {
     let match
     match = admonitionRegex.exec(markdown)
     while (match !== null) {
-      console.log(`\n=== Admonition 匹配结果 ===`)
-      console.log(`匹配的内容:`, JSON.stringify(match[0]))
-      console.log(`匹配的长度:`, match[0].length)
-      console.log(`起始位置:`, match.index)
-      console.log(`结束位置:`, match.index + match[0].length)
+      console.debug(`\n=== Admonition 匹配结果 ===`)
+      console.debug(`匹配的内容:`, JSON.stringify(match[0]))
+      console.debug(`匹配的长度:`, match[0].length)
+      console.debug(`起始位置:`, match.index)
+      console.debug(`结束位置:`, match.index + match[0].length)
 
       const startLine = getLineNumber(markdown, match.index)
       // 修复 endLine 计算：Admonition 块以两个连续换行符结束，但这些换行符不属于块本身
@@ -922,8 +922,8 @@ export const useStore = defineStore(`store`, () => {
       const blockContent = match[0].replace(/\n\s*\n$/, ``) // 移除结尾的换行符
       const endLine = getLineNumber(markdown, match.index + blockContent.length)
 
-      console.log(`起始行号:`, startLine)
-      console.log(`结束行号:`, endLine)
+      console.debug(`起始行号:`, startLine)
+      console.debug(`结束行号:`, endLine)
 
       allBlocks.push({
         type: `admonition`,
@@ -945,12 +945,12 @@ export const useStore = defineStore(`store`, () => {
       const startLine = getLineNumber(markdown, match.index)
       const endLine = getLineNumber(markdown, match.index + match[0].length)
 
-      console.log(`\n=== Math 匹配结果 ===`)
-      console.log(`匹配的内容:`, JSON.stringify(match[0]))
-      console.log(`起始位置:`, match.index)
-      console.log(`结束位置:`, match.index + match[0].length)
-      console.log(`起始行号:`, startLine)
-      console.log(`结束行号:`, endLine)
+      console.debug(`\n=== Math 匹配结果 ===`)
+      console.debug(`匹配的内容:`, JSON.stringify(match[0]))
+      console.debug(`起始位置:`, match.index)
+      console.debug(`结束位置:`, match.index + match[0].length)
+      console.debug(`起始行号:`, startLine)
+      console.debug(`结束行号:`, endLine)
 
       allBlocks.push({
         type: `math`,
@@ -972,12 +972,12 @@ export const useStore = defineStore(`store`, () => {
       const startLine = getLineNumber(markdown, match.index)
       const endLine = getLineNumber(markdown, match.index + match[0].length)
 
-      console.log(`\n=== Code 匹配结果 ===`)
-      console.log(`匹配的内容:`, JSON.stringify(match[0]))
-      console.log(`起始位置:`, match.index)
-      console.log(`结束位置:`, match.index + match[0].length)
-      console.log(`起始行号:`, startLine)
-      console.log(`结束行号:`, endLine)
+      console.debug(`\n=== Code 匹配结果 ===`)
+      console.debug(`匹配的内容:`, JSON.stringify(match[0]))
+      console.debug(`起始位置:`, match.index)
+      console.debug(`结束位置:`, match.index + match[0].length)
+      console.debug(`起始行号:`, startLine)
+      console.debug(`结束行号:`, endLine)
 
       allBlocks.push({
         type: `code`,
@@ -995,16 +995,16 @@ export const useStore = defineStore(`store`, () => {
     // 按在文档中出现的顺序排序
     allBlocks.sort((a, b) => a.startIndex - b.startIndex)
 
-    console.log(`\n=== 所有块（排序后）===`)
+    console.debug(`\n=== 所有块（排序后）===`)
     allBlocks.forEach((block, index) => {
-      console.log(`${index + 1}. ${block.type} 块 [${block.startIndex}-${block.endIndex}]`)
+      console.debug(`${index + 1}. ${block.type} 块 [${block.startIndex}-${block.endIndex}]`)
     })
 
     // 过滤掉嵌套块
     const nonNestedBlocks = allBlocks.filter(block => !isNestedBlock(block, allBlocks))
 
-    console.log(`找到 ${allBlocks.length} 个块，过滤嵌套后剩余 ${nonNestedBlocks.length} 个块`)
-    console.log(`非嵌套块详情:`, nonNestedBlocks.map(b => ({
+    console.debug(`找到 ${allBlocks.length} 个块，过滤嵌套后剩余 ${nonNestedBlocks.length} 个块`)
+    console.debug(`非嵌套块详情:`, nonNestedBlocks.map(b => ({
       type: b.type,
       startLine: b.startLine,
       endLine: b.endLine,
@@ -1022,12 +1022,12 @@ export const useStore = defineStore(`store`, () => {
     const markdownBlocks = findMarkdownBlocks(originalMarkdown.value)
 
     if (markdownBlocks.length === 0) {
-      console.log(`没有找到需要转换的块`)
+      console.debug(`没有找到需要转换的块`)
       return
     }
 
-    console.log(`找到 ${markdownBlocks.length} 个需要转换的块（已过滤嵌套）`)
-    console.log(`块详情:`, markdownBlocks.map(b => ({ type: b.type, id: b.id, startLine: b.startLine, endLine: b.endLine })))
+    console.debug(`找到 ${markdownBlocks.length} 个需要转换的块（已过滤嵌套）`)
+    console.debug(`块详情:`, markdownBlocks.map(b => ({ type: b.type, id: b.id, startLine: b.startLine, endLine: b.endLine })))
 
     // 2. 在 HTML 预览区找到对应的元素
     const previewElement = document.querySelector(`#output-wrapper > .preview`)
@@ -1043,12 +1043,12 @@ export const useStore = defineStore(`store`, () => {
     const collectElementsByDataId = (blocks: MarkdownBlock[]): boolean => {
       let allFound = true
 
-      console.log(`\n=== 开始收集元素 ===`)
-      console.log(`需要处理的块:`, blocks.map(b => ({ type: b.type, id: b.id })))
+      console.debug(`\n=== 开始收集元素 ===`)
+      console.debug(`需要处理的块:`, blocks.map(b => ({ type: b.type, id: b.id })))
 
       // 查找所有具有 mktwain-data-id 属性的元素
       const allElements = previewElement.querySelectorAll(`[mktwain-data-id]`)
-      console.log(`找到 ${allElements.length} 个具有 data-id 的元素`)
+      console.debug(`找到 ${allElements.length} 个具有 data-id 的元素`)
 
       // 构建 data-id 到元素的映射
       const dataIdToElement = new Map<string, HTMLElement>()
@@ -1056,24 +1056,24 @@ export const useStore = defineStore(`store`, () => {
         const dataId = el.getAttribute(`mktwain-data-id`)
         if (dataId) {
           dataIdToElement.set(dataId, el as HTMLElement)
-          console.log(`映射: ${dataId} -> ${el.tagName}.${el.className}`)
+          console.debug(`映射: ${dataId} -> ${el.tagName}.${el.className}`)
         }
       })
 
       // 尝试直接匹配 (理想情况)
       blocks.forEach((block, index) => {
-        console.log(`\n处理第 ${index} 个块: ${block.type} (ID: ${block.id})`)
+        console.debug(`\n处理第 ${index} 个块: ${block.type} (ID: ${block.id})`)
 
         // 尝试直接用 block.id 匹配
         let element = dataIdToElement.get(block.id)
 
         if (element) {
           elementsToConvert.push(element)
-          console.log(`  直接匹配成功: ${element.tagName}.${element.className}`)
+          console.debug(`  直接匹配成功: ${element.tagName}.${element.className}`)
         }
         else {
           // 如果直接匹配失败，fallback 到类型匹配 (当前方案)
-          console.log(`  直接匹配失败，尝试类型匹配...`)
+          console.debug(`  直接匹配失败，尝试类型匹配...`)
 
           const typeElements = Array.from(allElements).filter((el) => {
             if (block.type === `admonition`)
@@ -1091,11 +1091,11 @@ export const useStore = defineStore(`store`, () => {
 
           if (element) {
             elementsToConvert.push(element)
-            console.log(`  类型匹配成功: ${element.tagName}.${element.className} (索引: ${blockIndex})`)
+            console.debug(`  类型匹配成功: ${element.tagName}.${element.className} (索引: ${blockIndex})`)
           }
           else {
             console.error(`  匹配失败: ${block.type} - ${block.id}`)
-            console.log(`  可用的 data-id:`, Array.from(dataIdToElement.keys()))
+            console.debug(`  可用的 data-id:`, Array.from(dataIdToElement.keys()))
             allFound = false
           }
         }
@@ -1115,12 +1115,12 @@ export const useStore = defineStore(`store`, () => {
     // 4. 元素已经按照 Markdown 块的顺序收集，直接使用
     const sortedElements = elementsToConvert
 
-    console.log(`\n=== 最终要转换的元素 ===`)
-    console.log(`总数: ${sortedElements.length}`)
+    console.debug(`\n=== 最终要转换的元素 ===`)
+    console.debug(`总数: ${sortedElements.length}`)
     sortedElements.forEach((element, index) => {
       const dataId = element.getAttribute(`mktwain-data-id`)
       const block = markdownBlocks[index] // 直接使用索引对应
-      console.log(`${index}: ${block?.type} (data-id: ${dataId})`)
+      console.debug(`${index}: ${block?.type} (data-id: ${dataId})`)
     })
 
     // 获取批量预览的 addImage 和 setProcessing 函数
@@ -1132,7 +1132,7 @@ export const useStore = defineStore(`store`, () => {
       const markdownBlock = markdownBlocks[i] // 直接使用索引对应
       const dataId = element.getAttribute(`mktwain-data-id`)!
 
-      console.log(`\n正在转换第 ${i + 1}/${sortedElements.length} 个元素:`, {
+      console.debug(`\n正在转换第 ${i + 1}/${sortedElements.length} 个元素:`, {
         type: markdownBlock.type,
         id: markdownBlock.id,
         startLine: markdownBlock.startLine,
@@ -1145,7 +1145,7 @@ export const useStore = defineStore(`store`, () => {
         const elementType = markdownBlock.type
         const imgDataUrl = await convertElementToImage(element, elementType, i)
 
-        console.log(`第 ${i + 1} 个元素转换成功`)
+        console.debug(`第 ${i + 1} 个元素转换成功`)
 
         // 添加到批量预览，使用块ID作为图片ID
         addImage(
@@ -1208,9 +1208,9 @@ export const useStore = defineStore(`store`, () => {
   // 更新转换映射（用于上传后更新 URL）
   const updateConversionMap = (elementId: string, imageUrl: string) => {
     conversionMap.value.set(elementId, imageUrl)
-    console.log(`更新转换映射:`, elementId, imageUrl)
-    console.log(`当前 conversionMap 大小:`, conversionMap.value.size)
-    console.log(`当前 conversionMap 内容:`, Array.from(conversionMap.value.entries()))
+    console.debug(`更新转换映射:`, elementId, imageUrl)
+    console.debug(`当前 conversionMap 大小:`, conversionMap.value.size)
+    console.debug(`当前 conversionMap 内容:`, Array.from(conversionMap.value.entries()))
   }
 
   // Step 5 & 6: 复制和导出v1版本的函数
