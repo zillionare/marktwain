@@ -863,7 +863,7 @@ export const useStore = defineStore(`store`, () => {
 
   // 在编辑区搜索并编号各类块元素
   interface MarkdownBlock {
-    type: `admonition` | `math` | `code`
+    type: `admonition` | `math` | `code` | `h2` | `h3` | `h4`
     content: string
     startIndex: number
     endIndex: number
@@ -900,6 +900,9 @@ export const useStore = defineStore(`store`, () => {
       admonition: 0,
       code: 0,
       math: 0,
+      h2: 0,
+      h3: 0,
+      h4: 0,
     }
 
     // 生成唯一块ID，与渲染器中的 ID 生成逻辑保持一致
@@ -998,6 +1001,38 @@ export const useStore = defineStore(`store`, () => {
       match = codeRegex.exec(markdown)
     }
 
+    // 查找 H2-H4 标题 (# ## ###)
+    const headingRegex = /^(#{2,4})\s+(\S.*$)/gm
+    match = headingRegex.exec(markdown)
+    while (match !== null) {
+      const [, hashes, _content] = match
+      const level = hashes.length
+
+      // 只处理 H2-H4
+      if (level >= 2 && level <= 4) {
+        const headingType = `h${level}` as `h2` | `h3` | `h4`
+
+        // 检查配置是否启用该级别的转换
+        if (conversionConfig.value[`convertH${level}`]) {
+          const startLine = getLineNumber(markdown, match.index)
+          const endLine = startLine // 标题只占一行
+
+          allBlocks.push({
+            type: headingType,
+            content: match[0],
+            startIndex: match.index,
+            endIndex: match.index + match[0].length,
+            startLine,
+            endLine,
+            sequenceIndex: sequenceIndex++,
+            id: generateBlockId(headingType),
+          })
+        }
+      }
+
+      match = headingRegex.exec(markdown)
+    }
+
     // 按在文档中出现的顺序排序
     allBlocks.sort((a, b) => a.startIndex - b.startIndex)
 
@@ -1045,6 +1080,39 @@ export const useStore = defineStore(`store`, () => {
     // 3. 直接通过 data-id 查找元素，无需动态添加
     const elementsToConvert: HTMLElement[] = []
 
+    // 3. 通过文本内容匹配h2~h4元素
+    const headingElements: HTMLElement[] = []
+    const headingTexts: string[] = []
+
+    // 收集预览区域的所有h2~h4元素及其文本内容
+    const h2Elements = previewElement.querySelectorAll(`h2`)
+    const h3Elements = previewElement.querySelectorAll(`h3`)
+    const h4Elements = previewElement.querySelectorAll(`h4`)
+
+    h2Elements.forEach((el) => {
+      if (conversionConfig.value.convertH2) {
+        headingElements.push(el)
+        headingTexts.push(el.textContent?.trim() || ``)
+      }
+    })
+
+    h3Elements.forEach((el) => {
+      if (conversionConfig.value.convertH3) {
+        headingElements.push(el)
+        headingTexts.push(el.textContent?.trim() || ``)
+      }
+    })
+
+    h4Elements.forEach((el) => {
+      if (conversionConfig.value.convertH4) {
+        headingElements.push(el)
+        headingTexts.push(el.textContent?.trim() || ``)
+      }
+    })
+
+    console.debug(`收集到的标题元素:`, headingElements.length)
+    console.debug(`标题文本内容:`, headingTexts)
+
     // 简化的 data-id 匹配逻辑
     const collectElementsByDataId = (blocks: MarkdownBlock[]): boolean => {
       let allFound = true
@@ -1078,6 +1146,30 @@ export const useStore = defineStore(`store`, () => {
           console.debug(`  直接匹配成功: ${element.tagName}.${element.className}`)
         }
         else {
+          // 对于h2~h4标题，使用文本内容匹配
+          if (block.type === `h2` || block.type === `h3` || block.type === `h4`) {
+            console.debug(`  尝试通过文本内容匹配标题: "${block.content}"`)
+
+            // 提取标题文本内容（去除前缀的#符号）
+            const headingTextMatch = block.content.match(/^(#{2,4})\s+(\S.*)$/)
+            if (headingTextMatch) {
+              const headingText = headingTextMatch[2].trim()
+              console.debug(`  标题文本内容: "${headingText}"`)
+
+              // 在收集到的标题元素中查找匹配的文本
+              const elementIndex = headingTexts.indexOf(headingText)
+              if (elementIndex !== -1) {
+                element = headingElements[elementIndex]
+                elementsToConvert.push(element)
+                console.debug(`  标题匹配成功: ${element.tagName} "${headingText}"`)
+                return // 匹配成功，跳过后续处理
+              }
+              else {
+                console.debug(`  未找到匹配的标题元素`)
+              }
+            }
+          }
+
           // 如果直接匹配失败，fallback 到类型匹配 (当前方案)
           console.debug(`  直接匹配失败，尝试类型匹配...`)
 
@@ -1123,7 +1215,7 @@ export const useStore = defineStore(`store`, () => {
 
     console.debug(`\n=== 最终要转换的元素 ===`)
     console.debug(`总数: ${sortedElements.length}`)
-    sortedElements.forEach((element, index) => {
+    sortedElements.forEach((element: HTMLElement, index: number) => {
       const dataId = element.getAttribute(`mktwain-data-id`)
       const block = markdownBlocks[index] // 直接使用索引对应
       console.debug(`${index}: ${block?.type} (data-id: ${dataId})`)
