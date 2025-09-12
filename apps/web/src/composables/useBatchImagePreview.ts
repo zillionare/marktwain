@@ -252,42 +252,35 @@ async function uploadImage(imageId: string) {
   }
 }
 
-async function uploadAllImages() {
+async function uploadAllImages(delayBetweenRequests = 0) {
   const unuploadedImages = state.images.filter(img => !img.uploaded && !img.uploading)
 
   if (unuploadedImages.length === 0) {
     return
   }
 
-  console.debug(`开始并发上传 ${unuploadedImages.length} 张图片`)
+  console.debug(`开始批量上传 ${unuploadedImages.length} 张图片`)
 
-  // 使用 Promise.allSettled 实现并发上传
-  const uploadPromises = unuploadedImages.map(imageItem =>
-    uploadImage(imageItem.id).catch((error) => {
+  // 顺序上传：一个完成后立即上传下一个，可配置延迟
+  for (let i = 0; i < unuploadedImages.length; i++) {
+    const imageItem = unuploadedImages[i]
+
+    try {
+      await uploadImage(imageItem.id)
+      console.debug(`图片 ${imageItem.id} 上传成功`)
+    }
+    catch (error) {
       console.error(`图片 ${imageItem.id} 上传失败:`, error)
-      return null // 返回 null 表示失败，但不影响其他上传
-    }),
-  )
+      // 不抛出错误，让用户自己重试
+    }
 
-  const results = await Promise.allSettled(uploadPromises)
+    // 可配置的延迟（默认0ms，即立即上传下一个）
+    if (i < unuploadedImages.length - 1 && delayBetweenRequests > 0) {
+      await new Promise(resolve => setTimeout(resolve, delayBetweenRequests))
+    }
+  }
 
-  // 统计上传结果
-  const successCount = results.filter(result =>
-    result.status === `fulfilled` && result.value !== null,
-  ).length
-  const failureCount = results.filter(result =>
-    result.status === `rejected` || (result.status === `fulfilled` && result.value === null),
-  ).length
-
-  console.debug(`批量上传完成: 成功 ${successCount}，失败 ${failureCount}`)
-
-  // 不自动关闭预览，让用户可以选择"生成转图后 MD"
-  // const allUploaded = state.images.every(img => img.uploaded)
-  // if (allUploaded && state.images.length > 0) {
-  //   setTimeout(() => {
-  //     hideBatchPreview()
-  //   }, 1500)
-  // }
+  console.debug(`批量上传完成`)
 }
 
 async function retryUpload(imageId: string) {
