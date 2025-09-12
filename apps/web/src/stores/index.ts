@@ -75,23 +75,22 @@ export const useStore = defineStore(`store`, () => {
 
   // 转图配置
   const conversionConfig = useStorage(`conversionConfig`, {
-    screenWidth: 800, // 屏幕宽度
-    devicePixelRatio: 1, // 设备像素比
-    convertAdmonition: true, // 转换 Admonition
-    convertMathBlock: true, // 转换数学公式
-    convertFencedBlock: true, // 转换代码块
-    convertH2: true, // 新增：转换 h2 标题
-    convertH3: true, // 新增：转换 h3 标题
-    convertH4: false, // 新增：转换 h4 标题
+    devicePixelRatio: 2, // 设备像素比
+    // 转换类型及宽度配置
+    convertAdmonition: { enabled: true, width: 500 }, // 转换 Admonition
+    convertMathBlock: { enabled: true, width: 500 }, // 转换数学公式
+    convertFencedBlock: { enabled: true, width: 600 }, // 转换代码块
+    convertH2: { enabled: true, width: null }, // 转换 h2 标题，null表示原宽度
+    convertH3: { enabled: true, width: null }, // 转换 h3 标题，null表示原宽度
+    convertH4: { enabled: false, width: null }, // 转换 h4 标题，null表示原宽度
   } as {
-    screenWidth: number
     devicePixelRatio: number
-    convertAdmonition: boolean
-    convertMathBlock: boolean
-    convertFencedBlock: boolean
-    convertH2: boolean
-    convertH3: boolean
-    convertH4: boolean
+    convertAdmonition: { enabled: boolean, width: number | null }
+    convertMathBlock: { enabled: boolean, width: number | null }
+    convertFencedBlock: { enabled: boolean, width: number | null }
+    convertH2: { enabled: boolean, width: number | null }
+    convertH3: { enabled: boolean, width: number | null }
+    convertH4: { enabled: boolean, width: number | null }
     [key: string]: any // 添加索引签名以支持动态访问
   })
 
@@ -655,9 +654,9 @@ export const useStore = defineStore(`store`, () => {
   // 下载卡片
   const downloadAsCardImage = async () => {
     const el = document.querySelector<HTMLElement>(`#output-wrapper>.preview`)!
-    const imgElement = await snapdom.toJpg(el, {
+    const imgElement = await snapdom.toPng(el, {
       backgroundColor: isDark.value ? `` : `#fff`,
-      dpr: conversionConfig.value.devicePixelRatio || 1,
+      dpr: conversionConfig.value.devicePixelRatio || 2,
     })
 
     // 将 HTMLImageElement 转换为 data URL
@@ -778,9 +777,37 @@ export const useStore = defineStore(`store`, () => {
       console.debug(`元素是否在视窗内:`, isInViewport)
       console.debug(`视窗尺寸:`, { width: window.innerWidth, height: window.innerHeight })
 
-      // 设置元素宽度
-      element.style.width = `${conversionConfig.value.screenWidth}px`
-      console.debug(`设置宽度为:`, `${conversionConfig.value.screenWidth}px`)
+      // 根据元素类型设置宽度
+      let targetWidth: number | null = null
+
+      // 根据元素类型获取对应的宽度配置
+      if (element.classList.contains(`admonition`)) {
+        targetWidth = conversionConfig.value.convertAdmonition.width
+      }
+      else if (element.classList.contains(`block_katex`)) {
+        targetWidth = conversionConfig.value.convertMathBlock.width
+      }
+      else if (element.tagName === `PRE` && element.classList.contains(`hljs`)) {
+        targetWidth = conversionConfig.value.convertFencedBlock.width
+      }
+      else if (element.tagName === `H2`) {
+        targetWidth = conversionConfig.value.convertH2.width
+      }
+      else if (element.tagName === `H3`) {
+        targetWidth = conversionConfig.value.convertH3.width
+      }
+      else if (element.tagName === `H4`) {
+        targetWidth = conversionConfig.value.convertH4.width
+      }
+
+      // 如果配置了宽度，则设置；否则保持原宽度
+      if (targetWidth !== null) {
+        element.style.width = `${targetWidth}px`
+        console.debug(`设置宽度为:`, `${targetWidth}px`)
+      }
+      else {
+        console.debug(`保持原宽度，不设置固定宽度`)
+      }
 
       // 等待元素渲染完成
       await new Promise(resolve => setTimeout(resolve, 200))
@@ -809,9 +836,9 @@ export const useStore = defineStore(`store`, () => {
       element.scrollIntoView({ behavior: `instant`, block: `center` })
       await new Promise(resolve => setTimeout(resolve, 100))
 
-      console.debug(`准备调用 snapdom.toJpg...`)
-      const imgElement = await snapdom.toJpg(element, screenshotConfig)
-      console.debug(`snapdom.toJpg 调用完成`)
+      console.debug(`准备调用 snapdom.toPng...`)
+      const imgElement = await snapdom.toPng(element, screenshotConfig)
+      console.debug(`snapdom.toPng 调用完成`)
 
       console.debug(`截图结果分析:`)
       console.debug(`- 返回对象类型:`, typeof imgElement)
@@ -1013,7 +1040,7 @@ export const useStore = defineStore(`store`, () => {
         const headingType = `h${level}` as `h2` | `h3` | `h4`
 
         // 检查配置是否启用该级别的转换
-        if (conversionConfig.value[`convertH${level}`]) {
+        if (conversionConfig.value[`convertH${level}`].enabled) {
           const startLine = getLineNumber(markdown, match.index)
           const endLine = startLine // 标题只占一行
 
@@ -1090,21 +1117,21 @@ export const useStore = defineStore(`store`, () => {
     const h4Elements = previewElement.querySelectorAll(`h4`)
 
     h2Elements.forEach((el) => {
-      if (conversionConfig.value.convertH2) {
+      if (conversionConfig.value.convertH2.enabled) {
         headingElements.push(el)
         headingTexts.push(el.textContent?.trim() || ``)
       }
     })
 
     h3Elements.forEach((el) => {
-      if (conversionConfig.value.convertH3) {
+      if (conversionConfig.value.convertH3.enabled) {
         headingElements.push(el)
         headingTexts.push(el.textContent?.trim() || ``)
       }
     })
 
     h4Elements.forEach((el) => {
-      if (conversionConfig.value.convertH4) {
+      if (conversionConfig.value.convertH4.enabled) {
         headingElements.push(el)
         headingTexts.push(el.textContent?.trim() || ``)
       }
