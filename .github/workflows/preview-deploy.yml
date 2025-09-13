@@ -9,7 +9,7 @@ on:
 jobs:
   success:
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' && github.repository == 'doocs/md'
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' && github.repository == 'zillionare/marktwain'
     steps:
       - name: Download PR artifact
         uses: dawidd6/action-download-artifact@v11
@@ -71,7 +71,7 @@ jobs:
 
   failed:
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'failure' && github.repository == 'doocs/md'
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'failure' && github.repository == 'zillionare/marktwain'
     steps:
       - name: Download PR artifact
         uses: dawidd6/action-download-artifact@v11

@@ -44,6 +44,46 @@ jobs:
       - name: Run build
         run: pnpm web ${{ env.BUILD_COMMAND }}
 
+      - name: Create SPA support files
+        run: |
+          # 创建 .nojekyll 文件以禁用 Jekyll 处理
+          touch apps/web/dist/.nojekyll
+          
+          # 创建 404.html 文件用于 SPA 路由重定向
+          cat > apps/web/dist/404.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <title>Redirecting...</title>
+              <script>
+                // 获取当前路径，去掉可能的查询参数和哈希
+                const path = window.location.pathname;
+                const search = window.location.search;
+                const hash = window.location.hash;
+                
+                // 如果路径不是以 /md/ 开头，重定向到 /md/
+                if (!path.startsWith('/md/')) {
+                  window.location.replace('/md/' + (search + hash));
+                } else {
+                  // 如果路径以 /md/ 开头，重定向到 index.html
+                  window.location.replace('/md/index.html' + search + hash);
+                }
+              </script>
+            </head>
+            <body>
+              <p>Redirecting...</p>
+            </body>
+          </html>
+          EOF
+          
+          # 创建 _redirects 文件用于 GitHub Pages SPA 支持
+          cat > apps/web/dist/_redirects << 'EOF'
+          # GitHub Pages SPA redirects
+          # 将所有请求重定向到 index.html，让 Vue Router 处理路由
+          /*    /md/index.html   200
+          EOF
+
       # CNAME 文件仅在使用自定义域名时需要
       # 使用默认的 GitHub Pages 域名时不需要生成 CNAME
 

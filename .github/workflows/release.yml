@@ -9,7 +9,7 @@ jobs:
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    if: github.repository == 'doocs/md'
+    if: github.repository == 'zillionare/marktwain'
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -42,7 +42,7 @@ jobs:
           body: |
             # 微信 Markdown 编辑器 ${{ github.ref_name }} 发布🎈
 
-            [![github](https://badgen.net/badge/>>/GitHub/cyan)](https://github.com/doocs/md/releases) [![gitee](https://badgen.net/badge/>>/Gitee/cyan)](https://gitee.com/doocs/md/releases) [![gitcode](https://badgen.net/badge/>>/GitCode/cyan)](https://gitcode.com/doocs/md/releases)
+            [![github](https://badgen.net/badge/>>/GitHub/cyan)](https://github.com/zillionare/marktwain/releases) [![gitee](https://badgen.net/badge/>>/Gitee/cyan)](https://gitee.com/zillionare/marktwain/releases) [![gitcode](https://badgen.net/badge/>>/GitCode/cyan)](https://gitcode.com/zillionare/marktwain/releases)
 
             > Markdown 文档自动即时渲染为微信图文，让你不再为微信内容排版而发愁！
 
