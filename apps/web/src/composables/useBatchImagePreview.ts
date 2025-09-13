@@ -90,6 +90,19 @@ function hideBatchPreview() {
   state.markdownHash = ``
 }
 
+// 计算 data URL 的文件大小（字节）
+function calculateDataURLSize(dataURL: string): number {
+  // 移除 data:image/png;base64, 前缀，只保留 base64 数据
+  const base64Data = dataURL.split(`,`)[1]
+  if (!base64Data) {
+    return 0
+  }
+
+  // base64 编码会增加约 33% 的大小，所以需要计算原始大小
+  // base64 字符串长度 * 3/4 得到原始字节数
+  return Math.floor(base64Data.length * 3 / 4)
+}
+
 function addImage(
   type: string,
   index: number,
@@ -104,6 +117,9 @@ function addImage(
   const contentHash = generateContentHash(content)
   const uploadedImages = getUploadedImages(state.markdownHash)
 
+  // 计算图片文件大小
+  const fileSize = calculateDataURLSize(imageUrl)
+
   const imageItem: ImageItem = {
     id: imageId, // 使用传入的 id 或生成的 id
     type,
@@ -113,6 +129,7 @@ function addImage(
     uploaded: uploadedImages.has(imageId),
     uploading: false,
     altText: `${type} block ${index + 1}`,
+    fileSize, // 添加文件大小
     startLine,
     endLine,
   }
