@@ -28,8 +28,6 @@ Marktwain 是一款博文编辑工具。你可以使用 Markdown 及其增强语
 !!! attention
   Admonition中可以不使用标题。如果要使用标题，请用一对引号将它们括起来。
 
-  我们拓展了 Admonition语法。你可以在内容区的段一段之间使用一个空行来分隔，这样对编辑者更友好。但是，**代价**是，你必须使用两个空白行，才能让 Admonition 块结束！
-
 ### 1.2. 代码行号
 
 截止2.0.4，[Doocs/md](https://github.com/doocs/md)缺少的一个功能是，代码没有行号。如果你需要代码行号，那么可以使用 **Marktwain**。
