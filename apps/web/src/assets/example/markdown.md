@@ -2,6 +2,8 @@
 
 欢迎来到 Markdown 的奇妙世界！无论你是写作爱好者、开发者、博主，还是想要简单记录点什么的人，Markdown 都能成为你新的好伙伴。它不仅让写作变得简单明了，还能轻松地将内容转化为漂亮的网页格式。今天，我们将全面探讨 Markdown 的基础和进阶语法，让你在这个过程中充分享受写作的乐趣！
 
+[我是 Markdown高手！ 直接跳转到 Marktwain 新功能](#marktwain-新功能)
+
 Markdown 是一种轻量级标记语言，用于格式化纯文本。它以简单、直观的语法而著称，可以快速地生成 HTML。Markdown 是写作与代码的完美结合，既简单又强大。
 
 ## Markdown 基础语法
@@ -54,9 +56,9 @@ Markdown 中的段落就是一行接一行的文本。要创建新段落，只�
 - **链接**：用方括号和圆括号创建链接 `[显示文本](链接地址)`。
 - **图片**：和链接类似，只需在前面加上 `!`，如 `![描述文本](图片链接)`。
 
-[访问 Doocs](https://github.com/doocs)
+访问[匡醍量化](https://www.jieyu.ai)
 
-![doocs](https://cdn-doocs.oss-cn-shenzhen.aliyuncs.com/gh/doocs/md/images/logo-2.png)
+![](https://images.jieyu.ai/images/hot/logo/quantide.png)
 
 轻松实现富媒体内容展示！
 
@@ -99,11 +101,11 @@ console.log(`Hello, Doocs!`)
 
 Markdown 支持简单的表格，用 `|` 和 `-` 分隔单元格和表头。
 
-| 项目人员                                    | 邮箱                   | 微信号       |
-| ------------------------------------------- | ---------------------- | ------------ |
-| [yanglbme](https://github.com/yanglbme)     | contact@yanglibin.info | YLB0109      |
-| [YangFong](https://github.com/YangFong)     | yangfong2022@gmail.com | yq2419731931 |
-| [thinkasany](https://github.com/thinkasany) | thinkasany@gmail.com   | thinkasany   |
+| 课程及预览                                                                                       | 说明                                                                                                                                               |
+| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [量化24课](http://ke.quantide.cn:8080/academy/login?preview=true&course=l24)                     | 课程涵盖了量化交易的全流程，即如何获取数据，如何考察数据的分布、关联性，因子和模式的发现和提取，如何编写策略、进行回测和评估，最终将策略接入实盘。 |
+| [因子挖掘与机器学习策略](http://ke.quantide.cn:8080/academy/login?preview=true&course=fa)        | 本课面向决心以专业、严谨的态度研究量化策略的人。学完本课，您将具有4年以上经验的量化研究员同样的研究能力。                                          |
+| [量化人的 Numpy 和 Pandas](https://www.jieyu.ai/articles/python/numpy%26pandas/01-introduction/) | 课程文本点击链接免费阅读。可运行代码和环境请联系我们。                                                                                             |
 
 这样的表格让数据展示更为清爽！
 
@@ -140,44 +142,6 @@ $$
 $$
 
 这是展示复杂数学表达的利器！
-
-## 测试转图功能
-
-### Admonition 示例
-
-!!! note
-这是一个 note 类型的 admonition 示例。它应该能够被转换为图片。
-
-    这里可以有多行内容，支持空格和换行。
-
-!!! tip
-这是一个 tip 类型的 admonition 示例。它包含了一些重要的提示信息。
-
-    内容区可以有空行，这样阅读更轻松。
-
-!!! warning
-这是一个 warning 类型的 admonition 示例。它用于显示警告信息。
-
-    只有遇到两个连续的空白行才算结束。
-
-### 数学公式示例
-
-这是一个行内公式：$E = mc^2$
-
-这是一个块级公式：
-
-$$
-\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
-$$
-
-### 代码块示例
-
-```javascript
-function hello() {
-  console.log(`Hello, World!`)
-  return `This is a code block that should be converted to image`
-}
-```
 
 ### 2. Mermaid 流程图：可视化流程
 
@@ -288,6 +252,24 @@ Foo -> Foo7: To queue
 [小夜時雨]{さ・よ}
 [小夜]{さ・よ・しぐれ}
 [小夜時雨]{さ・よ・しぐれ・extra}
+
+## Marktwain 新功能
+
+很多人很熟悉 Common Mark 的 Admonition。它们一方面用来强调、提示或者跳出文章主线，为读者提供更多的信息；另一方面，它们也使得文章的表达在视觉上更为活泼。
+
+### Admonition 示例
+
+!!! info "Admonition 语法"
+
+!!! tip
+这是一个 tip 类型的 admonition 示例。它包含了一些重要的提示信息。
+
+内容区可以有空行，这样阅读更轻松。
+
+!!! warning
+这是一个 warning 类型的 admonition 示例。它用于显示警告信息。
+
+只有遇到两个连续的空白行才算结束。
 
 ## 结语
 

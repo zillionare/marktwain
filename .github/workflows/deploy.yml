@@ -62,12 +62,12 @@ jobs:
                 const search = window.location.search;
                 const hash = window.location.hash;
                 
-                // 如果路径不是以 /md/ 开头，重定向到 /md/
-                if (!path.startsWith('/md/')) {
-                  window.location.replace('/md/' + (search + hash));
+                // 如果路径不是以 /marktwain/ 开头，重定向到 /marktwain/
+                if (!path.startsWith('/marktwain/')) {
+                  window.location.replace('/marktwain/' + (search + hash));
                 } else {
-                  // 如果路径以 /md/ 开头，重定向到 index.html
-                  window.location.replace('/md/index.html' + search + hash);
+                  // 如果路径以 /marktwain/ 开头，重定向到 index.html
+                  window.location.replace('/marktwain/index.html' + search + hash);
                 }
               </script>
             </head>
@@ -81,7 +81,7 @@ jobs:
           cat > apps/web/dist/_redirects << 'EOF'
           # GitHub Pages SPA redirects
           # 将所有请求重定向到 index.html，让 Vue Router 处理路由
-          /*    /md/index.html   200
+          /*    /marktwain/index.html   200
           EOF
 
       # CNAME 文件仅在使用自定义域名时需要

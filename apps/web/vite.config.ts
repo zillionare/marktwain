@@ -12,7 +12,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { VitePluginRadar } from 'vite-plugin-radar'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
-const base = process.env.SERVER_ENV === `NETLIFY` ? `/` : `/md/`
+const base = process.env.SERVER_ENV === `NETLIFY` ? `/` : `/marktwain/`
 
 export default defineConfig({
   base,
@@ -82,9 +82,9 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        chunkFileNames: `static/js/md-[name]-[hash].js`,
-        entryFileNames: `static/js/md-[name]-[hash].js`,
-        assetFileNames: `static/[ext]/md-[name]-[hash].[ext]`,
+        chunkFileNames: `static/js/marktwain-[name]-[hash].js`,
+        entryFileNames: `static/js/marktwain-[name]-[hash].js`,
+        assetFileNames: `static/[ext]/marktwain-[name]-[hash].[ext]`,
         manualChunks(id) {
           if (id.includes(`node_modules`)) {
             if (id.includes(`katex`))

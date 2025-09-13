@@ -89,7 +89,7 @@ export function createServer(port = 8800) {
   })
 
   app.get('/', (_, res) => {
-    res.redirect('/md/')
+    res.redirect('/marktwain/')
   })
 
   console.log('代理到: https://doocs-md.pages.dev')
