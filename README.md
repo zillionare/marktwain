@@ -1,6 +1,6 @@
 <div align="center">
 
-[![](https://fastly.jsdelivr.net/gh/zillionare/images@main/images/hot/logo/marktwain.png)](https://github.com/zillionare/marktwain)
+<img src="https://fastly.jsdelivr.net/gh/zillionare/images@main/images/hot/logo/marktwain.png" width="30%">
 
 </div>
 
