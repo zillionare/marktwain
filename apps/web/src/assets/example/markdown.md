@@ -335,7 +335,7 @@ Markdown 是一种简单、强大且易于掌握的标记语言，通过学习�
 
 匡醍量化是 MarkTwain 的开发者。我们开设有《量化24课》、《因子挖掘与机器学习策略》和《量化人的Numpy和Pandas》等量化课程。
 
-我维护着以下开源软件：
+我们维护着以下开源软件：
 
 - [Quantstats-Reloaded](https://github.com/zillionare/quantstats-reloaded)，一个量化策略指标分析库
 - [Zigzag](https://github.com/zillionare/ZigZag)，一个重要的顶底检测工具。
