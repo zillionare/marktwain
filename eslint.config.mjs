@@ -3,10 +3,6 @@ import antfu from '@antfu/eslint-config'
 export default antfu({
   vue: true,
   typescript: true,
-  formatters: {
-    // 只对特定文件类型启用格式化，排除 markdown
-    markdown: false,
-  },
   ignores: [`.github`, `scripts`, `docker`, `packages/md-cli`, `src/assets`, `example`],
 }, {
   rules: {
