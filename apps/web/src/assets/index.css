@@ -150,3 +150,10 @@
 .code-container .line-numbers {
   background: inherit;
 }
+
+/* 移除preview区域img元素的边框 */
+.preview img {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}

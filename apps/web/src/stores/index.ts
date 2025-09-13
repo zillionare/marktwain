@@ -76,6 +76,7 @@ export const useStore = defineStore(`store`, () => {
   // 转图配置
   const conversionConfig = useStorage(`conversionConfig`, {
     devicePixelRatio: 2, // 设备像素比
+    screenWidth: 800, // 标题转图时的屏幕宽度
     // 转换类型及宽度配置
     convertAdmonition: { enabled: true, width: 500 }, // 转换 Admonition
     convertMathBlock: { enabled: true, width: 500 }, // 转换数学公式
@@ -85,6 +86,7 @@ export const useStore = defineStore(`store`, () => {
     convertH4: { enabled: false, width: null }, // 转换 h4 标题，null表示原宽度
   } as {
     devicePixelRatio: number
+    screenWidth: number
     convertAdmonition: { enabled: boolean, width: number | null }
     convertMathBlock: { enabled: boolean, width: number | null }
     convertFencedBlock: { enabled: boolean, width: number | null }
@@ -779,6 +781,7 @@ export const useStore = defineStore(`store`, () => {
 
       // 根据元素类型设置宽度
       let targetWidth: number | null = null
+      let isHeader = false
 
       // 根据元素类型获取对应的宽度配置
       if (element.classList.contains(`admonition`)) {
@@ -792,81 +795,97 @@ export const useStore = defineStore(`store`, () => {
       }
       else if (element.tagName === `H2`) {
         targetWidth = conversionConfig.value.convertH2.width
+        isHeader = true
       }
       else if (element.tagName === `H3`) {
         targetWidth = conversionConfig.value.convertH3.width
+        isHeader = true
       }
       else if (element.tagName === `H4`) {
         targetWidth = conversionConfig.value.convertH4.width
+        isHeader = true
       }
 
-      // 如果配置了宽度，则设置；否则保持原宽度
-      if (targetWidth !== null) {
-        element.style.width = `${targetWidth}px`
-        console.debug(`设置宽度为:`, `${targetWidth}px`)
+      // 对于标题元素，使用屏幕宽度设置
+      if (isHeader) {
+        const screenWidth = conversionConfig.value.screenWidth
+        if (screenWidth > 0) {
+          // 如果屏幕宽度大于元素宽度，需要特殊处理
+          const elementWidth = element.getBoundingClientRect().width
+          if (screenWidth > elementWidth) {
+            // 获取元素的完整尺寸（包括margin和padding）
+            const elementRect = element.getBoundingClientRect()
+            const computedStyle = window.getComputedStyle(element)
+            const marginTop = Number.parseFloat(computedStyle.marginTop) || 0
+            const marginBottom = Number.parseFloat(computedStyle.marginBottom) || 0
+
+            // 计算包含margin和padding的完整高度
+            const fullHeight = elementRect.height + marginTop + marginBottom
+
+            // 创建包装容器
+            const wrapper = document.createElement(`div`)
+            wrapper.className = `title-wrapper`
+            wrapper.style.width = `${screenWidth}px`
+            wrapper.style.height = `${fullHeight}px`
+            wrapper.style.display = `flex`
+            wrapper.style.alignItems = `center`
+            wrapper.style.justifyContent = `center`
+            wrapper.style.position = `relative`
+            wrapper.style.border = `none`
+            wrapper.style.outline = `none`
+            wrapper.style.boxShadow = `none`
+            wrapper.style.overflow = `hidden`
+            wrapper.style.minWidth = `${screenWidth}px`
+            wrapper.style.maxWidth = `${screenWidth}px`
+            wrapper.style.flexShrink = `0`
+            wrapper.style.boxSizing = `border-box`
+
+            // 临时取消标题元素的边距，但保留padding
+            element.style.margin = `0`
+
+            // 将标题元素包装到容器中
+            element.parentNode?.insertBefore(wrapper, element)
+            wrapper.appendChild(element)
+
+            // 保持Header元素的原始宽度
+            const wrappedElement = wrapper.querySelector(`h2, h3, h4`) as HTMLElement
+            if (wrappedElement) {
+              wrappedElement.style.width = `${elementWidth}px`
+              wrappedElement.style.flexShrink = `0`
+              wrappedElement.style.minWidth = `${elementWidth}px`
+            }
+
+            // 设置目标元素为包装容器
+            element = wrapper
+          }
+          else {
+            // 屏幕宽度小于等于元素宽度，原样截图
+          }
+        }
+        else {
+          // 屏幕宽度为0，原样截图
+        }
       }
-      else {
-        console.debug(`保持原宽度，不设置固定宽度`)
+      else if (targetWidth !== null) {
+        // 非标题元素，使用配置的宽度
+        element.style.width = `${targetWidth}px`
       }
 
       // 等待元素渲染完成
       await new Promise(resolve => setTimeout(resolve, 200))
 
-      // 检查设置宽度后的尺寸
-      const rectAfter = element.getBoundingClientRect()
-      console.debug(`设置宽度后 - 元素位置和尺寸:`, {
-        x: rectAfter.x,
-        y: rectAfter.y,
-        width: rectAfter.width,
-        height: rectAfter.height,
-        offsetWidth: element.offsetWidth,
-        offsetHeight: element.offsetHeight,
-        scrollWidth: element.scrollWidth,
-        scrollHeight: element.scrollHeight,
-      })
-
       // 检查截图配置
       const screenshotConfig = {
         dpr: conversionConfig.value.devicePixelRatio || 2,
       }
-      console.debug(`截图配置:`, screenshotConfig)
-      console.debug(`设备像素比率:`, window.devicePixelRatio)
 
       // 滚动到元素位置确保可见
       element.scrollIntoView({ behavior: `instant`, block: `center` })
       await new Promise(resolve => setTimeout(resolve, 100))
 
-      console.debug(`准备调用 snapdom.toPng...`)
       const imgElement = await snapdom.toPng(element, screenshotConfig)
-      console.debug(`snapdom.toPng 调用完成`)
 
-      console.debug(`截图结果分析:`)
-      console.debug(`- 返回对象类型:`, typeof imgElement)
-      console.debug(`- 是否为HTMLImageElement:`, imgElement instanceof HTMLImageElement)
-      console.debug(`- src 属性存在:`, !!imgElement.src)
-      console.debug(`- 图片URL长度:`, imgElement.src?.length || 0)
-
-      if (imgElement.src) {
-        console.debug(`- 图片URL前100字符:`, imgElement.src.substring(0, 100))
-        console.debug(`- 是否为data URL:`, imgElement.src.startsWith(`data:`))
-
-        // 分析 data URL 结构
-        if (imgElement.src.startsWith(`data:`)) {
-          const [header, data] = imgElement.src.split(`,`)
-          console.debug(`- Data URL header:`, header)
-          console.debug(`- Base64 数据长度:`, data?.length || 0)
-
-          // 估算实际文件大小（Base64 编码后约为原始数据的 4/3）
-          const estimatedSize = data ? Math.round((data.length * 3) / 4) : 0
-          console.debug(`- 估算文件大小:`, estimatedSize, `bytes`)
-
-          if (estimatedSize < 1000) {
-            console.error(`🚨 错误: 图片数据过小，截图可能失败！`)
-            console.error(`- 可能原因: 元素不可见、尺寸为0、或截图库配置问题`)
-          }
-        }
-      }
-      else {
+      if (!imgElement.src) {
         console.error(`🚨 错误: 截图返回的对象没有 src 属性`)
       }
 
@@ -874,17 +893,10 @@ export const useStore = defineStore(`store`, () => {
     }
     catch (error) {
       console.error(`转换失败 [${_type}-${_index}]:`, error)
-      console.error(`错误详情:`, {
-        name: (error as Error).name,
-        message: (error as Error).message,
-        stack: (error as Error).stack,
-      })
       throw error
     }
     finally {
       element.style.width = prevWidth
-      console.debug(`恢复元素原始宽度:`, prevWidth || `auto`)
-      console.debug(`=== 截图处理完成 ===\n`)
     }
   }
 
@@ -1123,7 +1135,7 @@ export const useStore = defineStore(`store`, () => {
       }
     })
 
-    h3Elements.forEach((el) => {
+    h3Elements.forEach((el, _index) => {
       if (conversionConfig.value.convertH3.enabled) {
         headingElements.push(el)
         headingTexts.push(el.textContent?.trim() || ``)
