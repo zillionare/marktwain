@@ -39,7 +39,7 @@ function getConfig(key: string) {
       return conversionConfig.value[key as keyof typeof conversionConfig.value] as { enabled: boolean, width: number | null }
     }
   }
-  return config as { enabled: boolean, width: number | null, widthMode?: `original` | `screen` }
+  return config
 }
 
 // 转换类型选项
@@ -171,21 +171,23 @@ function saveConfig() {
                 <div v-if="getConfig(option.key).enabled && option.defaultWidth !== null" class="flex items-center space-x-2">
                   <Checkbox
                     :id="`${option.key}-width`"
-                    :checked="getConfig(option.key).width !== null"
+                    :checked="'width' in getConfig(option.key) && getConfig(option.key).width !== null"
                     @update:checked="(checked) => {
                       const config = getConfig(option.key)
-                      if (checked) {
-                        config.width = option.defaultWidth
-                      }
-                      else {
-                        config.width = null
+                      if ('width' in config) {
+                        if (checked) {
+                          config.width = option.defaultWidth
+                        }
+                        else {
+                          config.width = null
+                        }
                       }
                     }"
                   />
                   <div class="flex items-center space-x-2">
                     <Input
-                      v-if="getConfig(option.key).width !== null"
-                      :model-value="getConfig(option.key).width"
+                      v-if="'width' in getConfig(option.key) && getConfig(option.key).width !== null"
+                      :model-value="'width' in getConfig(option.key) ? getConfig(option.key).width : null"
                       type="number"
                       min="200"
                       max="1200"
@@ -194,7 +196,9 @@ function saveConfig() {
                       class="w-20 h-8 text-xs"
                       @update:model-value="(value) => {
                         const config = getConfig(option.key)
-                        config.width = value
+                        if ('width' in config) {
+                          config.width = value
+                        }
                       }"
                     />
                     <span class="text-xs text-muted-foreground">px</span>
@@ -247,11 +251,13 @@ function saveConfig() {
                   <!-- 宽度模式选择 -->
                   <div v-if="getConfig(option.key).enabled" class="mt-2">
                     <RadioGroup
-                      :model-value="getConfig(option.key).widthMode || 'original'"
+                      :model-value="'widthMode' in getConfig(option.key) ? getConfig(option.key).widthMode || 'original' : 'original'"
                       class="flex space-x-4"
                       @update:model-value="(value) => {
                         const config = getConfig(option.key)
-                        config.widthMode = value as 'original' | 'screen'
+                        if ('widthMode' in config) {
+                          config.widthMode = value as 'original' | 'screen'
+                        }
                       }"
                     >
                       <div class="flex items-center space-x-2">

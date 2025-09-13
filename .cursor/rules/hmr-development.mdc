@@ -1,0 +1,56 @@
+---
+description: HMR开发环境配置和最佳实践
+globs: *.vue,*.ts,*.js,*.json
+---
+
+# HMR 开发环境指南
+
+## 开发服务器配置
+
+项目使用 Vite 作为开发服务器，支持 HMR（热模块替换）功能：
+
+- **开发命令**: `npm run dev`
+- **默认端口**: 5173（如果被占用会自动选择其他端口）
+- **访问地址**: `http://localhost:5174/md/`
+- **网络访问**: `http://192.168.66.65:5174/md/`
+
+## HMR 特性
+
+### 自动热更新
+- **Vue 组件**: 修改 `.vue` 文件时自动更新，保持组件状态
+- **TypeScript**: 修改 `.ts` 文件时自动重新编译和更新
+- **样式文件**: 修改 CSS 时无需刷新页面
+- **Markdown 渲染**: 修改 Markdown 内容时实时预览
+
+### 开发最佳实践
+
+1. **保持开发服务器运行**
+   ```bash
+   npm run dev
+   ```
+   - 开发过程中无需频繁 `build` 和重启
+   - 大部分修改都会通过 HMR 自动应用
+
+2. **文件监听范围**
+   - Vue 组件: `*.vue`
+   - TypeScript: `*.ts`, `*.tsx`
+   - 样式文件: `*.css`, `*.scss`
+   - 配置文件: `*.json`, `*.js`
+
+3. **需要重启的情况**
+   - 修改 `vite.config.js` 配置
+   - 修改 `package.json` 依赖
+   - 修改环境变量文件
+   - 修改 TypeScript 配置
+
+## 调试工具
+
+- **Vue DevTools**: `http://localhost:5174/md/__devtools__/`
+- **快捷键**: `Option(⌥) + Shift(⇧) + D` 切换 Vue DevTools
+- **帮助**: 在终端按 `h + enter` 显示帮助
+
+## 性能优化
+
+- 使用 HMR 可以显著提高开发效率
+- 避免不必要的 `npm run build` 命令
+- 利用 Vite 的快速冷启动和热更新特性

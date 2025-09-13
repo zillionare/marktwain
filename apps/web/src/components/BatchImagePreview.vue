@@ -142,7 +142,7 @@ function formatUrl(url: string): string {
           <button
             v-if="!batchImagePreviewState.processing && totalImages > 0 && uploadingCount === 0 && uploadedCount < totalImages"
             class="header-upload-all-btn"
-            @click="uploadAllImages"
+            @click="() => uploadAllImages()"
           >
             <div v-if="uploadingCount > 0" class="btn-loading">
               <div class="btn-spinner" />
