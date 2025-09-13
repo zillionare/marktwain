@@ -14,6 +14,7 @@ import {
 
 import juice from 'juice'
 import { Marked } from 'marked'
+import { processAdmonitionToBlockquote } from './admonition-utils'
 
 export {
   customCssWithTemplate,
@@ -234,41 +235,163 @@ export function solveWeChatImage() {
 }
 
 async function getHljsStyles(): Promise<string> {
-  const hljsLink = document.querySelector(`#hljs`) as HTMLLinkElement
-  if (!hljsLink)
-    return ``
+  return extractHljsStylesFromPage()
+}
 
+/**
+ * 从页面中提取已加载的highlight.js样式
+ * 通过检查已渲染的代码块元素来获取样式
+ */
+function extractHljsStylesFromPage(): string {
   try {
-    // 检查是否是跨域链接
-    const linkUrl = new URL(hljsLink.href, window.location.origin)
-    const isCrossOrigin = linkUrl.origin !== window.location.origin
+    const styleSheets = Array.from(document.styleSheets)
+    let hljsCss = ``
 
-    if (isCrossOrigin) {
-      console.warn(`Cannot fetch cross-origin highlight.js styles: ${hljsLink.href}`)
-      // 对于跨域链接，我们直接返回空字符串，让页面使用已经加载的样式
-      return ``
+    for (const styleSheet of styleSheets) {
+      try {
+        const rules = Array.from(styleSheet.cssRules || [])
+        const hljsRules = rules.filter((rule) => {
+          if (rule.type === CSSRule.STYLE_RULE) {
+            const styleRule = rule as CSSStyleRule
+            return styleRule.selectorText && (
+              styleRule.selectorText.includes(`.hljs`)
+              || styleRule.selectorText.includes(`hljs-`)
+              || styleRule.selectorText.includes(`language-`)
+            )
+          }
+          return false
+        })
+
+        if (hljsRules.length > 0) {
+          hljsCss += hljsRules.map(rule => rule.cssText).join(`\n`)
+        }
+      }
+      catch (e) {
+        console.warn(`无法访问跨域样式表`, e)
+        continue
+      }
     }
 
-    const response = await fetch(hljsLink.href)
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-
-    const cssText = await response.text()
-    console.log(`Successfully fetched highlight.js styles`)
-    return `<style>${cssText}</style>`
+    return hljsCss ? `<style>${hljsCss}</style>` : ``
   }
   catch (error) {
-    console.warn(`Failed to fetch highlight.js styles:`, error)
-    // 即使获取失败，页面中已经加载的样式仍然会生效
+    console.warn(`无法提取highlight.js样式`, error)
     return ``
   }
 }
 
 function mergeCss(html: string): string {
-  return juice(html, {
-    inlinePseudoElements: true,
-    preserveImportant: true,
+  const tempDiv = document.createElement(`div`)
+  tempDiv.innerHTML = html
+
+  tempDiv.style.position = `absolute`
+  tempDiv.style.left = `-9999px`
+  tempDiv.style.top = `-9999px`
+  tempDiv.style.visibility = `hidden`
+  document.body.appendChild(tempDiv)
+
+  try {
+    setCodeBlockStyles(tempDiv)
+    setAdmonitionParagraphStyles(tempDiv)
+    return juice(tempDiv.innerHTML, {
+      inlinePseudoElements: true,
+      preserveImportant: true,
+      removeStyleTags: false,
+      insertPreservedExtraCss: true,
+      applyStyleTags: true,
+      webResources: {
+        relativeTo: window.location.href,
+        images: false,
+        svgs: false,
+        scripts: false,
+        links: false,
+      },
+    })
+  }
+  finally {
+    document.body.removeChild(tempDiv)
+  }
+}
+
+/**
+ * 手动设置代码块相关元素的样式
+ * 参考test-main-branch的setStyles函数实现
+ */
+function setCodeBlockStyles(container: Element) {
+  const codeElements = container.querySelectorAll(`.hljs, .code__pre, pre, code, span[class*="hljs-"], span[class*="language-"]`)
+
+  codeElements.forEach((element) => {
+    const computedStyle = window.getComputedStyle(element)
+    const inlineStyle = element.getAttribute(`style`) || ``
+
+    const styleProperties = [
+      `display`,
+      `overflow-x`,
+      `padding`,
+      `background`,
+      `color`,
+      `border-radius`,
+      `font-family`,
+      `font-size`,
+      `line-height`,
+      `text-align`,
+      `margin`,
+      `border`,
+      `white-space`,
+      `text-indent`,
+      `font-weight`,
+      `font-style`,
+      `background-color`,
+      `border-color`,
+      `text-decoration`,
+      `text-transform`,
+      `letter-spacing`,
+      `word-spacing`,
+      `text-shadow`,
+      `box-shadow`,
+    ]
+
+    let newStyle = inlineStyle
+
+    styleProperties.forEach((prop) => {
+      const value = computedStyle.getPropertyValue(prop)
+      if (value && value !== `initial` && value !== `inherit` && value !== `unset` && value !== `none`) {
+        const styleRegex = new RegExp(`${prop}\\s*:\\s*[^;]+`, `g`)
+        if (!styleRegex.test(newStyle)) {
+          newStyle += `${newStyle.endsWith(`;`) ? `` : `;`}${prop}:${value}`
+        }
+      }
+    })
+
+    if (newStyle !== inlineStyle) {
+      element.setAttribute(`style`, newStyle)
+    }
+  })
+}
+
+/**
+ * 设置admonition内容区域的段落样式
+ * 确保段落有正确的上下边距
+ */
+function setAdmonitionParagraphStyles(container: Element) {
+  const admonitions = container.querySelectorAll(`.admonition, blockquote`)
+
+  admonitions.forEach((admonition) => {
+    const paragraphs = admonition.querySelectorAll(`p`)
+    paragraphs.forEach((p) => {
+      const pElement = p as HTMLElement
+      const computedStyle = window.getComputedStyle(pElement)
+      const inlineStyle = pElement.getAttribute(`style`) || ``
+
+      // 检查是否已经有margin设置
+      const hasMargin = inlineStyle.includes(`margin`) || computedStyle.margin !== `0px`
+
+      if (!hasMargin) {
+        // 如果没有margin设置，添加0.5rem的上下边距
+        const newStyle = `${inlineStyle + (inlineStyle.endsWith(`;`) ? `` : `;`)}margin:0.5rem 0;`
+        pElement.setAttribute(`style`, newStyle)
+      }
+    })
   })
 }
 
@@ -302,29 +425,11 @@ export async function processClipboardContent(primaryColor: string) {
     clipboardDiv.innerHTML = hljsStyles + clipboardDiv.innerHTML
   }
 
-  // 临时移除跨域样式表链接，避免 juice 库访问跨域 cssRules 时出错
-  const crossOriginLinks = Array.from(document.querySelectorAll(`link[rel="stylesheet"]`)).filter((link) => {
-    try {
-      const linkUrl = new URL((link as HTMLLinkElement).href, window.location.origin)
-      return linkUrl.origin !== window.location.origin
-    }
-    catch {
-      return false
-    }
-  })
-
-  // 隐藏跨域样式表链接
-  crossOriginLinks.forEach((link) => {
-    ;(link as HTMLElement).style.display = `none`
-  })
-
-  // 先合并 CSS 和修改 HTML 结构
+  // 合并 CSS 和修改 HTML 结构
   clipboardDiv.innerHTML = modifyHtmlStructure(mergeCss(clipboardDiv.innerHTML))
 
-  // 恢复跨域样式表链接
-  crossOriginLinks.forEach((link) => {
-    ;(link as HTMLElement).style.display = ``
-  })
+  // 处理admonition：将div.admonition转换为blockquote以兼容公众号
+  clipboardDiv.innerHTML = processAdmonitionToBlockquote(clipboardDiv.innerHTML)
 
   // 处理样式和颜色变量
   clipboardDiv.innerHTML = clipboardDiv.innerHTML
@@ -333,14 +438,6 @@ export async function processClipboardContent(primaryColor: string) {
     .replace(/var\(--blockquote-background\)/g, `#f7f7f7`)
     .replace(/var\(--md-primary-color\)/g, primaryColor)
     .replace(/--md-primary-color:.+?;/g, ``)
-    .replace(
-      /<span class="nodeLabel"([^>]*)><p[^>]*>(.*?)<\/p><\/span>/g,
-      `<span class="nodeLabel"$1>$2</span>`,
-    )
-    .replace(
-      /<span class="edgeLabel"([^>]*)><p[^>]*>(.*?)<\/p><\/span>/g,
-      `<span class="edgeLabel"$1>$2</span>`,
-    )
 
   // 处理图片大小
   solveWeChatImage()
