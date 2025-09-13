@@ -81,18 +81,18 @@ export const useStore = defineStore(`store`, () => {
     convertAdmonition: { enabled: true, width: 500 }, // 转换 Admonition
     convertMathBlock: { enabled: true, width: 500 }, // 转换数学公式
     convertFencedBlock: { enabled: true, width: 600 }, // 转换代码块
-    convertH2: { enabled: true, width: null }, // 转换 h2 标题，null表示原宽度
-    convertH3: { enabled: true, width: null }, // 转换 h3 标题，null表示原宽度
-    convertH4: { enabled: false, width: null }, // 转换 h4 标题，null表示原宽度
+    convertH2: { enabled: true, widthMode: `original` }, // 转换 h2 标题
+    convertH3: { enabled: true, widthMode: `original` }, // 转换 h3 标题
+    convertH4: { enabled: false, widthMode: `original` }, // 转换 h4 标题
   } as {
     devicePixelRatio: number
     screenWidth: number
     convertAdmonition: { enabled: boolean, width: number | null }
     convertMathBlock: { enabled: boolean, width: number | null }
     convertFencedBlock: { enabled: boolean, width: number | null }
-    convertH2: { enabled: boolean, width: number | null }
-    convertH3: { enabled: boolean, width: number | null }
-    convertH4: { enabled: boolean, width: number | null }
+    convertH2: { enabled: boolean, widthMode: `original` | `screen` }
+    convertH3: { enabled: boolean, widthMode: `original` | `screen` }
+    convertH4: { enabled: boolean, widthMode: `original` | `screen` }
     [key: string]: any // 添加索引签名以支持动态访问
   })
 
@@ -794,76 +794,107 @@ export const useStore = defineStore(`store`, () => {
         targetWidth = conversionConfig.value.convertFencedBlock.width
       }
       else if (element.tagName === `H2`) {
-        targetWidth = conversionConfig.value.convertH2.width
+        const config = conversionConfig.value.convertH2
+        if (config.widthMode === `screen`) {
+          targetWidth = conversionConfig.value.screenWidth
+        }
+        else {
+          targetWidth = null // 原始宽度模式
+        }
         isHeader = true
       }
       else if (element.tagName === `H3`) {
-        targetWidth = conversionConfig.value.convertH3.width
+        const config = conversionConfig.value.convertH3
+        if (config.widthMode === `screen`) {
+          targetWidth = conversionConfig.value.screenWidth
+        }
+        else {
+          targetWidth = null // 原始宽度模式
+        }
         isHeader = true
       }
       else if (element.tagName === `H4`) {
-        targetWidth = conversionConfig.value.convertH4.width
+        const config = conversionConfig.value.convertH4
+        if (config.widthMode === `screen`) {
+          targetWidth = conversionConfig.value.screenWidth
+        }
+        else {
+          targetWidth = null // 原始宽度模式
+        }
         isHeader = true
       }
 
-      // 对于标题元素，使用屏幕宽度设置
+      // 对于标题元素，根据widthMode选择处理方式
       if (isHeader) {
-        const screenWidth = conversionConfig.value.screenWidth
-        if (screenWidth > 0) {
-          // 如果屏幕宽度大于元素宽度，需要特殊处理
-          const elementWidth = element.getBoundingClientRect().width
-          if (screenWidth > elementWidth) {
-            // 获取元素的完整尺寸（包括margin和padding）
-            const elementRect = element.getBoundingClientRect()
-            const computedStyle = window.getComputedStyle(element)
-            const marginTop = Number.parseFloat(computedStyle.marginTop) || 0
-            const marginBottom = Number.parseFloat(computedStyle.marginBottom) || 0
+        const config = element.tagName === `H2`
+          ? conversionConfig.value.convertH2
+          : element.tagName === `H3`
+            ? conversionConfig.value.convertH3
+            : conversionConfig.value.convertH4
 
-            // 计算包含margin和padding的完整高度
-            const fullHeight = elementRect.height + marginTop + marginBottom
-
-            // 创建包装容器
-            const wrapper = document.createElement(`div`)
-            wrapper.className = `title-wrapper`
-            wrapper.style.width = `${screenWidth}px`
-            wrapper.style.height = `${fullHeight}px`
-            wrapper.style.display = `flex`
-            wrapper.style.alignItems = `center`
-            wrapper.style.justifyContent = `center`
-            wrapper.style.position = `relative`
-            wrapper.style.border = `none`
-            wrapper.style.outline = `none`
-            wrapper.style.boxShadow = `none`
-            wrapper.style.overflow = `hidden`
-            wrapper.style.minWidth = `${screenWidth}px`
-            wrapper.style.maxWidth = `${screenWidth}px`
-            wrapper.style.flexShrink = `0`
-            wrapper.style.boxSizing = `border-box`
-
-            // 临时取消标题元素的边距，但保留padding
-            element.style.margin = `0`
-
-            // 将标题元素包装到容器中
-            element.parentNode?.insertBefore(wrapper, element)
-            wrapper.appendChild(element)
-
-            // 保持Header元素的原始宽度
-            const wrappedElement = wrapper.querySelector(`h2, h3, h4`) as HTMLElement
-            if (wrappedElement) {
-              wrappedElement.style.width = `${elementWidth}px`
-              wrappedElement.style.flexShrink = `0`
-              wrappedElement.style.minWidth = `${elementWidth}px`
-            }
-
-            // 设置目标元素为包装容器
-            element = wrapper
-          }
-          else {
-            // 屏幕宽度小于等于元素宽度，原样截图
-          }
+        if (config.widthMode === `screen`) {
+          // 屏幕宽度模式：直接设置元素宽度为屏幕宽度
+          element.style.width = `${conversionConfig.value.screenWidth}px`
         }
         else {
-          // 屏幕宽度为0，原样截图
+          // 原始宽度模式：使用包装容器填充到屏幕宽度
+          const screenWidth = conversionConfig.value.screenWidth
+          if (screenWidth > 0) {
+            // 如果屏幕宽度大于元素宽度，需要特殊处理
+            const elementWidth = element.getBoundingClientRect().width
+            if (screenWidth > elementWidth) {
+              // 获取元素的完整尺寸（包括margin和padding）
+              const elementRect = element.getBoundingClientRect()
+              const computedStyle = window.getComputedStyle(element)
+              const marginTop = Number.parseFloat(computedStyle.marginTop) || 0
+              const marginBottom = Number.parseFloat(computedStyle.marginBottom) || 0
+
+              // 计算包含margin和padding的完整高度
+              const fullHeight = elementRect.height + marginTop + marginBottom
+
+              // 创建包装容器
+              const wrapper = document.createElement(`div`)
+              wrapper.className = `title-wrapper`
+              wrapper.style.width = `${screenWidth}px`
+              wrapper.style.height = `${fullHeight}px`
+              wrapper.style.display = `flex`
+              wrapper.style.alignItems = `center`
+              wrapper.style.justifyContent = `center`
+              wrapper.style.position = `relative`
+              wrapper.style.border = `none`
+              wrapper.style.outline = `none`
+              wrapper.style.boxShadow = `none`
+              wrapper.style.overflow = `hidden`
+              wrapper.style.minWidth = `${screenWidth}px`
+              wrapper.style.maxWidth = `${screenWidth}px`
+              wrapper.style.flexShrink = `0`
+              wrapper.style.boxSizing = `border-box`
+
+              // 临时取消标题元素的边距，但保留padding
+              element.style.margin = `0`
+
+              // 将标题元素包装到容器中
+              element.parentNode?.insertBefore(wrapper, element)
+              wrapper.appendChild(element)
+
+              // 保持Header元素的原始宽度
+              const wrappedElement = wrapper.querySelector(`h2, h3, h4`) as HTMLElement
+              if (wrappedElement) {
+                wrappedElement.style.width = `${elementWidth}px`
+                wrappedElement.style.flexShrink = `0`
+                wrappedElement.style.minWidth = `${elementWidth}px`
+              }
+
+              // 设置目标元素为包装容器
+              element = wrapper
+            }
+            else {
+              // 屏幕宽度小于等于元素宽度，原样截图
+            }
+          }
+          else {
+            // 屏幕宽度为0，原样截图
+          }
         }
       }
       else if (targetWidth !== null) {

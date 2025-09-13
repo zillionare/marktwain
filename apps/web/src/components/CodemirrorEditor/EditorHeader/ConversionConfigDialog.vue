@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useStore } from '@/stores'
 
@@ -29,10 +30,16 @@ function getConfig(key: string) {
   const config = conversionConfig.value[key as keyof typeof conversionConfig.value]
   if (!config || typeof config !== `object`) {
     // 初始化配置项
-    conversionConfig.value[key as keyof typeof conversionConfig.value] = { enabled: false, width: null }
-    return conversionConfig.value[key as keyof typeof conversionConfig.value] as { enabled: boolean, width: number | null }
+    if (key.startsWith(`convertH`)) {
+      conversionConfig.value[key as keyof typeof conversionConfig.value] = { enabled: false, widthMode: `original` }
+      return conversionConfig.value[key as keyof typeof conversionConfig.value] as { enabled: boolean, widthMode: `original` | `screen` }
+    }
+    else {
+      conversionConfig.value[key as keyof typeof conversionConfig.value] = { enabled: false, width: null }
+      return conversionConfig.value[key as keyof typeof conversionConfig.value] as { enabled: boolean, width: number | null }
+    }
   }
-  return config as { enabled: boolean, width: number | null }
+  return config as { enabled: boolean, width: number | null, widthMode?: `original` | `screen` }
 }
 
 // 转换类型选项
@@ -84,9 +91,9 @@ function resetConfig() {
     convertAdmonition: { enabled: true, width: 500 },
     convertMathBlock: { enabled: true, width: 500 },
     convertFencedBlock: { enabled: true, width: 600 },
-    convertH2: { enabled: true, width: null },
-    convertH3: { enabled: true, width: null },
-    convertH4: { enabled: false, width: null },
+    convertH2: { enabled: true, widthMode: `original` },
+    convertH3: { enabled: true, widthMode: `original` },
+    convertH4: { enabled: false, widthMode: `original` },
   }
 }
 
@@ -236,9 +243,31 @@ function saveConfig() {
                   >
                     {{ option.label }}
                   </Label>
-                  <p class="text-xs text-muted-foreground mt-1">
-                    转标题时，我们将用当前标题的大小，在两侧填充空白到屏幕宽度之后再截图
-                  </p>
+
+                  <!-- 宽度模式选择 -->
+                  <div v-if="getConfig(option.key).enabled" class="mt-2">
+                    <RadioGroup
+                      :model-value="getConfig(option.key).widthMode || 'original'"
+                      class="flex space-x-4"
+                      @update:model-value="(value) => {
+                        const config = getConfig(option.key)
+                        config.widthMode = value as 'original' | 'screen'
+                      }"
+                    >
+                      <div class="flex items-center space-x-2">
+                        <RadioGroupItem :id="`${option.key}-original`" value="original" />
+                        <Label :for="`${option.key}-original`" class="text-xs">
+                          原始宽度，两侧填充
+                        </Label>
+                      </div>
+                      <div class="flex items-center space-x-2">
+                        <RadioGroupItem :id="`${option.key}-screen`" value="screen" />
+                        <Label :for="`${option.key}-screen`" class="text-xs">
+                          屏幕宽度，无填充
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
                 </div>
               </div>
             </div>
