@@ -74,9 +74,12 @@ export function markedAdmon(options: AdmonOptions = {}): MarkedExtension {
   // 提取公共的渲染逻辑
   function renderAdmon(token: any) {
     const { meta, tokens = [] } = token
-    // @ts-expect-error marked renderer context has parser property
+
     let text = this.parser.parse(tokens)
-    text = text.replace(/<p .*?>/g, `<p style="${getStyleString(meta.contentStyle)}">`)
+    console.log(`🔍 parsed text:`, text)
+
+    // 为所有段落添加样式，确保每个 <p> 标签都有正确的样式
+    text = text.replace(/<p(?:\s[^>]*)?>/g, `<p style="${getStyleString(meta.contentStyle)}">`)
 
     // 生成唯一的 data-id 用于转图功能，与 findMarkdownBlocks 中的 ID 生成逻辑保持一致
     // 使用统一格式: mktwain-{type}-{counter}
@@ -102,6 +105,7 @@ export function markedAdmon(options: AdmonOptions = {}): MarkedExtension {
     tmpl += text
     tmpl += `</div>\n`
 
+    console.debug(`🔍 final template:`, tmpl)
     return tmpl
   }
 
@@ -120,7 +124,7 @@ export function markedAdmon(options: AdmonOptions = {}): MarkedExtension {
 
       const variantType = matchedVariant.type
       token.type = `admon`
-      ;(token as any).meta = buildMeta(variantType, matchedVariant)
+      ; (token as any).meta = buildMeta(variantType, matchedVariant)
     },
     extensions: [
       {
@@ -135,8 +139,9 @@ export function markedAdmon(options: AdmonOptions = {}): MarkedExtension {
           return src.match(/^!!!/)?.index
         },
         tokenizer(src, _tokens) {
-          // 匹配 !!! {tag} ['title'] 语法，支持两个连续空白行结束
-          const match = /^!!!\s+(\w+)(?:\s+['"]([^'"]*)['"])?\s*\n([\s\S]*?)\n\s*\n\s*\n/.exec(src)
+          // 匹配 !!! {tag} ['title'] 语法，单个空白行结束（符合 CommonMark 标准）
+          // 支持可选的标题，标题用引号包围
+          const match = /^!!!\s+(\w+)(?:\s+['"]([^'"]*)['"])?\s*\n([\s\S]*?)\n\s*\n/.exec(src)
 
           if (match) {
             const [raw, variant, title, content] = match

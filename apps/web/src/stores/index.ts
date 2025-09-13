@@ -984,7 +984,7 @@ export const useStore = defineStore(`store`, () => {
     }
 
     // 查找 Admonition 块 (!!! 语法)
-    // 从 ^!!! 开始，到连续两个空行止
+    // 从 ^!!! 开始，到单个空行止（符合 CommonMark 标准）
     const admonitionRegex = /^!!![\s\S]*?\n\s*\n/gm
     let match
     match = admonitionRegex.exec(markdown)
