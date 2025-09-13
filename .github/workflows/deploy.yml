@@ -12,7 +12,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: github.repository == 'doocs/md'
+    if: github.repository == 'zillionare/marktwain'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -44,10 +44,8 @@ jobs:
       - name: Run build
         run: pnpm web ${{ env.BUILD_COMMAND }}
 
-      - name: Generate CNAME
-        run: |
-          mkdir -p apps/web/dist
-          echo "md.doocs.org" > apps/web/dist/CNAME
+      # CNAME 文件仅在使用自定义域名时需要
+      # 使用默认的 GitHub Pages 域名时不需要生成 CNAME
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
