@@ -14,6 +14,12 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 
 const base = process.env.SERVER_ENV === `NETLIFY` ? `/` : (process.env.CUSTOM_DOMAIN === `true` ? `/` : `/marktwain/`)
 
+// 调试信息
+console.log(`Environment variables:`)
+console.log(`SERVER_ENV:`, process.env.SERVER_ENV)
+console.log(`CUSTOM_DOMAIN:`, process.env.CUSTOM_DOMAIN)
+console.log(`Selected base path:`, base)
+
 export default defineConfig({
   base,
   define: { process },

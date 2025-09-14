@@ -43,10 +43,13 @@ jobs:
 
       - name: Run build
         run: |
+          echo "USE_CUSTOM_DOMAIN secret: ${{ secrets.USE_CUSTOM_DOMAIN }}"
           if [[ "${{ secrets.USE_CUSTOM_DOMAIN }}" == "true" ]]; then
             echo "CUSTOM_DOMAIN=true" >> $GITHUB_ENV
-            pnpm web build
+            echo "Building with custom domain configuration..."
+            pnpm web build:custom-domain
           else
+            echo "Building with default configuration..."
             pnpm web ${{ env.BUILD_COMMAND }}
           fi
 
