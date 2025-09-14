@@ -12,7 +12,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { VitePluginRadar } from 'vite-plugin-radar'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
-const base = process.env.SERVER_ENV === `NETLIFY` ? `/` : `/marktwain/`
+const base = process.env.SERVER_ENV === `NETLIFY` ? `/` : (process.env.CUSTOM_DOMAIN === `true` ? `/` : `/marktwain/`)
 
 export default defineConfig({
   base,
