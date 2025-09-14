@@ -5,7 +5,7 @@ Marktwain 是一款博文编辑工具。你可以使用 Markdown 及其增强语
 这意味着，你的博文中，可以包含**图表**、**警语**、**代码**、**公式**，它们可以发表到任何网站，无论这些网站是否支持其语法。
 
 !!! info "致谢！"
-  Marktwain 基于[Doocs/md](https://github.com/doocs/md) 开发。在其基础上，提供了 Admonition, 代码行号支持和转图功能。
+  Marktwain 基于[Doocs/md](https://github.com/doocs/md) 开发。在其基础上，提供了 Admonition, 代码行号支持和转图功能，增强了转 PDF 功能。
 
 如果你还不熟悉 Markdown 及其语法，请跳转[探索 Markdown 的奇妙世界](https://zillionare.github.io/marktwain/marktwain#markdown)。
 
@@ -15,7 +15,6 @@ Marktwain 是一款博文编辑工具。你可以使用 Markdown 及其增强语
 
 !!! info "Admonition 语法"
   这是一个 Admonition Info 信息块。它的语法是:
-
   ```md
   !!! {tag} "title"
       这是一个 Admonition Info 信息块。它的语法是:
@@ -65,6 +64,12 @@ Marktwain 是一款博文编辑工具。你可以使用 Markdown 及其增强语
 下图显示了如何配置 github 图床：
 
 ![](https://cdn.jsdelivr.net/gh/zillionare/imgbed2@main/images/2025/08/marktwain-config-image-bed.png)
+
+### 1.4. 转PDF
+
+[Doocs/md](https://github.com/doocs/md)原生支持转 PDF。但是，因为使用了跨域的 CSS，所以，在转 PDF 时，会丢失 Admonition样式、代码部分的背景和语法高亮效果及其它视觉效果。
+
+如果你比较在意这些效果，可以先使用转图功能，然后切换到『转图后』标签页，再选择 文件 > 导出 PDF，此时导致的 PDF 就会包含全部样式。
 
 ## 2. 探索 Markdown 的奇妙世界
 
@@ -329,7 +334,7 @@ Markdown 是一种简单、强大且易于掌握的标记语言，通过学习�
 
 现在，拿起 Markdown 编辑器，开始创作吧！探索 Markdown 的世界，你会发现它远比想象中更精彩！
 
-## 6. 关于匡醍
+## 6. 关于开发者
 
 匡醍量化是 MarkTwain 的开发者。我们开设有《量化24课》、《因子挖掘与机器学习策略》和《量化人的Numpy和Pandas》等量化课程。
 

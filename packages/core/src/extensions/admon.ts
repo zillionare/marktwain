@@ -72,7 +72,7 @@ export function markedAdmon(options: AdmonOptions = {}): MarkedExtension {
   }
 
   // 提取公共的渲染逻辑
-  function renderAdmon(token: any) {
+  function renderAdmon(this: any, token: any) {
     const { meta, tokens = [] } = token
 
     let text = this.parser.parse(tokens)

@@ -35,19 +35,21 @@ function onUpdate(val: boolean) {
         <DialogTitle>赞赏</DialogTitle>
       </DialogHeader>
       <div class="text-center">
-        <p>若觉得项目不错，可以通过以下方式支持我们～</p>
+        <p>若觉得项目不错，请赞赏<b>Doocs/md 的原作者们</b>～</p>
         <div class="grid grid-cols-2 my-5 gap-4">
           <div v-for="contributor in contributors" :key="contributor.name" class="text-center">
             <img
               :src="contributor.imageUrl"
               :alt="contributor.altText"
               class="mx-auto"
-              style="width: 90%; max-width: 200px;border-radius: 10%;"
+              style="width: 85%; max-width: 200px;border-radius: 10%;"
             >
           </div>
         </div>
       </div>
-
+      <div class="text-center text-sm" style="color: #a0a0a0">
+        注意！ MarkTwain 基于 doocs/md，但我们是两个独立项目。
+      </div>
       <DialogFooter class="sm:justify-evenly">
         <Button @click="emit('close')">
           关闭

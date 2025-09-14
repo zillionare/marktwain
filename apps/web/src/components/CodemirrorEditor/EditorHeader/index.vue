@@ -292,9 +292,6 @@ async function copy() {
         </DropdownMenu>
       </div>
 
-      <!-- 文章信息（移动端隐藏） -->
-      <PostInfo class="hidden sm:inline-flex" />
-
       <!-- 设置按钮 -->
       <Button variant="outline" size="icon" @click="store.isOpenRightSlider = !store.isOpenRightSlider">
         <Settings class="size-4" />
