@@ -17,7 +17,7 @@ function onUpdate(val: boolean) {
 const links = [
   { label: `GitHub 仓库`, url: `https://github.com/zillionare/marktwain` },
   { label: `开发者`, url: `http://ke.quantide.cn` },
-  { label: `在线编辑器`, url: `https://zillionare.github.io/marktwain/` },
+  { label: `在线编辑器`, url: `https://md.jieyu.ai` },
 ]
 
 function onRedirect(url: string) {

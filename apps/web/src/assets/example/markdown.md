@@ -7,7 +7,7 @@ Marktwain 是一款博文编辑工具。你可以使用 Markdown 及其增强语
 !!! info "致谢！"
   Marktwain 基于[Doocs/md](https://github.com/doocs/md) 开发。在其基础上，提供了 Admonition, 代码行号支持和转图功能，增强了转 PDF 功能。
 
-如果你还不熟悉 Markdown 及其语法，请跳转[探索 Markdown 的奇妙世界](https://zillionare.github.io/marktwain/marktwain#markdown)。
+如果你还不熟悉 Markdown 及其语法，请跳转 [探索 Markdown 的奇妙世界](#markdown)。
 
 ### 1.1. Admonition
 
@@ -76,8 +76,6 @@ Marktwain 是一款博文编辑工具。你可以使用 Markdown 及其增强语
 <div style="opacity: 0.01;width=10px" id="markdown"></div>
 
 欢迎来到 Markdown 的奇妙世界！无论你是写作爱好者、开发者、博主，还是想要简单记录点什么的人，Markdown 都能成为你新的好伙伴。它不仅让写作变得简单明了，还能轻松地将内容转化为漂亮的网页格式。今天，我们将全面探讨 Markdown 的基础和进阶语法，让你在这个过程中充分享受写作的乐趣！
-
-<a href="#marktwain-新功能">我是 Markdown高手！ 直接跳转到 Marktwain 新功能</a>
 
 Markdown 是一种轻量级标记语言，用于格式化纯文本。它以简单、直观的语法而著称，可以快速地生成 HTML。Markdown 是写作与代码的完美结合，既简单又强大。
 

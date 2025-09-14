@@ -14,11 +14,11 @@
 
 我们的做法很简单，把平台可能不支持的特殊语法，比如代码高亮显示， Mermaid 图表（暂未实现），数学公式，警示语块事先转换成图片并上传到图床，并替换相应内容为图片链接。这样再复制粘贴到其它平台上，就能得到一致的视觉效果。实际上，这也是早期在编辑公众号标题、头条标题大家常做的事。
 
-**MarkTwain永久免费，并且一直可通过 [MarkTwain](https://zillionare.github.io/marktwain) 在线使用**！
+**MarkTwain永久免费，并且一直可通过 [MarkTwain](https://md.jieyu.ai) 在线使用**！
 
 ## 在线使用地址
 
-**[MarkTwain](https://zillionare.github.io/marktwain)**
+**[MarkTwain](https://md.jieyu.ai)**
 
 注：推荐使用 Chrome 浏览器，效果最佳。
 
@@ -96,12 +96,12 @@ GitHub 图床支持以下配置选项：
 
 配置示例：
 
-- 仓库：`zillionare/imgbed2`
+- 仓库：`githubuser/repo`
 - 分支：`main`
 - 仓库内路径：`images/{year}/{month}`
-- 域名前缀：`https://fastly.jsdelivr.net/gh/zillionare/imgbed2@main/`
+- 域名前缀：`https://fastly.jsdelivr.net/gh/githubuser/repo@main/`
 
-![](https://cdn.jsdelivr.net/gh/zillionare/imgbed2@main/images/2025/08/20250914205647.png)
+![](https://cdn.jsdelivr.net/gh/githubuser/repo@main/images/2025/08/20250914205647.png)
 
 ![demo1](https://cdn-doocs.oss-cn-shenzhen.aliyuncs.com/gh/doocs/md/images/demo1.gif)
 
@@ -113,7 +113,7 @@ GitHub 图床支持以下配置选项：
 
 ## 支持我们
 
-本项目永久免费，并可通过[Marktwain](https://zillionare.github.io/marktwain/)**免费**在线使用。
+本项目永久免费，并可通过[Marktwain](https://md.jieyu.ai)**免费**在线使用。
 
 ## 反馈与交流
 
