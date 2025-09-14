@@ -15,7 +15,6 @@ Marktwain 是一款博文编辑工具。你可以使用 Markdown 及其增强语
 
 !!! info "Admonition 语法"
   这是一个 Admonition Info 信息块。它的语法是:
-
   ```md
   !!! {tag} "title"
       这是一个 Admonition Info 信息块。它的语法是:
