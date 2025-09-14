@@ -1133,6 +1133,31 @@ export const useStore = defineStore(`store`, () => {
   }
 
   // 转换元素为图片
+  // 重置转图相关状态
+  const resetImageConversion = () => {
+    // 清除转换后的markdown
+    convertedMarkdownV1.value = ``
+
+    // 重置图片替换状态
+    isImageReplaced.value = false
+
+    // 清空转换映射关系
+    conversionMap.value.clear()
+
+    // 重置转换中状态
+    isConverting.value = false
+
+    // 清理所有可能的上传图片记录（由于我们不知道原始内容，清理所有记录）
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith(`uploaded-images-`)) {
+        localStorage.removeItem(key)
+      }
+    }
+
+    toast.success(`转图状态已重置`)
+  }
+
   const convertElementsToImages = async () => {
     // 1. 首先基于 Markdown 内容找到需要转换的块
     const markdownBlocks = findMarkdownBlocks(originalMarkdown.value)
@@ -1283,7 +1308,16 @@ export const useStore = defineStore(`store`, () => {
     const allSuccess = collectElementsByDataId(markdownBlocks)
 
     if (!allSuccess) {
-      toast.error(`找不到对应的HTML元素，停止转换`)
+      toast.error(`找不到对应的HTML元素，请刷新页面后重试`, {
+        duration: 5000,
+        action: {
+          label: `刷新页面`,
+          onClick: () => {
+            resetImageConversion()
+            window.location.reload()
+          },
+        },
+      })
       return
     }
 
@@ -1448,31 +1482,6 @@ export const useStore = defineStore(`store`, () => {
   // 重置样式
   const resetStyleConfirm = () => {
     isOpenConfirmDialog.value = true
-  }
-
-  // 重置转图相关状态
-  const resetImageConversion = () => {
-    // 清除转换后的markdown
-    convertedMarkdownV1.value = ``
-
-    // 重置图片替换状态
-    isImageReplaced.value = false
-
-    // 清空转换映射关系
-    conversionMap.value.clear()
-
-    // 重置转换中状态
-    isConverting.value = false
-
-    // 清理所有可能的上传图片记录（由于我们不知道原始内容，清理所有记录）
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)
-      if (key && key.startsWith(`uploaded-images-`)) {
-        localStorage.removeItem(key)
-      }
-    }
-
-    toast.success(`转图状态已重置`)
   }
 
   return {

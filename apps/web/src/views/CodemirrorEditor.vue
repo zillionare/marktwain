@@ -119,6 +119,8 @@ function leftAndRightScroll() {
 }
 
 onMounted(() => {
+  store.resetImageConversion()
+
   setTimeout(() => {
     leftAndRightScroll()
   }, 300)
