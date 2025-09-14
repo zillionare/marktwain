@@ -1,0 +1,62 @@
+---
+description: 转图功能实现和 mermaid 支持规则
+---
+
+# 转图功能实现规则
+
+## 转图功能调用链
+
+转图功能的核心流程位于 [apps/web/src/stores/index.ts](mdc:apps/web/src/stores/index.ts)：
+
+1. **用户触发**: 点击『转图』按钮调用 `convertToImages()`
+2. **保存原始内容**: `saveOriginalMarkdown()` 保存当前 Markdown
+3. **显示批量预览**: `useBatchImagePreview().showBatchPreview()` 显示转换预览
+4. **转换元素**: `convertElementsToImages()` 执行实际转换
+
+## 核心转换逻辑
+
+### Markdown 块识别
+- `findMarkdownBlocks()` 函数解析 Markdown 内容，识别需要转换的块
+- 支持的类型：admonition、code、math、h2-h4 标题
+- 每个块生成唯一 ID：`mktwain-{type}-{counter}`
+
+### HTML 元素匹配
+- 通过 `mktwain-data-id` 属性匹配 Markdown 块和 HTML 元素
+- 使用 `html-to-image` 库将 DOM 元素转换为图片
+- 上传图片到图床并替换原始内容
+
+## Mermaid 支持
+
+### 渲染器配置
+在 [packages/core/src/renderer/renderer-impl.ts](mdc:packages/core/src/renderer/renderer-impl.ts) 中：
+
+```typescript
+code({ text, lang = `` }: Tokens.Code): string {
+  if (lang.startsWith(`mermaid`)) {
+    // 生成唯一 data-id 用于转图功能
+    const dataId = `mktwain-code-${counters.code}`
+    return `<pre class="mermaid" mktwain-data-id="${dataId}">${text}</pre>`
+  }
+}
+```
+
+### 关键要求
+- **必须添加 `mktwain-data-id` 属性**：这是转图功能匹配元素的关键
+- **ID 格式统一**：使用 `mktwain-{type}-{counter}` 格式
+- **计数器独立**：每种类型使用独立的计数器
+
+## 开发注意事项
+
+### HMR 支持
+- 项目支持热模块替换，修改代码后自动生效
+- 无需手动重启服务器或运行 build 命令
+
+### 调试信息
+- 转图功能包含详细的 console.debug 日志
+- 可以通过浏览器开发者工具查看转换过程
+
+### 测试方法
+1. 在 Markdown 编辑器中输入 mermaid 代码块
+2. 点击『转图』按钮
+3. 检查是否成功转换为图片
+4. 查看控制台日志确认转换过程

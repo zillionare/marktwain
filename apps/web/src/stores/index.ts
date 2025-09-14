@@ -7,7 +7,7 @@ import {
 import { snapdom } from '@zumer/snapdom'
 import CodeMirror from 'codemirror'
 import { v4 as uuid } from 'uuid'
-import DEFAULT_CONTENT from '@/assets/example/markdown.md?raw'
+import DEFAULT_CONTENT from '@/assets/example/test.md?raw'
 import DEFAULT_CSS_CONTENT from '@/assets/example/theme-css.txt?raw'
 
 import { useBatchImagePreview } from '@/composables/useBatchImagePreview'
