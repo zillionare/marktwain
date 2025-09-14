@@ -3,7 +3,7 @@ import { ClipboardPasteIcon, Contact2Icon, CopyIcon, Redo2Icon, TableIcon, Undo2
 
 const { toggleShowInsertFormDialog, toggleShowUploadImgDialog, toggleShowInsertMpCardDialog } = useDisplayStore()
 
-const { copyToClipboard, pasteFromClipboard, undo, redo, resetImageConversion } = useStore()
+const { copyToClipboard, pasteFromClipboard, undo, redo } = useStore()
 </script>
 
 <template>
@@ -41,11 +41,6 @@ const { copyToClipboard, pasteFromClipboard, undo, redo, resetImageConversion } 
       <MenubarItem @click="pasteFromClipboard()">
         <ClipboardPasteIcon class="mr-2 h-4 w-4" />
         粘贴
-      </MenubarItem>
-      <MenubarSeparator />
-      <MenubarItem @click="resetImageConversion()">
-        <CopyIcon class="mr-2 h-4 w-4" />
-        转图重置
       </MenubarItem>
     </MenubarContent>
   </MenubarMenu>

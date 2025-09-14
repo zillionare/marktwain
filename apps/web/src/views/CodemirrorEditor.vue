@@ -119,6 +119,8 @@ function leftAndRightScroll() {
 }
 
 onMounted(() => {
+  store.resetImageConversion()
+
   setTimeout(() => {
     leftAndRightScroll()
   }, 300)
@@ -163,11 +165,11 @@ function beforeUpload(file: File) {
   }
 
   // check image host
-  const imgHost = localStorage.getItem(`imgHost`) || `default`
+  const imgHost = localStorage.getItem(`imgHost`) || `github`
   localStorage.setItem(`imgHost`, imgHost)
 
   const config = localStorage.getItem(`${imgHost}Config`)
-  const isValidHost = imgHost === `default` || config
+  const isValidHost = config
   if (!isValidHost) {
     toast.error(`请先配置 ${imgHost} 图床参数`)
     return false

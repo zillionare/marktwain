@@ -151,6 +151,21 @@ function generatePlantUMLUrl(code: string, options: Required<PlantUMLOptions>): 
 function renderPlantUMLDiagram(token: Tokens.Code, options: Required<PlantUMLOptions>): string {
   const { text: code } = token
 
+  // 生成唯一的 data-id 用于转图功能，与 findMarkdownBlocks 中的 ID 生成逻辑保持一致
+  // 使用统一格式: mktwain-{type}-{counter}
+  if (!(globalThis as any)._marktwainBlockCounters) {
+    (globalThis as any)._marktwainBlockCounters = {
+      admonition: 0,
+      code: 0,
+      math: 0,
+      plantuml: 0,
+    }
+  }
+  const counters = (globalThis as any)._marktwainBlockCounters
+  counters.plantuml = counters.plantuml + 1
+  const dataId = `mktwain-plantuml-${counters.plantuml}`
+  console.log(`PlantUML block renderer called, generating dataId:`, dataId)
+
   // 检查代码是否包含 PlantUML 标记
   const finalCode = (!code.trim().includes(`@start`) || !code.trim().includes(`@end`))
     ? `@startuml\n${code.trim()}\n@enduml`
@@ -167,7 +182,7 @@ function renderPlantUMLDiagram(token: Tokens.Code, options: Required<PlantUMLOpt
     fetchSvgContent(imageUrl).then((svgContent) => {
       const placeholderElement = document.querySelector(`[data-placeholder="${placeholder}"]`)
       if (placeholderElement) {
-        placeholderElement.outerHTML = createPlantUMLHTML(imageUrl, options, svgContent)
+        placeholderElement.outerHTML = createPlantUMLHTML(imageUrl, options, svgContent, dataId)
       }
     })
 
@@ -177,12 +192,12 @@ function renderPlantUMLDiagram(token: Tokens.Code, options: Required<PlantUMLOpt
           .join(`; `)
       : ``
 
-    return `<div class="${options.className}" style="${containerStyles}" data-placeholder="${placeholder}">
+    return `<div class="${options.className}" style="${containerStyles}" data-placeholder="${placeholder}" mktwain-data-id="${dataId}">
       <div style="color: #666; font-style: italic;">正在加载PlantUML图表...</div>
     </div>`
   }
 
-  return createPlantUMLHTML(imageUrl, options)
+  return createPlantUMLHTML(imageUrl, options, undefined, dataId)
 }
 
 /**
@@ -213,22 +228,24 @@ async function fetchSvgContent(svgUrl: string): Promise<string> {
 /**
  * 创建 PlantUML HTML 元素
  */
-function createPlantUMLHTML(imageUrl: string, options: Required<PlantUMLOptions>, svgContent?: string): string {
+function createPlantUMLHTML(imageUrl: string, options: Required<PlantUMLOptions>, svgContent?: string, dataId?: string): string {
   const containerStyles = options.styles.container
     ? Object.entries(options.styles.container)
         .map(([key, value]) => `${key.replace(/([A-Z])/g, `-$1`).toLowerCase()}: ${value}`)
         .join(`; `)
     : ``
 
+  const dataIdAttr = dataId ? ` mktwain-data-id="${dataId}"` : ``
+
   // 如果有SVG内容，直接嵌入
   if (svgContent) {
-    return `<div class="${options.className}" style="${containerStyles}">
+    return `<div class="${options.className}" style="${containerStyles}"${dataIdAttr}>
       ${svgContent}
     </div>`
   }
 
   // 否则使用图片链接
-  return `<div class="${options.className}" style="${containerStyles}">
+  return `<div class="${options.className}" style="${containerStyles}"${dataIdAttr}>
     <img src="${imageUrl}" alt="PlantUML Diagram" style="max-width: 100%; height: auto;" />
   </div>`
 }

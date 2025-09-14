@@ -933,7 +933,7 @@ export const useStore = defineStore(`store`, () => {
 
   // 在编辑区搜索并编号各类块元素
   interface MarkdownBlock {
-    type: `admonition` | `math` | `code` | `h2` | `h3` | `h4`
+    type: `admonition` | `math` | `code` | `plantuml` | `h2` | `h3` | `h4`
     content: string
     startIndex: number
     endIndex: number
@@ -970,6 +970,7 @@ export const useStore = defineStore(`store`, () => {
       admonition: 0,
       code: 0,
       math: 0,
+      plantuml: 0,
       h2: 0,
       h3: 0,
       h4: 0,
@@ -1058,15 +1059,19 @@ export const useStore = defineStore(`store`, () => {
       console.debug(`起始行号:`, startLine)
       console.debug(`结束行号:`, endLine)
 
+      // 检查是否是 PlantUML 代码块
+      const isPlantUML = match[0].startsWith(`\`\`\`plantuml`)
+      const blockType = isPlantUML ? `plantuml` : `code`
+
       allBlocks.push({
-        type: `code`,
+        type: blockType,
         content: match[0],
         startIndex: match.index,
         endIndex: match.index + match[0].length,
         startLine,
         endLine,
         sequenceIndex: sequenceIndex++,
-        id: generateBlockId(`code`), // 新增：生成唯一ID
+        id: generateBlockId(blockType), // 新增：生成唯一ID
       })
       match = codeRegex.exec(markdown)
     }
@@ -1128,6 +1133,31 @@ export const useStore = defineStore(`store`, () => {
   }
 
   // 转换元素为图片
+  // 重置转图相关状态
+  const resetImageConversion = () => {
+    // 清除转换后的markdown
+    convertedMarkdownV1.value = ``
+
+    // 重置图片替换状态
+    isImageReplaced.value = false
+
+    // 清空转换映射关系
+    conversionMap.value.clear()
+
+    // 重置转换中状态
+    isConverting.value = false
+
+    // 清理所有可能的上传图片记录（由于我们不知道原始内容，清理所有记录）
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith(`uploaded-images-`)) {
+        localStorage.removeItem(key)
+      }
+    }
+
+    toast.success(`转图状态已重置`)
+  }
+
   const convertElementsToImages = async () => {
     // 1. 首先基于 Markdown 内容找到需要转换的块
     const markdownBlocks = findMarkdownBlocks(originalMarkdown.value)
@@ -1250,6 +1280,8 @@ export const useStore = defineStore(`store`, () => {
               return el.classList.contains(`block_katex`)
             if (block.type === `code`)
               return el.tagName === `PRE` && el.classList.contains(`hljs`)
+            if (block.type === `plantuml`)
+              return el.classList.contains(`plantuml-diagram`)
             return false
           })
 
@@ -1276,7 +1308,16 @@ export const useStore = defineStore(`store`, () => {
     const allSuccess = collectElementsByDataId(markdownBlocks)
 
     if (!allSuccess) {
-      toast.error(`找不到对应的HTML元素，停止转换`)
+      toast.error(`找不到对应的HTML元素，请刷新页面后重试`, {
+        duration: 5000,
+        action: {
+          label: `刷新页面`,
+          onClick: () => {
+            resetImageConversion()
+            window.location.reload()
+          },
+        },
+      })
       return
     }
 
@@ -1351,6 +1392,10 @@ export const useStore = defineStore(`store`, () => {
       }
 
       isConverting.value = true
+
+      // 清空之前的转换结果
+      convertedMarkdownV1.value = ``
+      conversionMap.value.clear()
 
       // 1. 保存原始内容
       saveOriginalMarkdown()
@@ -1437,31 +1482,6 @@ export const useStore = defineStore(`store`, () => {
   // 重置样式
   const resetStyleConfirm = () => {
     isOpenConfirmDialog.value = true
-  }
-
-  // 重置转图相关状态
-  const resetImageConversion = () => {
-    // 清除转换后的markdown
-    convertedMarkdownV1.value = ``
-
-    // 重置图片替换状态
-    isImageReplaced.value = false
-
-    // 清空转换映射关系
-    conversionMap.value.clear()
-
-    // 重置转换中状态
-    isConverting.value = false
-
-    // 清理所有可能的上传图片记录（由于我们不知道原始内容，清理所有记录）
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)
-      if (key && key.startsWith(`uploaded-images-`)) {
-        localStorage.removeItem(key)
-      }
-    }
-
-    toast.success(`转图状态已重置`)
   }
 
   return {

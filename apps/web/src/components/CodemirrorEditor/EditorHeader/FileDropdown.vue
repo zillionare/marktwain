@@ -7,6 +7,7 @@ const store = useStore()
 const {
   isDark,
   isEditOnLeft,
+  isImageReplaced,
 } = storeToRefs(store)
 
 const {
@@ -16,7 +17,6 @@ const {
   downloadAsCardImage,
   exportEditorContent2PDF,
   exportConvertedMarkdownV1,
-  isImageReplaced,
 } = store
 
 const editorStateDialogVisible = ref(false)
