@@ -10,11 +10,11 @@
 
 本项目是 [Doocs/md](https://github.com/doocs/md) 的 fork。Doocs/md 解决了快速编辑公众号文章的问题，并提供了优雅的默认样式。
 
-但是，如何安全地把文章发到任意平台，而不丢失这些优雅的样式呢？**一次编辑，发遍宇宙**，这就是 MarkTwain 要做的事。
+但是，如何安全地把文章发到任意平台，而不丢失这些优雅的样式呢？**编辑一次，发遍宇宙**，这就是 MarkTwain 要做的事。
 
-它的做法很简单，把平台可能不支持的特殊语法，比如代码高亮显示， Mermaid 图表（暂未实现），数学公式，警示语块事先转换成图片并上传到图床，并替换相应内容为图片链接。这样再复制粘贴到其它平台上，就能得到一致的视觉效果。
+我们的做法很简单，把平台可能不支持的特殊语法，比如代码高亮显示， Mermaid 图表（暂未实现），数学公式，警示语块事先转换成图片并上传到图床，并替换相应内容为图片链接。这样再复制粘贴到其它平台上，就能得到一致的视觉效果。实际上，这也是早期在编辑公众号标题、头条标题大家常做的事。
 
-**MarkTwain永久免费，并且一直可通过[MarkTwain](https://zillionare.github.io/marktwain) 在线使用**！
+**MarkTwain永久免费，并且一直可通过 [MarkTwain](https://zillionare.github.io/marktwain) 在线使用**！
 
 ## 在线使用地址
 
@@ -30,9 +30,10 @@
 
 - [x] 支持 common mark 的 Admonition (类似 GFM Alerts)
 - [x] 代码加行号功能。
-- [x] 支持将 admonition, fenced block, math block和标题 转换成图片，上传图床
+- [x] 支持将 admonition, fenced block, math block, mermaid, plantULM和标题 转换成图片，上传图床
 - [x] 将转图后的 markdown 替换为图片链接
 - [x] 将转图后的博文复制粘贴后，即可发表到多数网站，保持视觉效果基本不变。
+- [x] 导出与预览完全一致的 PDF。
 
 ![](https://cdn.jsdelivr.net/gh/zillionare/imgbed2@main/images/2025/08/20250910213510.png)
 
@@ -55,7 +56,7 @@
 
 | #   | 图床                                                   | 使用时是否需要配置                                                         | 备注                                                                                                                   |
 | --- | ------------------------------------------------------ | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| 1   | 默认                                                   | 否                                                                         | -                                                                                                                      |
+| 1   | gitee                                                  | 否，但Gitee 图床图片，一般很难在其它网站上使用。                           | -                                                                                                                      |
 | 2   | [GitHub](https://github.com)                           | 配置 `Repo`、`Token`、`仓库内路径`、`域名前缀` 参数                        | [如何获取 GitHub token？](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token) |
 | 3   | [阿里云](https://www.aliyun.com/product/oss)           | 配置 `AccessKey ID`、`AccessKey Secret`、`Bucket`、`Region` 参数           | [如何使用阿里云 OSS？](https://help.aliyun.com/document_detail/31883.html)                                             |
 | 4   | [腾讯云](https://cloud.tencent.com/act/pro/cos)        | 配置 `SecretId`、`SecretKey`、`Bucket`、`Region` 参数                      | [如何使用腾讯云 COS？](https://cloud.tencent.com/document/product/436/38484)                                           |
@@ -100,17 +101,7 @@ GitHub 图床支持以下配置选项：
 - 仓库内路径：`images/{year}/{month}`
 - 域名前缀：`https://fastly.jsdelivr.net/gh/zillionare/imgbed2@main/`
 
-上传后的文件将存储在：
-
-```
-github.com/zillionare/imgbed2@main/images/2025/09/1757504316806-538c0834-78c2-4416-bf25-57be7c92f19e.png
-```
-
-图片访问链接：
-
-```
-https://fastly.jsdelivr.net/gh/zillionare/imgbed2@main/images/2025/09/1757504316806-538c0834-78c2-4416-bf25-57be7c92f19e.png
-```
+![](https://cdn.jsdelivr.net/gh/zillionare/imgbed2@main/images/2025/08/20250914205647.png)
 
 ![demo1](https://cdn-doocs.oss-cn-shenzhen.aliyuncs.com/gh/doocs/md/images/demo1.gif)
 
