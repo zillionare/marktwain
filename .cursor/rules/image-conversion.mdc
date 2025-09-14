@@ -17,7 +17,7 @@ description: 转图功能实现和 mermaid 支持规则
 
 ### Markdown 块识别
 - `findMarkdownBlocks()` 函数解析 Markdown 内容，识别需要转换的块
-- 支持的类型：admonition、code、math、h2-h4 标题
+- 支持的类型：admonition、code、math、plantuml、h2-h4 标题
 - 每个块生成唯一 ID：`mktwain-{type}-{counter}`
 
 ### HTML 元素匹配
@@ -25,9 +25,9 @@ description: 转图功能实现和 mermaid 支持规则
 - 使用 `html-to-image` 库将 DOM 元素转换为图片
 - 上传图片到图床并替换原始内容
 
-## Mermaid 支持
+## Mermaid 和 PlantUML 支持
 
-### 渲染器配置
+### Mermaid 渲染器配置
 在 [packages/core/src/renderer/renderer-impl.ts](mdc:packages/core/src/renderer/renderer-impl.ts) 中：
 
 ```typescript
@@ -40,10 +40,24 @@ code({ text, lang = `` }: Tokens.Code): string {
 }
 ```
 
+### PlantUML 渲染器配置
+在 [packages/core/src/extensions/plantuml.ts](mdc:packages/core/src/extensions/plantuml.ts) 中：
+
+```typescript
+function renderPlantUMLDiagram(token: Tokens.Code, options: Required<PlantUMLOptions>): string {
+  // 生成唯一的 data-id 用于转图功能
+  const dataId = `mktwain-plantuml-${counters.plantuml}`
+  
+  // 在 HTML 元素中添加 mktwain-data-id 属性
+  return createPlantUMLHTML(imageUrl, options, svgContent, dataId)
+}
+```
+
 ### 关键要求
 - **必须添加 `mktwain-data-id` 属性**：这是转图功能匹配元素的关键
 - **ID 格式统一**：使用 `mktwain-{type}-{counter}` 格式
 - **计数器独立**：每种类型使用独立的计数器
+- **类型识别**：PlantUML 代码块通过 ````plantuml` 语言标识符识别
 
 ## 开发注意事项
 
@@ -56,7 +70,30 @@ code({ text, lang = `` }: Tokens.Code): string {
 - 可以通过浏览器开发者工具查看转换过程
 
 ### 测试方法
-1. 在 Markdown 编辑器中输入 mermaid 代码块
+1. 在 Markdown 编辑器中输入 mermaid 或 plantuml 代码块
 2. 点击『转图』按钮
 3. 检查是否成功转换为图片
 4. 查看控制台日志确认转换过程
+
+### PlantUML 示例
+````markdown
+```plantuml
+@startuml
+participant Participant as Foo
+actor       Actor       as Foo1
+boundary    Boundary    as Foo2
+control     Control     as Foo3
+entity      Entity      as Foo4
+database    Database    as Foo5
+collections Collections as Foo6
+queue       Queue       as Foo7
+Foo -> Foo1 : To actor
+Foo -> Foo2 : To boundary
+Foo -> Foo3 : To control
+Foo -> Foo4 : To entity
+Foo -> Foo5 : To database
+Foo -> Foo6 : To collections
+Foo -> Foo7: To queue
+@enduml
+```
+````

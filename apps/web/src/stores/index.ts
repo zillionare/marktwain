@@ -1359,6 +1359,10 @@ export const useStore = defineStore(`store`, () => {
 
       isConverting.value = true
 
+      // 清空之前的转换结果
+      convertedMarkdownV1.value = ``
+      conversionMap.value.clear()
+
       // 1. 保存原始内容
       saveOriginalMarkdown()
 
