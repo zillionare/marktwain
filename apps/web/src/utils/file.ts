@@ -140,34 +140,51 @@ async function ghFileUpload(content: string, filename: string) {
   const fullPath = `${dir}/${dateFilename}`
 
   const url = `https://api.github.com/repos/${username}/${repo}/contents/${fullPath}`
-  const res = await fetch<{ content: {
-    download_url: string
-  } }, {
-    content: {
-      download_url: string
-    }
-    data?: {
+
+  try {
+    const res = await fetch<{
       content: {
         download_url: string
       }
+    }, {
+      content: {
+        download_url: string
+      }
+      data?: {
+        content: {
+          download_url: string
+        }
+      }
+    }>({
+      url,
+      method: `put`,
+      headers: {
+        Authorization: `token ${accessToken}`,
+      },
+      data: {
+        content,
+        branch,
+        message: `Upload by ${window.location.href}`,
+      },
+    })
+
+    res.content = res.data?.content || res.content
+
+    // 使用统一的 URL 构建逻辑
+    return buildGitHubImageUrl(username, repo, branch, fullPath, urlPrefix, useDefault)
+  }
+  catch (error: any) {
+    // 检查是否是401或403错误
+    if (error?.response?.status === 401 || error?.response?.status === 403) {
+      throw new Error(`GitHub 认证失败，请检查 Token 是否正确或是否有仓库访问权限。可能图床未配置或配置错误。`)
     }
-  }>({
-    url,
-    method: `put`,
-    headers: {
-      Authorization: `token ${accessToken}`,
-    },
-    data: {
-      content,
-      branch,
-      message: `Upload by ${window.location.href}`,
-    },
-  })
-
-  res.content = res.data?.content || res.content
-
-  // 使用统一的 URL 构建逻辑
-  return buildGitHubImageUrl(username, repo, branch, fullPath, urlPrefix, useDefault)
+    // 检查是否是404错误（仓库不存在）
+    if (error?.response?.status === 404) {
+      throw new Error(`GitHub 仓库不存在，请检查仓库名和用户名是否正确。`)
+    }
+    // 其他错误直接抛出
+    throw error
+  }
 }
 
 // -----------------------------------------------------------------------
@@ -180,29 +197,46 @@ async function giteeUpload(content: any, filename: string) {
   const dir = getDir()
   const dateFilename = getDateFilename(filename)
   const url = `https://gitee.com/api/v5/repos/${username}/${repo}/contents/${dir}/${dateFilename}`
-  const res = await fetch<{ content: {
-    download_url: string
-  } }, {
-    content: {
-      download_url: string
-    }
-    data: {
+
+  try {
+    const res = await fetch<{
       content: {
         download_url: string
       }
+    }, {
+      content: {
+        download_url: string
+      }
+      data: {
+        content: {
+          download_url: string
+        }
+      }
+    }>({
+      url,
+      method: `POST`,
+      data: {
+        content,
+        branch,
+        access_token: accessToken,
+        message: `Upload by ${window.location.href}`,
+      },
+    })
+    res.content = res.data?.content || res.content
+    return encodeURI(res.content.download_url)
+  }
+  catch (error: any) {
+    // 检查是否是401或403错误
+    if (error?.response?.status === 401 || error?.response?.status === 403) {
+      throw new Error(`Gitee 认证失败，请检查 Token 是否正确或是否有仓库访问权限。可能图床未配置或配置错误。`)
     }
-  }>({
-    url,
-    method: `POST`,
-    data: {
-      content,
-      branch,
-      access_token: accessToken,
-      message: `Upload by ${window.location.href}`,
-    },
-  })
-  res.content = res.data?.content || res.content
-  return encodeURI(res.content.download_url)
+    // 检查是否是404错误（仓库不存在）
+    if (error?.response?.status === 404) {
+      throw new Error(`Gitee 仓库不存在，请检查仓库名和用户名是否正确。`)
+    }
+    // 其他错误直接抛出
+    throw error
+  }
 }
 
 // -----------------------------------------------------------------------
@@ -660,7 +694,7 @@ async function formCustomUpload(content: string, file: File) {
 export function fileUpload(content: string, file: File) {
   const imgHost = localStorage.getItem(`imgHost`)
   if (!imgHost) {
-    localStorage.setItem(`imgHost`, `default`)
+    localStorage.setItem(`imgHost`, `github`)
   }
   switch (imgHost) {
     case `aliOSS`:
@@ -688,7 +722,7 @@ export function fileUpload(content: string, file: File) {
     case `formCustom`:
       return formCustomUpload(content, file)
     default:
-      // 暂时使用 Gitee 作为默认图床，因为 GitHub token 已过期
-      return giteeUpload(content, file.name)
+      // 使用 GitHub 作为默认图床
+      return ghFileUpload(content, file.name)
   }
 }

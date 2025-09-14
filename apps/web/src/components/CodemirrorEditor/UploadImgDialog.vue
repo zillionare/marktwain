@@ -16,18 +16,51 @@ const githubSchema = toTypedSchema(yup.object({
   branch: yup.string().optional(),
   accessToken: yup.string().required(`GitHub Token 不能为空`),
   pathInRepo: yup.string().optional(),
-  urlPrefix: yup.string().optional(),
+  urlType: yup.string().required(`请选择图片访问链接类型`),
+  customDomain: yup.string().when(`urlType`, {
+    is: `custom`,
+    then: s => s.required(`自定义域名不能为空`),
+    otherwise: s => s.optional(),
+  }),
 }))
 
 const githubConfig = ref(localStorage.getItem(`githubConfig`)
   ? JSON.parse(localStorage.getItem(`githubConfig`)!)
-  : { repo: ``, branch: ``, accessToken: ``, pathInRepo: ``, urlPrefix: `` })
+  : { repo: ``, branch: ``, accessToken: ``, pathInRepo: ``, urlType: `jsdelivr`, customDomain: `` })
 
 function githubSubmit(formValues: any) {
   localStorage.setItem(`githubConfig`, JSON.stringify(formValues))
   githubConfig.value = formValues
   toast.success(`保存成功`)
 }
+
+// 计算示例 URL
+const githubExampleUrl = computed(() => {
+  const { repo, branch, pathInRepo, urlType, customDomain } = githubConfig.value
+  const branchName = branch || `main`
+  const pathInRepoStr = pathInRepo || `images/{year}/{month}`
+  const imageFileName = `example.jpg`
+
+  if (urlType === `default`) {
+    return `https://raw.githubusercontent.com/${repo}/${branchName}/${pathInRepoStr}/${imageFileName}`
+  }
+  else if (urlType === `jsdelivr`) {
+    return `https://fastly.jsdelivr.net/gh/${repo}@${branchName}/${pathInRepoStr}/${imageFileName}`
+  }
+  else if (urlType === `custom` && customDomain) {
+    // 处理自定义域名，支持带前缀的情况
+    let domain = customDomain.trim()
+    if (!domain.startsWith(`http://`) && !domain.startsWith(`https://`)) {
+      domain = `https://${domain}`
+    }
+    // 如果域名以 / 结尾，去掉末尾的 /
+    if (domain.endsWith(`/`)) {
+      domain = domain.slice(0, -1)
+    }
+    return `${domain}/${pathInRepoStr}/${imageFileName}`
+  }
+  return ``
+})
 
 // 阿里云
 const aliOSSSchema = toTypedSchema(yup.object({
@@ -364,11 +397,11 @@ function beforeImageUpload(file: File) {
   }
   // check image host
   let imgHost = localStorage.getItem(`imgHost`)
-  imgHost = imgHost || `default`
+  imgHost = imgHost || `github`
   localStorage.setItem(`imgHost`, imgHost)
 
   const config = localStorage.getItem(`${imgHost}Config`)
-  const isValidHost = imgHost === `default` || config
+  const isValidHost = config
   if (!isValidHost) {
     toast.error(`请先配置 ${imgHost} 图床参数`)
     return false
@@ -473,19 +506,31 @@ function onDrop(e: DragEvent) {
                 <Input
                   v-bind="field"
                   v-model="field.value"
-                  placeholder="如：release，可不填，默认 master"
+                  placeholder="默认 main"
                 />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="accessToken">
               <FormItem label="Token" required :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  type="password"
-                  placeholder="如：cc1d0c1426d0fd0902bd2d7184b14da61b8abc46"
-                />
+                <div class="flex items-center w-full">
+                  <Input
+                    v-bind="field"
+                    v-model="field.value"
+                    type="password"
+                    placeholder="如：cc1d0c1426d0fd0902bd2d7184b14da61b8abc46"
+                    class="flex-1"
+                  />
+                  <Button
+                    variant="link"
+                    class="p-0 ml-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    as="a"
+                    href="https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token"
+                    target="_blank"
+                  >
+                    如何获取 GitHub Token？
+                  </Button>
+                </div>
               </FormItem>
             </Field>
 
@@ -494,31 +539,72 @@ function onDrop(e: DragEvent) {
                 <Input
                   v-bind="field"
                   v-model="field.value"
-                  placeholder="如：images/{year}/{month}，可不填，默认为自动生成"
+                  placeholder="如: images/{year}/{month}, 可不填, 默认为自动生成"
                 />
               </FormItem>
             </Field>
 
-            <Field v-slot="{ field, errorMessage }" name="urlPrefix">
-              <FormItem label="域名前缀" :error="errorMessage">
+            <FormItem label="图片访问链接">
+              <div class="space-y-3">
+                <div class="flex items-center space-x-2">
+                  <input
+                    id="url-default"
+                    v-model="githubConfig.urlType"
+                    type="radio"
+                    value="default"
+                    class="h-4 w-4 text-blue-600"
+                  >
+                  <label for="url-default" class="text-sm font-medium">
+                    使用 GitHub 默认值，较慢
+                  </label>
+                </div>
+                <div class="flex items-center space-x-2">
+                  <input
+                    id="url-jsdelivr"
+                    v-model="githubConfig.urlType"
+                    type="radio"
+                    value="jsdelivr"
+                    class="h-4 w-4 text-blue-600"
+                  >
+                  <label for="url-jsdelivr" class="text-sm font-medium">
+                    使用 jsdelivr CDN
+                  </label>
+                </div>
+                <div class="flex items-center space-x-2">
+                  <input
+                    id="url-custom"
+                    v-model="githubConfig.urlType"
+                    type="radio"
+                    value="custom"
+                    class="h-4 w-4 text-blue-600"
+                  >
+                  <label for="url-custom" class="text-sm font-medium">
+                    自定义域名
+                  </label>
+                </div>
+              </div>
+            </FormItem>
+
+            <Field v-slot="{ field, errorMessage }" name="customDomain">
+              <FormItem
+                v-show="githubConfig.urlType === 'custom'"
+                label="自定义域名"
+                :error="errorMessage"
+              >
                 <Input
                   v-bind="field"
                   v-model="field.value"
-                  placeholder="如：https://fastly.jsdelivr.net/gh/owner/repo@main/，不填会使用 raw.githubusercontent.com"
+                  placeholder="如：https://cdn.example.com 或 cdn.example.com"
                 />
               </FormItem>
             </Field>
 
-            <FormItem>
-              <Button
-                variant="link"
-                class="p-0"
-                as="a"
-                href="https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token"
-                target="_blank"
-              >
-                如何获取 GitHub Token？
-              </Button>
+            <FormItem v-if="githubExampleUrl" label="示例地址">
+              <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
+                <code class="text-sm text-gray-700 dark:text-gray-300 break-all">
+                  {{ githubExampleUrl }}
+                </code>
+              </div>
             </FormItem>
 
             <FormItem>
