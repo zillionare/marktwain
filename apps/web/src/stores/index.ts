@@ -933,7 +933,7 @@ export const useStore = defineStore(`store`, () => {
 
   // 在编辑区搜索并编号各类块元素
   interface MarkdownBlock {
-    type: `admonition` | `math` | `code` | `h2` | `h3` | `h4`
+    type: `admonition` | `math` | `code` | `plantuml` | `h2` | `h3` | `h4`
     content: string
     startIndex: number
     endIndex: number
@@ -970,6 +970,7 @@ export const useStore = defineStore(`store`, () => {
       admonition: 0,
       code: 0,
       math: 0,
+      plantuml: 0,
       h2: 0,
       h3: 0,
       h4: 0,
@@ -1058,15 +1059,19 @@ export const useStore = defineStore(`store`, () => {
       console.debug(`起始行号:`, startLine)
       console.debug(`结束行号:`, endLine)
 
+      // 检查是否是 PlantUML 代码块
+      const isPlantUML = match[0].startsWith(`\`\`\`plantuml`)
+      const blockType = isPlantUML ? `plantuml` : `code`
+
       allBlocks.push({
-        type: `code`,
+        type: blockType,
         content: match[0],
         startIndex: match.index,
         endIndex: match.index + match[0].length,
         startLine,
         endLine,
         sequenceIndex: sequenceIndex++,
-        id: generateBlockId(`code`), // 新增：生成唯一ID
+        id: generateBlockId(blockType), // 新增：生成唯一ID
       })
       match = codeRegex.exec(markdown)
     }
@@ -1250,6 +1255,8 @@ export const useStore = defineStore(`store`, () => {
               return el.classList.contains(`block_katex`)
             if (block.type === `code`)
               return el.tagName === `PRE` && el.classList.contains(`hljs`)
+            if (block.type === `plantuml`)
+              return el.classList.contains(`plantuml-diagram`)
             return false
           })
 
