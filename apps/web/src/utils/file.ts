@@ -41,7 +41,7 @@ function getConfig(useDefault: boolean, platform: string) {
   return {
     username: repoUrl[0],
     repo: repoUrl[1],
-    branch: customConfig.branch || `master`,
+    branch: customConfig.branch || `main`,
     accessToken: customConfig.accessToken,
     pathInRepo: customConfig.pathInRepo || ``,
     urlPrefix: customConfig.urlPrefix || ``,

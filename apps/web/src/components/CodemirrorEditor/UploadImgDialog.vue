@@ -539,7 +539,7 @@ function onDrop(e: DragEvent) {
                 <Input
                   v-bind="field"
                   v-model="field.value"
-                  placeholder="如: images/{year}/{month}, 可不填, 默认为自动生成"
+                  placeholder="默认值: images/{year}/{month}"
                 />
               </FormItem>
             </Field>

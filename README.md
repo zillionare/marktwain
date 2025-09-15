@@ -76,7 +76,7 @@ GitHub 图床支持以下配置选项：
 #### 基本配置
 
 - **仓库** (owner/repo): GitHub 仓库，格式为 `用户名/仓库名`
-- **分支**: 上传到的分支，默认为 `master`
+- **分支**: 上传到的分支，默认为 `main`
 - **Token**: GitHub Personal Access Token，需要有仓库写入权限
 
 #### 高级配置
