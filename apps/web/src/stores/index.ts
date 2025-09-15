@@ -1170,8 +1170,6 @@ export const useStore = defineStore(`store`, () => {
         localStorage.removeItem(key)
       }
     }
-
-    toast.success(`转图状态已重置`)
   }
 
   const convertElementsToImages = async () => {

@@ -168,7 +168,7 @@ const defaultTheme: Theme = {
       'border-radius': `8px`,
       'padding': `1em`,
       'line-height': `1.5`,
-      'margin': `10px 8px`,
+      'margin': `10px 0`,
     },
 
     // 行内代码
