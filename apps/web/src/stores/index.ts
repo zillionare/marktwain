@@ -737,40 +737,39 @@ export const useStore = defineStore(`store`, () => {
   const convertElementToImage = async (element: HTMLElement, _type: string, _index: number) => {
     const prevWidth = element.style.width
 
-    try {
-      console.debug(`\n=== 开始截图 第${_index + 1}个元素 ===`)
-      console.debug(`元素类型:`, _type)
-      console.debug(`元素标签:`, element.tagName)
-      console.debug(`元素类名:`, element.className)
-      console.debug(`元素ID:`, element.id)
-      console.debug(`元素内容长度:`, element.textContent?.length || 0)
-      console.debug(`元素innerHTML长度:`, element.innerHTML?.length || 0)
+    // 保存原始滚动条样式
+    const originalScrollbarStyles = {
+      body: document.body.style.overflow,
+      html: document.documentElement.style.overflow,
+      webkitScrollbar: ``,
+    }
 
+    // 临时隐藏滚动条的CSS样式
+    const hideScrollbarStyle = document.createElement(`style`)
+    hideScrollbarStyle.id = `hide-scrollbar-for-screenshot`
+    hideScrollbarStyle.textContent = `
+      /* 隐藏所有滚动条 */
+      * {
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+      }
+      
+      /* 隐藏webkit滚动条 */
+      *::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+      }
+      
+      /* 确保body和html不显示滚动条 */
+      body, html {
+        overflow: hidden !important;
+      }
+    `
+
+    try {
       // 检查元素位置和尺寸（设置宽度之前）
       const rectBefore = element.getBoundingClientRect()
-      console.debug(`设置宽度前 - 元素位置和尺寸:`, {
-        x: rectBefore.x,
-        y: rectBefore.y,
-        width: rectBefore.width,
-        height: rectBefore.height,
-        offsetWidth: element.offsetWidth,
-        offsetHeight: element.offsetHeight,
-        scrollWidth: element.scrollWidth,
-        scrollHeight: element.scrollHeight,
-      })
-
-      // 检查元素样式
-      const computedStyle = getComputedStyle(element)
-      console.debug(`元素样式:`, {
-        visibility: computedStyle.visibility,
-        display: computedStyle.display,
-        opacity: computedStyle.opacity,
-        position: computedStyle.position,
-        zIndex: computedStyle.zIndex,
-        overflow: computedStyle.overflow,
-        background: computedStyle.background,
-        backgroundColor: computedStyle.backgroundColor,
-      })
 
       // 检查元素是否在视窗内
       const isInViewport = rectBefore.top >= 0 && rectBefore.left >= 0
@@ -905,6 +904,12 @@ export const useStore = defineStore(`store`, () => {
       // 等待元素渲染完成
       await new Promise(resolve => setTimeout(resolve, 200))
 
+      // 应用隐藏滚动条样式
+      document.head.appendChild(hideScrollbarStyle)
+
+      // 等待样式应用
+      await new Promise(resolve => setTimeout(resolve, 50))
+
       // 检查截图配置
       const screenshotConfig = {
         dpr: conversionConfig.value.devicePixelRatio || 2,
@@ -927,7 +932,18 @@ export const useStore = defineStore(`store`, () => {
       throw error
     }
     finally {
+      // 恢复元素宽度
       element.style.width = prevWidth
+
+      // 移除隐藏滚动条的样式
+      const existingStyle = document.getElementById(`hide-scrollbar-for-screenshot`)
+      if (existingStyle) {
+        existingStyle.remove()
+      }
+
+      // 恢复原始滚动条样式
+      document.body.style.overflow = originalScrollbarStyles.body
+      document.documentElement.style.overflow = originalScrollbarStyles.html
     }
   }
 
