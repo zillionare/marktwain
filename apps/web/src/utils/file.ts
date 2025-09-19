@@ -45,6 +45,7 @@ function getConfig(useDefault: boolean, platform: string) {
     accessToken: customConfig.accessToken,
     pathInRepo: customConfig.pathInRepo || ``,
     urlPrefix: customConfig.urlPrefix || ``,
+    urlType: customConfig.urlType || ``,
   }
 }
 
@@ -86,7 +87,7 @@ function getPathWithVariables(customPath?: string): string {
  * @param branch 分支名
  * @param path 文件路径
  * @param urlPrefix 自定义域名前缀
- * @param useDefault 是否使用默认配置
+ * @param urlType URL 类型
  * @returns string
  */
 function buildGitHubImageUrl(
@@ -95,7 +96,7 @@ function buildGitHubImageUrl(
   branch: string,
   path: string,
   urlPrefix?: string,
-  useDefault: boolean = false,
+  urlType: string = `jsdelivr`,
 ): string {
   // 如果配置了自定义域名前缀，使用自定义前缀
   if (urlPrefix) {
@@ -103,11 +104,11 @@ function buildGitHubImageUrl(
   }
 
   // 如果是默认配置，使用 jsdelivr CDN
-  if (useDefault) {
+  if (urlType === `jsdelivr`) {
     return `https://fastly.jsdelivr.net/gh/${username}/${repo}@${branch}/${path}`
   }
 
-  // 否则返回原始 GitHub 链接
+  // 默认使用 GitHub raw 链接
   return `https://raw.githubusercontent.com/${username}/${repo}/${branch}/${path}`
 }
 
@@ -129,7 +130,7 @@ function getDateFilename(filename: string) {
 
 async function ghFileUpload(content: string, filename: string) {
   const useDefault = localStorage.getItem(`imgHost`) === `default`
-  const { username, repo, branch, accessToken, pathInRepo, urlPrefix } = getConfig(
+  const { username, repo, branch, accessToken, pathInRepo, urlPrefix, urlType } = getConfig(
     useDefault,
     `github`,
   )
@@ -171,7 +172,7 @@ async function ghFileUpload(content: string, filename: string) {
     res.content = res.data?.content || res.content
 
     // 使用统一的 URL 构建逻辑
-    return buildGitHubImageUrl(username, repo, branch, fullPath, urlPrefix, useDefault)
+    return buildGitHubImageUrl(username, repo, branch, fullPath, urlPrefix, urlType)
   }
   catch (error: any) {
     // 检查是否是401或403错误

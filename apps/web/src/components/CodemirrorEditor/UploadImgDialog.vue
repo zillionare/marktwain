@@ -2,6 +2,8 @@
 import { toTypedSchema } from '@vee-validate/yup'
 import { UploadCloud } from 'lucide-vue-next'
 import { Field, Form } from 'vee-validate'
+import { computed, onBeforeMount, ref } from 'vue'
+import { toast } from 'vue-sonner'
 import * as yup from 'yup'
 import { useDisplayStore } from '@/stores'
 import { checkImage } from '@/utils'
@@ -9,6 +11,9 @@ import { checkImage } from '@/utils'
 const emit = defineEmits([`uploadImage`])
 
 const displayStore = useDisplayStore()
+
+// 图床选择
+const imgHost = ref(`unconfigured`)
 
 // github
 const githubSchema = toTypedSchema(yup.object({
@@ -28,10 +33,17 @@ const githubConfig = ref(localStorage.getItem(`githubConfig`)
   ? JSON.parse(localStorage.getItem(`githubConfig`)!)
   : { repo: ``, branch: ``, accessToken: ``, pathInRepo: ``, urlType: `jsdelivr`, customDomain: `` })
 
+// 监听表单中的 urlType 变化
+const formUrlType = ref(githubConfig.value.urlType)
+
 function githubSubmit(formValues: any) {
   localStorage.setItem(`githubConfig`, JSON.stringify(formValues))
   githubConfig.value = formValues
-  toast.success(`保存成功`)
+  formUrlType.value = formValues.urlType
+  // 保存后立即切换到 GitHub 图床
+  imgHost.value = `github`
+  localStorage.setItem(`imgHost`, `github`)
+  toast.success(`保存成功，已切换到 GitHub 图床`)
 }
 
 // 计算示例 URL
@@ -88,7 +100,10 @@ const aliOSSConfig = ref(localStorage.getItem(`aliOSSConfig`)
 function aliOSSSubmit(formValues: any) {
   localStorage.setItem(`aliOSSConfig`, JSON.stringify(formValues))
   aliOSSConfig.value = formValues
-  toast.success(`保存成功`)
+  // 保存后立即切换到阿里云 OSS 图床
+  imgHost.value = `aliOSS`
+  localStorage.setItem(`imgHost`, `aliOSS`)
+  toast.success(`保存成功，已切换到阿里云 OSS 图床`)
 }
 
 // 腾讯云
@@ -115,7 +130,10 @@ const txCOSConfig = ref(localStorage.getItem(`txCOSConfig`)
 function txCOSSubmit(formValues: any) {
   localStorage.setItem(`txCOSConfig`, JSON.stringify(formValues))
   txCOSConfig.value = formValues
-  toast.success(`保存成功`)
+  // 保存后立即切换到腾讯云 COS 图床
+  imgHost.value = `txCOS`
+  localStorage.setItem(`imgHost`, `txCOS`)
+  toast.success(`保存成功，已切换到腾讯云 COS 图床`)
 }
 
 // 七牛云
@@ -142,7 +160,10 @@ const qiniuConfig = ref(localStorage.getItem(`qiniuConfig`)
 function qiniuSubmit(formValues: any) {
   localStorage.setItem(`qiniuConfig`, JSON.stringify(formValues))
   qiniuConfig.value = formValues
-  toast.success(`保存成功`)
+  // 保存后立即切换到七牛云图床
+  imgHost.value = `qiniu`
+  localStorage.setItem(`imgHost`, `qiniu`)
+  toast.success(`保存成功，已切换到七牛云图床`)
 }
 
 // MinIO
@@ -169,7 +190,10 @@ const minioOSSConfig = ref(localStorage.getItem(`minioConfig`)
 function minioOSSSubmit(formValues: any) {
   localStorage.setItem(`minioConfig`, JSON.stringify(formValues))
   minioOSSConfig.value = formValues
-  toast.success(`保存成功`)
+  // 保存后立即切换到 MinIO 图床
+  imgHost.value = `minio`
+  localStorage.setItem(`imgHost`, `minio`)
+  toast.success(`保存成功，已切换到 MinIO 图床`)
 }
 
 // Telegram 图床
@@ -232,7 +256,10 @@ const mpConfig = ref(localStorage.getItem(`mpConfig`)
 function mpSubmit(formValues: any) {
   localStorage.setItem(`mpConfig`, JSON.stringify(formValues))
   mpConfig.value = formValues
-  toast.success(`保存成功`)
+  // 保存后立即切换到微信公众号图床
+  imgHost.value = `mp`
+  localStorage.setItem(`imgHost`, `mp`)
+  toast.success(`保存成功，已切换到微信公众号图床`)
 }
 
 // Cloudflare R2
@@ -259,7 +286,10 @@ const r2Config = ref(localStorage.getItem(`r2Config`)
 function r2Submit(formValues: any) {
   localStorage.setItem(`r2Config`, JSON.stringify(formValues))
   r2Config.value = formValues
-  toast.success(`保存成功`)
+  // 保存后立即切换到 Cloudflare R2 图床
+  imgHost.value = `r2`
+  localStorage.setItem(`imgHost`, `r2`)
+  toast.success(`保存成功，已切换到 Cloudflare R2 图床`)
 }
 
 // 又拍云
@@ -286,7 +316,10 @@ const upyunConfig = ref(localStorage.getItem(`upyunConfig`)
 function upyunSubmit(formValues: any) {
   localStorage.setItem(`upyunConfig`, JSON.stringify(formValues))
   upyunConfig.value = formValues
-  toast.success(`保存成功`)
+  // 保存后立即切换到又拍云图床
+  imgHost.value = `upyun`
+  localStorage.setItem(`imgHost`, `upyun`)
+  toast.success(`保存成功，已切换到又拍云图床`)
 }
 
 // Cloudinary
@@ -321,13 +354,16 @@ const cloudinaryConfig = ref(
 function cloudinarySubmit(formValues: any) {
   localStorage.setItem(`cloudinaryConfig`, JSON.stringify(formValues))
   cloudinaryConfig.value = formValues
-  toast.success(`保存成功`)
+  // 保存后立即切换到 Cloudinary 图床
+  imgHost.value = `cloudinary`
+  localStorage.setItem(`imgHost`, `cloudinary`)
+  toast.success(`保存成功，已切换到 Cloudinary 图床`)
 }
 
 const options = [
   {
-    value: `default`,
-    label: `默认`,
+    value: `unconfigured`,
+    label: `未配置`,
   },
   {
     value: `github`,
@@ -373,13 +409,14 @@ const options = [
   },
 ]
 
-const imgHost = ref(`default`)
-
 const activeName = ref(`upload`)
 
 onBeforeMount(() => {
   if (localStorage.getItem(`imgHost`)) {
     imgHost.value = localStorage.getItem(`imgHost`)!
+  }
+  else {
+    imgHost.value = `unconfigured`
   }
 })
 
@@ -396,8 +433,11 @@ function beforeImageUpload(file: File) {
     return false
   }
   // check image host
-  let imgHost = localStorage.getItem(`imgHost`)
-  imgHost = imgHost || `github`
+  const imgHost = localStorage.getItem(`imgHost`)
+  if (!imgHost || imgHost === `unconfigured`) {
+    toast.error(`请先配置图床`)
+    return false
+  }
   localStorage.setItem(`imgHost`, imgHost)
 
   const config = localStorage.getItem(`${imgHost}Config`)
@@ -445,7 +485,7 @@ function onDrop(e: DragEvent) {
           <TabsTrigger value="upload">
             选择上传
           </TabsTrigger>
-          <TabsTrigger v-for="item in options.filter(item => item.value !== 'default')" :key="item.value" :value="item.value">
+          <TabsTrigger v-for="item in options.filter(item => item.value !== 'unconfigured')" :key="item.value" :value="item.value">
             {{ item.label }}
           </TabsTrigger>
         </TabsList>
@@ -544,50 +584,58 @@ function onDrop(e: DragEvent) {
               </FormItem>
             </Field>
 
-            <FormItem label="图片访问链接">
-              <div class="space-y-3">
-                <div class="flex items-center space-x-2">
-                  <input
-                    id="url-default"
-                    v-model="githubConfig.urlType"
-                    type="radio"
-                    value="default"
-                    class="h-4 w-4 text-blue-600"
-                  >
-                  <label for="url-default" class="text-sm font-medium">
-                    使用 GitHub 默认值，较慢
-                  </label>
+            <Field v-slot="{ field }" name="urlType">
+              <FormItem label="图片访问链接">
+                <div class="space-y-3">
+                  <div class="flex items-center space-x-2">
+                    <input
+                      id="url-default"
+                      v-bind="field"
+                      v-model="field.value"
+                      type="radio"
+                      value="default"
+                      class="h-4 w-4 text-blue-600"
+                      @change="formUrlType = field.value"
+                    >
+                    <label for="url-default" class="text-sm font-medium">
+                      使用 GitHub 默认值，较慢
+                    </label>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <input
+                      id="url-jsdelivr"
+                      v-bind="field"
+                      v-model="field.value"
+                      type="radio"
+                      value="jsdelivr"
+                      class="h-4 w-4 text-blue-600"
+                      @change="formUrlType = field.value"
+                    >
+                    <label for="url-jsdelivr" class="text-sm font-medium">
+                      使用 jsdelivr CDN
+                    </label>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <input
+                      id="url-custom"
+                      v-bind="field"
+                      v-model="field.value"
+                      type="radio"
+                      value="custom"
+                      class="h-4 w-4 text-blue-600"
+                      @change="formUrlType = field.value"
+                    >
+                    <label for="url-custom" class="text-sm font-medium">
+                      自定义域名
+                    </label>
+                  </div>
                 </div>
-                <div class="flex items-center space-x-2">
-                  <input
-                    id="url-jsdelivr"
-                    v-model="githubConfig.urlType"
-                    type="radio"
-                    value="jsdelivr"
-                    class="h-4 w-4 text-blue-600"
-                  >
-                  <label for="url-jsdelivr" class="text-sm font-medium">
-                    使用 jsdelivr CDN
-                  </label>
-                </div>
-                <div class="flex items-center space-x-2">
-                  <input
-                    id="url-custom"
-                    v-model="githubConfig.urlType"
-                    type="radio"
-                    value="custom"
-                    class="h-4 w-4 text-blue-600"
-                  >
-                  <label for="url-custom" class="text-sm font-medium">
-                    自定义域名
-                  </label>
-                </div>
-              </div>
-            </FormItem>
+              </FormItem>
+            </Field>
 
             <Field v-slot="{ field, errorMessage }" name="customDomain">
               <FormItem
-                v-show="githubConfig.urlType === 'custom'"
+                v-show="formUrlType === 'custom'"
                 label="自定义域名"
                 :error="errorMessage"
               >
