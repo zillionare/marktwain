@@ -575,7 +575,7 @@ onUnmounted(() => {
         @close-btn="AIPolishBtnRef?.close" @recalc-pos="recalcPos" @start-drag="startDrag"
       />
 
-      <UploadImgDialog @upload-image="uploadImage" />
+      <UploadImgDialog :is-img-loading="isImgLoading" @upload-image="uploadImage" />
 
       <InsertFormDialog />
 

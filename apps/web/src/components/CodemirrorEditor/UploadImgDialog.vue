@@ -2,11 +2,16 @@
 import { toTypedSchema } from '@vee-validate/yup'
 import { UploadCloud } from 'lucide-vue-next'
 import { Field, Form } from 'vee-validate'
-import { computed, onBeforeMount, ref } from 'vue'
+import { computed, onBeforeMount, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import * as yup from 'yup'
 import { useDisplayStore } from '@/stores'
 import { checkImage } from '@/utils'
+
+// 接收父组件的上传状态
+const props = defineProps<{
+  isImgLoading?: boolean
+}>()
 
 const emit = defineEmits([`uploadImage`])
 
@@ -14,6 +19,10 @@ const displayStore = useDisplayStore()
 
 // 图床选择
 const imgHost = ref(`unconfigured`)
+
+// 上传状态管理
+const isUploading = ref(false)
+const uploadProgress = ref(0)
 
 // github
 const githubSchema = toTypedSchema(yup.object({
@@ -449,6 +458,46 @@ function beforeImageUpload(file: File) {
   return true
 }
 
+// 开始上传
+function startUpload(file: File) {
+  if (!beforeImageUpload(file)) {
+    return
+  }
+
+  isUploading.value = true
+  uploadProgress.value = 0
+  toast.info(`正在上传图片，请勿关闭窗口...`)
+
+  // 模拟上传进度
+  const progressInterval = setInterval(() => {
+    if (uploadProgress.value < 90) {
+      uploadProgress.value += Math.random() * 20
+    }
+  }, 200)
+
+  // 触发上传事件
+  emit(`uploadImage`, file)
+
+  // 监听父组件的上传状态变化
+  const unwatch = watch(() => props.isImgLoading, (newVal, oldVal) => {
+    if (oldVal === true && newVal === false) {
+      // 上传完成（成功或失败）
+      clearInterval(progressInterval)
+      uploadProgress.value = 100
+      setTimeout(() => {
+        isUploading.value = false
+        toast.success(`图片上传完成！可以关闭窗口了`)
+      }, 500)
+      unwatch() // 停止监听
+    }
+  }, { immediate: true })
+
+  // 如果父组件已经在加载中，立即开始监听
+  if (props.isImgLoading) {
+    // 父组件已经在处理上传，等待完成
+  }
+}
+
 const dragover = ref(false)
 
 const { open, reset, onChange } = useFileDialog({
@@ -461,8 +510,7 @@ onChange((files) => {
   }
 
   const file = files[0]
-
-  beforeImageUpload(file) && emit(`uploadImage`, file)
+  startUpload(file)
   reset()
 })
 
@@ -470,7 +518,7 @@ function onDrop(e: DragEvent) {
   dragover.value = false
   e.stopPropagation()
   const file = Array.from(e.dataTransfer!.files)[0]
-  beforeImageUpload(file) && emit(`uploadImage`, file)
+  startUpload(file)
 }
 </script>
 
@@ -515,17 +563,45 @@ function onDrop(e: DragEvent) {
             class="bg-clip-padding mt-4 h-50 flex flex-col cursor-pointer items-center justify-evenly border-2 rounded border-dashed transition-colors hover:border-gray-700 hover:bg-gray-400/50 dark:hover:border-gray-200 dark:hover:bg-gray-500/50"
             :class="{
               'border-gray-700 bg-gray-400/50 dark:border-gray-200 dark:bg-gray-500/50': dragover,
+              'cursor-not-allowed opacity-50': isUploading,
             }"
-            @click="open()"
-            @drop.prevent="onDrop"
-            @dragover.prevent="dragover = true"
-            @dragleave.prevent="dragover = false"
+            @click="!isUploading && open()"
+            @drop.prevent="!isUploading && onDrop"
+            @dragover.prevent="!isUploading && (dragover = true)"
+            @dragleave.prevent="!isUploading && (dragover = false)"
           >
-            <UploadCloud class="size-20" />
-            <p>
-              将图片拖到此处，或
-              <strong>点击上传</strong>
-            </p>
+            <!-- 上传中状态 -->
+            <div v-if="isUploading" class="flex flex-col items-center space-y-4">
+              <div class="relative">
+                <div class="w-16 h-16 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
+              </div>
+              <div class="text-center">
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  正在上传图片...
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  请勿关闭窗口
+                </p>
+                <div class="w-48 bg-gray-200 rounded-full h-2 mt-2">
+                  <div
+                    class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    :style="{ width: `${uploadProgress}%` }"
+                  />
+                </div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {{ Math.round(uploadProgress) }}%
+                </p>
+              </div>
+            </div>
+
+            <!-- 正常状态 -->
+            <div v-else class="flex flex-col items-center">
+              <UploadCloud class="size-20" />
+              <p>
+                将图片拖到此处，或
+                <strong>点击上传</strong>
+              </p>
+            </div>
           </div>
         </TabsContent>
 
