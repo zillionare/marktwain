@@ -442,6 +442,27 @@ export async function processClipboardContent(primaryColor: string) {
   // 处理图片大小
   solveWeChatImage()
 
+  // 过滤掉行号：移除 .line-numbers 元素，并调整代码块结构
+  const lineNumbersElements = clipboardDiv.querySelectorAll(`.line-numbers`)
+  lineNumbersElements.forEach((lineNumbersEl) => {
+    // 找到包含行号的代码容器
+    const codeContainer = lineNumbersEl.parentElement
+    if (codeContainer && codeContainer.classList.contains(`code-container`)) {
+      // 找到代码元素
+      const codeElement = codeContainer.querySelector(`code.with-line-numbers`)
+      if (codeElement) {
+        // 移除 with-line-numbers 类，恢复为普通代码块
+        codeElement.classList.remove(`with-line-numbers`)
+        // 移除行号元素
+        lineNumbersEl.remove()
+        // 如果容器现在为空，移除容器
+        if (codeContainer.children.length === 0) {
+          codeContainer.remove()
+        }
+      }
+    }
+  })
+
   // 添加空白节点用于兼容 SVG 复制
   const beforeNode = createEmptyNode()
   const afterNode = createEmptyNode()
