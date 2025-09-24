@@ -117,6 +117,23 @@ export const useStore = defineStore(`store`, () => {
 
   const output = ref(``)
 
+  // 分页相关状态
+  const isPaginationMode = useStorage(`isPaginationMode`, false) // 是否开启分页模式
+  const currentPageIndex = ref(0) // 当前页码（从0开始）
+  const pages = ref<string[]>([]) // 分页后的内容数组
+  const totalPages = computed(() => pages.value.length) // 总页数
+
+  // 分页页面尺寸配置
+  const pageSettings = useStorage(`pageSettings`, {
+    width: 1200, // 页面宽度（px）
+    height: 1600, // 页面高度（px）
+  })
+
+  // 分页缩放相关状态
+  const pageScale = ref(1) // 当前页面缩放比例
+  const previewContainerSize = ref({ width: 0, height: 0 }) // 预览容器尺寸
+  const isContentTruncated = ref(false) // 内容是否发生截断
+
   // 文本字体
   const theme = useStorage<keyof typeof themeMap>(addPrefix(`theme`), defaultStyleConfig.theme)
   // 文本字体
@@ -399,6 +416,12 @@ export const useStore = defineStore(`store`, () => {
     level: number
   }[]>([])
 
+  // 分页相关方法
+  const splitContentToPages = (content: string): string[] => {
+    // 使用 --- 作为分页符分割内容
+    return content.split(/^---$/m).map(page => page.trim()).filter(page => page.length > 0)
+  }
+
   // 更新编辑器
   const editorRefresh = () => {
     codeThemeChange()
@@ -412,12 +435,52 @@ export const useStore = defineStore(`store`, () => {
       isShowLineNumbers: isShowLineNumbers.value,
     })
 
-    const raw = editor.value!.getValue()
-    const { html: baseHtml, readingTime: readingTimeResult } = renderMarkdown(raw, renderer)
-    readingTime.chars = raw.length
-    readingTime.words = readingTimeResult.words
-    readingTime.minutes = Math.ceil(readingTimeResult.minutes)
-    output.value = postProcessHtml(baseHtml, readingTimeResult, renderer)
+    // Check if editor is initialized before proceeding
+    if (!editor.value) {
+      console.warn(`Editor is not initialized yet, skipping refresh`)
+      return
+    }
+
+    const raw = editor.value.getValue()
+
+    // 分页模式处理
+    if (isPaginationMode.value) {
+      pages.value = splitContentToPages(raw)
+      // 确保当前页码在有效范围内
+      if (currentPageIndex.value >= pages.value.length) {
+        currentPageIndex.value = Math.max(0, pages.value.length - 1)
+      }
+
+      // 渲染当前页内容
+      const currentPageContent = pages.value[currentPageIndex.value] || ``
+      const { html: baseHtml, readingTime: readingTimeResult } = renderMarkdown(currentPageContent, renderer)
+      readingTime.chars = currentPageContent.length
+      readingTime.words = readingTimeResult.words
+      readingTime.minutes = Math.ceil(readingTimeResult.minutes)
+      output.value = postProcessHtml(baseHtml, readingTimeResult, renderer)
+
+      // 检测内容截断：在下一个tick中检查渲染后的内容高度
+      nextTick(() => {
+        const pageElement = document.querySelector(`.pagination-page section`)
+        if (pageElement) {
+          // 获取实际内容高度和可用高度
+          const contentHeight = pageElement.scrollHeight
+          const availableHeight = pageElement.clientHeight
+
+          // 只有当内容高度明显超过可用高度时才认为发生截断
+          // 添加5px的容差，避免由于浮点数计算或样式细微差异导致的误报
+          isContentTruncated.value = contentHeight > availableHeight + 5
+        }
+      })
+    }
+    else {
+      // 普通模式：渲染全部内容
+      const { html: baseHtml, readingTime: readingTimeResult } = renderMarkdown(raw, renderer)
+      readingTime.chars = raw.length
+      readingTime.words = readingTimeResult.words
+      readingTime.minutes = Math.ceil(readingTimeResult.minutes)
+      output.value = postProcessHtml(baseHtml, readingTimeResult, renderer)
+    }
 
     // 提取标题
     const div = document.createElement(`div`)
@@ -437,6 +500,77 @@ export const useStore = defineStore(`store`, () => {
     }
     output.value = div.innerHTML
   }
+
+  const togglePaginationMode = () => {
+    isPaginationMode.value = !isPaginationMode.value
+    currentPageIndex.value = 0
+    editorRefresh()
+  }
+
+  const setNormalMode = () => {
+    isPaginationMode.value = false
+    editorRefresh()
+  }
+
+  const setPaginationMode = () => {
+    isPaginationMode.value = true
+    currentPageIndex.value = 0
+    editorRefresh()
+  }
+
+  const goToPage = (pageIndex: number) => {
+    if (pageIndex >= 0 && pageIndex < totalPages.value) {
+      currentPageIndex.value = pageIndex
+      editorRefresh()
+    }
+  }
+
+  const nextPage = () => {
+    if (currentPageIndex.value < totalPages.value - 1) {
+      currentPageIndex.value++
+      editorRefresh()
+    }
+  }
+
+  const prevPage = () => {
+    if (currentPageIndex.value > 0) {
+      currentPageIndex.value--
+      editorRefresh()
+    }
+  }
+
+  // 计算页面缩放比例
+  const calculatePageScale = (containerWidth: number, containerHeight: number) => {
+    const pageWidth = pageSettings.value.width
+    const pageHeight = pageSettings.value.height
+
+    // 计算宽度和高度的缩放比例
+    const scaleX = containerWidth / pageWidth
+    const scaleY = containerHeight / pageHeight
+
+    // 取较小的缩放比例，确保页面完全适配容器
+    const finalScale = Math.min(scaleX, scaleY, 1) // 最大不超过1，避免放大
+
+    return finalScale
+  }
+
+  // 更新预览容器尺寸并重新计算缩放比例
+  const updatePreviewContainerSize = (width: number, height: number) => {
+    previewContainerSize.value = { width, height }
+    pageScale.value = calculatePageScale(width, height)
+  }
+
+  // 更新页面设置
+  const updatePageSettings = (width: number, height: number) => {
+    pageSettings.value.width = width
+    pageSettings.value.height = height
+    // 重新计算缩放比例
+    if (previewContainerSize.value.width > 0 && previewContainerSize.value.height > 0) {
+      pageScale.value = calculatePageScale(previewContainerSize.value.width, previewContainerSize.value.height)
+    }
+  }
+
+  // 更新编辑器
 
   // 更新 CSS
   const updateCss = () => {
@@ -1602,6 +1736,27 @@ export const useStore = defineStore(`store`, () => {
     expandAllPosts,
 
     editorContent2HTML,
+
+    // 分页相关
+    isPaginationMode,
+    currentPageIndex,
+    pages,
+    totalPages,
+    togglePaginationMode,
+    setNormalMode,
+    setPaginationMode,
+    goToPage,
+    nextPage,
+    prevPage,
+
+    // 分页缩放相关
+    pageSettings,
+    pageScale,
+    previewContainerSize,
+    calculatePageScale,
+    updatePreviewContainerSize,
+    updatePageSettings,
+    isContentTruncated,
   }
 })
 

@@ -15,9 +15,7 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
 })
 
-const emit = defineEmits<{
-  (e: `update:checked`, checked: boolean): void
-}>()
+const emit = defineEmits([`update:checked`])
 
 const buttonClass = computed(() => {
   return cn(

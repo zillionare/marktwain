@@ -141,7 +141,7 @@ export function markedAdmon(options: AdmonOptions = {}): MarkedExtension {
         tokenizer(src, _tokens) {
           // 匹配 !!! {tag} ['title'] 语法，单个空白行结束（符合 CommonMark 标准）
           // 支持可选的标题，标题用引号包围
-          const match = /^!!!\s+(\w+)(?:\s+['"]([^'"]*)['"])?\s*\n([\s\S]*?)\n\s*\n/.exec(src)
+          const match = /^!!!\s+(\w+)(?:\s+['"]([^'"]*)['"])?\s*\n([\s\S]*?)(?=\n\s*(?:---|\n|$))/m.exec(src)
 
           if (match) {
             const [raw, variant, title, content] = match
