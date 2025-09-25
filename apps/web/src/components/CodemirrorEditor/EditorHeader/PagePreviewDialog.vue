@@ -20,28 +20,28 @@ interface PagePreset {
   pixelRatio: number
 }
 
-// 默认预设
+// 默认预设 - 基础比例预设
 const defaultPresets: PagePreset[] = [
   {
     id: `preset-1`,
-    name: `iPhone 14`,
-    width: 390,
-    height: 844,
-    pixelRatio: 3,
+    name: `1:1`,
+    width: 960,
+    height: 960,
+    pixelRatio: 2,
   },
   {
     id: `preset-2`,
-    name: `iPad`,
-    width: 768,
-    height: 1024,
+    name: `3:4`,
+    width: 960,
+    height: 1280,
     pixelRatio: 2,
   },
   {
     id: `preset-3`,
-    name: `Desktop`,
-    width: 1200,
-    height: 1600,
-    pixelRatio: 1,
+    name: `4:3`,
+    width: 1280,
+    height: 960,
+    pixelRatio: 2,
   },
 ]
 
@@ -64,9 +64,9 @@ const currentPreset = computed(() => {
 // 新增预设表单数据
 const newPresetForm = ref({
   name: ``,
-  width: 1200,
-  height: 1600,
-  pixelRatio: 1,
+  width: 800,
+  height: 800,
+  pixelRatio: 3,
 })
 
 // 是否显示新增预设表单
@@ -121,9 +121,9 @@ function addPreset() {
   // 重置表单
   newPresetForm.value = {
     name: ``,
-    width: 1200,
-    height: 1600,
-    pixelRatio: 1,
+    width: 800,
+    height: 800,
+    pixelRatio: 3,
   }
   showAddForm.value = false
 
@@ -259,9 +259,9 @@ defineExpose({
                   id="new-ratio"
                   v-model.number="newPresetForm.pixelRatio"
                   type="number"
-                  min="0.5"
-                  max="4"
-                  step="0.1"
+                  min="1"
+                  max="10"
+                  step="1"
                 />
               </div>
             </div>
@@ -324,9 +324,9 @@ defineExpose({
                     :id="`ratio-${preset.id}`"
                     :model-value="preset.pixelRatio"
                     type="number"
-                    min="0.5"
-                    max="4"
-                    step="0.1"
+                    min="1"
+                    max="10"
+                    step="1"
                     @update:model-value="updatePreset(preset.id, 'pixelRatio', Number($event))"
                   />
                 </div>
