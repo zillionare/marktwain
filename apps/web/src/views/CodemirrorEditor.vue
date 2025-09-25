@@ -17,6 +17,7 @@ import { SearchTab } from '@/components/ui/search-tab'
 import { checkImage, toBase64 } from '@/utils'
 import { createExtraKeys } from '@/utils/editor'
 import { fileUpload } from '@/utils/file'
+import { toast } from '@/utils/toast'
 
 const store = useStore()
 const displayStore = useDisplayStore()
@@ -102,15 +103,45 @@ function leftAndRightScroll() {
     // 分页模式下的同步逻辑
     if (store.isPaginationMode) {
       if (text === `editor`) {
-        // 编辑区滚动时，计算当前可见的第一行，然后切换到对应页面
+        // 编辑区滚动时，检查分页符是否在上半部分，只有在上半部分时才切换页面
         const editorElement = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
         const lineHeight = editor.value!.defaultTextHeight()
         const scrollTop = editorElement.scrollTop
-        const firstVisibleLine = Math.floor(scrollTop / lineHeight) + 1 // CodeMirror 行号从1开始
+        const visibleHeight = editorElement.clientHeight
+        const halfHeight = visibleHeight / 2
 
-        // 获取该行对应的页面
-        const targetPage = store.getPageByLineNumber(firstVisibleLine, editor.value!.getValue())
-        if (targetPage !== -1 && targetPage !== store.currentPageIndex) {
+        // 计算可视区域的行号范围
+        const firstVisibleLine = Math.floor(scrollTop / lineHeight) + 1 // CodeMirror 行号从1开始
+        const _lastVisibleLine = Math.floor((scrollTop + visibleHeight) / lineHeight) + 1
+        const halfVisibleLine = Math.floor((scrollTop + halfHeight) / lineHeight) + 1
+
+        // 检查内容中的分页符位置
+        const content = editor.value!.getValue()
+        const lines = content.split(`\n`)
+
+        // 查找在上半部分的分页符
+        let targetPage = -1
+        for (let i = firstVisibleLine - 1; i < halfVisibleLine && i < lines.length; i++) {
+          if (lines[i].trim() === `---`) {
+            // 找到分页符在上半部分，计算对应的页面
+            const pageAfterSeparator = store.getPageByLineNumber(i + 2, content) // 分页符后的页面
+            if (pageAfterSeparator !== -1 && pageAfterSeparator !== store.currentPageIndex) {
+              targetPage = pageAfterSeparator
+              break
+            }
+          }
+        }
+
+        // 如果没有找到分页符在上半部分，使用当前可见区域的第一行所在页面
+        if (targetPage === -1) {
+          const currentPage = store.getPageByLineNumber(firstVisibleLine, content)
+          if (currentPage !== -1 && currentPage !== store.currentPageIndex) {
+            targetPage = currentPage
+          }
+        }
+
+        // 切换到目标页面
+        if (targetPage !== -1) {
           store.goToPage(targetPage)
         }
       }
@@ -265,6 +296,32 @@ function handleGlobalKeydown(e: KeyboardEvent) {
       e.preventDefault()
       store.prevPage()
     }
+  }
+}
+
+// Handle auto-pagination functionality
+function handleAutoPagination() {
+  if (!editor.value) {
+    toast.error(`编辑器未初始化`)
+    return
+  }
+
+  try {
+    // Apply auto-pagination with default options
+    store.applyAutoPagination({
+      targetPageHeight: store.pageSettings.height * 0.8, // Use 80% of page height as target
+      minPageHeight: store.pageSettings.height * 0.5, // Minimum 50% of page height
+      maxPageHeight: store.pageSettings.height * 1.2, // Maximum 120% of page height
+      avoidBreakInHeaders: true,
+      avoidBreakInParagraphs: true,
+      avoidBreakInCodeBlocks: true,
+    })
+
+    toast.success(`自动分页完成`)
+  }
+  catch (error) {
+    console.error(`Auto-pagination failed:`, error)
+    toast.error(`自动分页失败，请检查内容格式`)
   }
 }
 
@@ -666,6 +723,15 @@ onUnmounted(() => {
                 </button>
                 <!-- 分页控制 -->
                 <div v-if="store.isPaginationMode" class="ml-auto flex items-center gap-2 px-4">
+                  <!-- 自动分页按钮 -->
+                  <button
+                    class="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
+                    title="根据内容长度和页面高度自动插入分页符"
+                    @click="handleAutoPagination"
+                  >
+                    自动分页
+                  </button>
+                  <div class="w-px h-4 bg-gray-300 mx-1" />
                   <button
                     class="px-2 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-50"
                     :disabled="store.currentPageIndex === 0"

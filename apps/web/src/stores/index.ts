@@ -623,6 +623,300 @@ export const useStore = defineStore(`store`, () => {
     return 0
   }
 
+  // Auto-pagination functionality
+  interface AutoPaginationOptions {
+    targetPageHeight?: number // Target page height in pixels
+    minPageHeight?: number // Minimum page height to avoid too short pages
+    maxPageHeight?: number // Maximum page height to avoid too long pages
+    avoidBreakInHeaders?: boolean // Avoid breaking in the middle of headers
+    avoidBreakInParagraphs?: boolean // Avoid breaking in the middle of paragraphs
+    avoidBreakInCodeBlocks?: boolean // Avoid breaking in the middle of code blocks
+  }
+
+  // Calculate estimated content height for a given markdown content
+  const estimateContentHeight = (content: string): number => {
+    const lines = content.split(`\n`)
+    let estimatedHeight = 0
+    let inCodeBlock = false
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmedLine = line.trim()
+      const prevLine = i > 0 ? lines[i - 1]?.trim() : ``
+      const nextLine = i < lines.length - 1 ? lines[i + 1]?.trim() : ``
+
+      // Track code block state
+      if (trimmedLine.startsWith(`\`\`\``)) {
+        inCodeBlock = !inCodeBlock
+      }
+
+      if (!trimmedLine) {
+        // Empty line - add spacing based on context
+        if (prevLine && (prevLine.startsWith(`#`) || prevLine.startsWith(`\`\`\``))) {
+          estimatedHeight += 30 // More space after headers and code blocks
+        }
+        else {
+          estimatedHeight += 20 // Normal empty line spacing
+        }
+      }
+      else if (trimmedLine.startsWith(`# `)) {
+        // H1 header - add margin based on context
+        estimatedHeight += i > 0 ? 80 : 60 // More space if not at beginning
+      }
+      else if (trimmedLine.startsWith(`## `)) {
+        // H2 header
+        estimatedHeight += i > 0 ? 70 : 50
+      }
+      else if (trimmedLine.startsWith(`### `)) {
+        // H3 header
+        estimatedHeight += i > 0 ? 60 : 40
+      }
+      else if (trimmedLine.startsWith(`#### `) || trimmedLine.startsWith(`##### `) || trimmedLine.startsWith(`###### `)) {
+        // H4-H6 headers
+        estimatedHeight += i > 0 ? 50 : 35
+      }
+      else if (trimmedLine.startsWith(`\`\`\``)) {
+        // Code block delimiter
+        estimatedHeight += 25
+      }
+      else if (trimmedLine.startsWith(`- `) || trimmedLine.startsWith(`* `) || /^\d+\. /.test(trimmedLine)) {
+        // List items - consider nesting and content length
+        const indentLevel = (line.length - line.trimStart().length) / 2
+        const baseHeight = 25
+        const contentLength = trimmedLine.length - 2 // Remove list marker
+        const extraLines = Math.max(0, Math.ceil(contentLength / 70) - 1)
+        estimatedHeight += baseHeight + (extraLines * 20) + (indentLevel * 5)
+      }
+      else if (trimmedLine.startsWith(`> `)) {
+        // Blockquote - consider content length
+        const contentLength = trimmedLine.length - 2
+        const extraLines = Math.max(0, Math.ceil(contentLength / 70) - 1)
+        estimatedHeight += 30 + (extraLines * 24)
+      }
+      else {
+        // Regular paragraph line - improved calculation
+        const lineLength = trimmedLine.length
+
+        if (inCodeBlock) {
+          // Code lines are typically shorter and have fixed height
+          estimatedHeight += 22
+        }
+        else {
+          // Regular text - consider line wrapping more accurately
+          const charactersPerLine = 75 // Slightly more conservative estimate
+          const estimatedLines = Math.max(1, Math.ceil(lineLength / charactersPerLine))
+          const lineHeight = 24
+
+          // Add paragraph spacing for first line of paragraph
+          if (!prevLine || prevLine.startsWith(`#`) || prevLine.startsWith(`\`\`\``)
+            || prevLine.startsWith(`- `) || prevLine.startsWith(`* `)
+            || /^\d+\. /.test(prevLine) || prevLine.startsWith(`> `)) {
+            estimatedHeight += 10 // Paragraph top margin
+          }
+
+          estimatedHeight += estimatedLines * lineHeight
+
+          // Add paragraph spacing for last line of paragraph
+          if (!nextLine || nextLine.startsWith(`#`) || nextLine.startsWith(`\`\`\``)
+            || nextLine.startsWith(`- `) || nextLine.startsWith(`* `)
+            || /^\d+\. /.test(nextLine) || nextLine.startsWith(`> `)) {
+            estimatedHeight += 10 // Paragraph bottom margin
+          }
+        }
+      }
+    }
+
+    return estimatedHeight
+  }
+
+  // Find optimal pagination points in markdown content
+  const findOptimalPaginationPoints = (content: string, options: AutoPaginationOptions = {}): number[] => {
+    const {
+      targetPageHeight = pageSettings.value.height * 0.8, // Use 80% of page height as target
+      minPageHeight = pageSettings.value.height * 0.5, // Minimum 50% of page height
+      maxPageHeight = pageSettings.value.height * 1.2, // Maximum 120% of page height
+      avoidBreakInHeaders = true,
+      avoidBreakInParagraphs = true,
+      avoidBreakInCodeBlocks = true,
+    } = options
+
+    const lines = content.split(`\n`)
+    const paginationPoints: number[] = []
+    let currentPageHeight = 0
+    let inCodeBlock = false
+    let inParagraph = false
+    let lastGoodBreakPoint = -1
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmedLine = line.trim()
+      const nextLine = i < lines.length - 1 ? lines[i + 1]?.trim() : ``
+
+      // Track code block state
+      if (trimmedLine.startsWith(`\`\`\``)) {
+        inCodeBlock = !inCodeBlock
+      }
+
+      // Track paragraph state - improved logic for better paragraph boundary detection
+      if (!trimmedLine) {
+        // Empty line - if we were in a paragraph, this marks the end
+        if (inParagraph) {
+          inParagraph = false
+          lastGoodBreakPoint = i // Record good break point at paragraph end
+        }
+      }
+      else if (!inParagraph && !trimmedLine.startsWith(`#`) && !trimmedLine.startsWith(`\`\`\``) && !trimmedLine.startsWith(`- `) && !trimmedLine.startsWith(`* `) && !/^\d+\. /.test(trimmedLine) && !trimmedLine.startsWith(`> `)) {
+        // Start of a new paragraph (not header, code block, list, or quote)
+        inParagraph = true
+      }
+
+      // Calculate line height
+      let lineHeight = 0
+      if (!trimmedLine) {
+        lineHeight = 20
+      }
+      else if (trimmedLine.startsWith(`# `)) {
+        lineHeight = 60
+        // Don't record break point at header itself, wait for content after header
+      }
+      else if (trimmedLine.startsWith(`## `)) {
+        lineHeight = 50
+        // Don't record break point at header itself, wait for content after header
+      }
+      else if (trimmedLine.startsWith(`### `)) {
+        lineHeight = 40
+        // Don't record break point at header itself, wait for content after header
+      }
+      else if (trimmedLine.startsWith(`#### `) || trimmedLine.startsWith(`##### `) || trimmedLine.startsWith(`###### `)) {
+        lineHeight = 35
+        // Don't record break point at header itself, wait for content after header
+      }
+      else if (trimmedLine.startsWith(`\`\`\``)) {
+        lineHeight = 25
+        if (!inCodeBlock)
+          lastGoodBreakPoint = i // Good break point after code block ends
+      }
+      else if (trimmedLine.startsWith(`- `) || trimmedLine.startsWith(`* `) || /^\d+\. /.test(trimmedLine)) {
+        lineHeight = 25
+      }
+      else if (trimmedLine.startsWith(`> `)) {
+        lineHeight = 30
+      }
+      else {
+        const lineLength = trimmedLine.length
+        const estimatedLines = Math.ceil(lineLength / 80)
+        lineHeight = estimatedLines * 24
+
+        // Record good break point for regular content lines (not in code blocks)
+        // This ensures we can break after headers and regular paragraphs
+        if (!inCodeBlock && i > 0) {
+          const prevLine = lines[i - 1]?.trim()
+          // If previous line was a header, this is a good place to potentially break
+          if (prevLine && prevLine.startsWith(`#`)) {
+            lastGoodBreakPoint = i
+          }
+        }
+      }
+
+      currentPageHeight += lineHeight
+
+      // Check if we should paginate
+      const shouldPaginate = currentPageHeight >= targetPageHeight
+      const mustPaginate = currentPageHeight >= maxPageHeight
+      const canPaginate = currentPageHeight >= minPageHeight
+
+      if ((shouldPaginate || mustPaginate) && canPaginate) {
+        let breakPoint = i
+
+        // Try to find a better break point
+        if (!mustPaginate && lastGoodBreakPoint > (paginationPoints[paginationPoints.length - 1] || -1)) {
+          // Use the last good break point if it's reasonable
+          const heightAtBreakPoint = estimateContentHeight(lines.slice((paginationPoints[paginationPoints.length - 1] || 0) + 1, lastGoodBreakPoint + 1).join(`\n`))
+          if (heightAtBreakPoint >= minPageHeight) {
+            breakPoint = lastGoodBreakPoint
+          }
+        }
+
+        // Avoid breaking in problematic locations
+        if (avoidBreakInCodeBlocks && inCodeBlock) {
+          continue // Skip this break point
+        }
+        if (avoidBreakInHeaders && (trimmedLine.startsWith(`#`) || nextLine.startsWith(`#`))) {
+          continue // Skip this break point
+        }
+        if (avoidBreakInParagraphs && inParagraph && trimmedLine) {
+          continue // Skip this break point
+        }
+
+        // Add pagination point
+        paginationPoints.push(breakPoint)
+        currentPageHeight = 0
+        lastGoodBreakPoint = -1
+      }
+    }
+
+    return paginationPoints
+  }
+
+  // Auto-paginate content by inserting page separators
+  const autoPaginateContent = (content: string, options: AutoPaginationOptions = {}): string => {
+    const paginationPoints = findOptimalPaginationPoints(content, options)
+
+    if (paginationPoints.length === 0) {
+      return content // No pagination needed
+    }
+
+    const lines = content.split(`\n`)
+    const result: string[] = []
+    let lastIndex = 0
+
+    for (const point of paginationPoints) {
+      // Add content up to this pagination point
+      result.push(...lines.slice(lastIndex, point + 1))
+
+      // Add page separator
+      result.push(`---`)
+
+      lastIndex = point + 1
+    }
+
+    // Add remaining content
+    if (lastIndex < lines.length) {
+      result.push(...lines.slice(lastIndex))
+    }
+
+    return result.join(`\n`)
+  }
+
+  // Apply auto-pagination to current editor content
+  const applyAutoPagination = (options: AutoPaginationOptions = {}) => {
+    if (!editor.value) {
+      console.warn(`Editor is not initialized`)
+      return
+    }
+
+    const currentContent = editor.value.getValue()
+
+    // Remove existing page separators to avoid double pagination
+    const cleanContent = currentContent.replace(/^---$/gm, ``).replace(/\n{2,}/g, `\n\n`)
+
+    // Apply auto-pagination
+    const paginatedContent = autoPaginateContent(cleanContent, options)
+
+    // Update editor content
+    editor.value.setValue(paginatedContent)
+
+    // Refresh editor to update pagination
+    editorRefresh()
+
+    // Switch to pagination mode if not already enabled
+    if (!isPaginationMode.value) {
+      setPaginationMode()
+    }
+
+    toast.success(`自动分页完成，共生成 ${pages.value.length} 页`)
+  }
+
   // 计算页面缩放比例
   const calculatePageScale = (containerWidth: number, containerHeight: number) => {
     const pageWidth = pageSettings.value.width
@@ -1847,6 +2141,12 @@ export const useStore = defineStore(`store`, () => {
     updatePreviewContainerSize,
     updatePageSettings,
     isContentTruncated,
+
+    // 自动分页相关
+    estimateContentHeight,
+    findOptimalPaginationPoints,
+    autoPaginateContent,
+    applyAutoPagination,
   }
 })
 
