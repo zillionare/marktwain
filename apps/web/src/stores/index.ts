@@ -539,6 +539,90 @@ export const useStore = defineStore(`store`, () => {
     }
   }
 
+  // 计算页面行号映射的辅助函数
+  interface PageLineMapping {
+    pageIndex: number
+    startLine: number
+    endLine: number
+  }
+
+  // Calculate line number mapping for each page
+  const calculatePageLineMapping = (content: string): PageLineMapping[] => {
+    const lines = content.split(`\n`)
+    const mappings: PageLineMapping[] = []
+    let currentLine = 0
+    let pageIndex = 0
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+
+      // Check if this line is a page separator (---)
+      if (line.trim() === `---`) {
+        // End current page (if it has content)
+        if (i > currentLine) {
+          mappings.push({
+            pageIndex,
+            startLine: currentLine,
+            endLine: i - 1,
+          })
+          pageIndex++
+        }
+        // Start next page after the separator
+        currentLine = i + 1
+      }
+    }
+
+    // Add the last page if there's remaining content
+    if (currentLine < lines.length) {
+      mappings.push({
+        pageIndex,
+        startLine: currentLine,
+        endLine: lines.length - 1,
+      })
+    }
+
+    return mappings
+  }
+
+  // Get page index by line number
+  const getPageByLineNumber = (lineNumber: number, content: string): number => {
+    const mappings = calculatePageLineMapping(content)
+
+    for (const mapping of mappings) {
+      if (lineNumber >= mapping.startLine && lineNumber <= mapping.endLine) {
+        return mapping.pageIndex
+      }
+    }
+
+    // If line number is beyond all pages, return the last page
+    return Math.max(0, mappings.length - 1)
+  }
+
+  // Get start line number of a specific page
+  const getPageStartLine = (pageIndex: number, content: string): number => {
+    const mappings = calculatePageLineMapping(content)
+
+    if (pageIndex >= 0 && pageIndex < mappings.length) {
+      return mappings[pageIndex].startLine
+    }
+
+    return 0
+  }
+
+  // Get the first visible page when multiple pages are visible in editor
+  const getFirstVisiblePage = (topLine: number, bottomLine: number, content: string): number => {
+    const mappings = calculatePageLineMapping(content)
+
+    for (const mapping of mappings) {
+      // If this page overlaps with the visible area
+      if (mapping.endLine >= topLine && mapping.startLine <= bottomLine) {
+        return mapping.pageIndex
+      }
+    }
+
+    return 0
+  }
+
   // 计算页面缩放比例
   const calculatePageScale = (containerWidth: number, containerHeight: number) => {
     const pageWidth = pageSettings.value.width
@@ -887,14 +971,14 @@ export const useStore = defineStore(`store`, () => {
         scrollbar-width: none !important;
         -ms-overflow-style: none !important;
       }
-      
+
       /* 隐藏webkit滚动条 */
       *::-webkit-scrollbar {
         display: none !important;
         width: 0 !important;
         height: 0 !important;
       }
-      
+
       /* 确保body和html不显示滚动条 */
       body, html {
         overflow: hidden !important;
@@ -1748,6 +1832,12 @@ export const useStore = defineStore(`store`, () => {
     goToPage,
     nextPage,
     prevPage,
+
+    // 分页行号映射相关
+    calculatePageLineMapping,
+    getPageByLineNumber,
+    getPageStartLine,
+    getFirstVisiblePage,
 
     // 分页缩放相关
     pageSettings,

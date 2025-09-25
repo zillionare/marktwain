@@ -67,6 +67,10 @@ const previewRef = useTemplateRef<HTMLDivElement>(`previewRef`)
 
 const timeout = ref<NodeJS.Timeout>()
 
+// 滚动回调函数，提取到外部作用域以便在 watch 中使用
+let editorScrollCB: (() => void) | null = null
+let previewScrollCB: (() => void) | null = null
+
 // 使浏览区与编辑区滚动条建立同步联系
 function leftAndRightScroll() {
   const scrollCB = (text: string) => {
@@ -95,18 +99,49 @@ function leftAndRightScroll() {
       }, 300)
     }
 
-    const percentage
-      = source.scrollTop / (source.scrollHeight - source.offsetHeight)
-    const height = percentage * (target.scrollHeight - target.offsetHeight)
+    // 分页模式下的同步逻辑
+    if (store.isPaginationMode) {
+      if (text === `editor`) {
+        // 编辑区滚动时，计算当前可见的第一行，然后切换到对应页面
+        const editorElement = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
+        const lineHeight = editor.value!.defaultTextHeight()
+        const scrollTop = editorElement.scrollTop
+        const firstVisibleLine = Math.floor(scrollTop / lineHeight) + 1 // CodeMirror 行号从1开始
 
-    target.scrollTo(0, height)
+        // 获取该行对应的页面
+        const targetPage = store.getPageByLineNumber(firstVisibleLine, editor.value!.getValue())
+        if (targetPage !== -1 && targetPage !== store.currentPageIndex) {
+          store.goToPage(targetPage)
+        }
+      }
+      else if (text === `preview`) {
+        // 预览区切换页面时，编辑区滚动到对应页面的起始行
+        const startLine = store.getPageStartLine(store.currentPageIndex, editor.value!.getValue())
+        if (startLine !== -1) {
+          const lineHeight = editor.value!.defaultTextHeight()
+          const targetScrollTop = (startLine - 1) * lineHeight // 转换为0基础的像素位置
+
+          const editorElement = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
+          editorElement.scrollTo(0, targetScrollTop)
+        }
+      }
+    }
+    else {
+      // 普通模式下的百分比同步
+      const percentage
+        = source.scrollTop / (source.scrollHeight - source.offsetHeight)
+      const height = percentage * (target.scrollHeight - target.offsetHeight)
+
+      target.scrollTo(0, height)
+    }
   }
 
-  function editorScrollCB() {
+  // 将回调函数赋值给外部变量
+  editorScrollCB = () => {
     scrollCB(`editor`)
   }
 
-  function previewScrollCB() {
+  previewScrollCB = () => {
     scrollCB(`preview`)
   }
 
@@ -162,6 +197,33 @@ onMounted(() => {
     if (previewRef.value) {
       const rect = previewRef.value.getBoundingClientRect()
       updateContainerSize(rect.width, rect.height)
+    }
+  })
+
+  // 监听分页切换，同步编辑区滚动
+  watch(() => store.currentPageIndex, (newPageIndex) => {
+    if (store.isPaginationMode && editor.value) {
+      const startLine = store.getPageStartLine(newPageIndex, editor.value.getValue())
+      if (startLine !== -1) {
+        const lineHeight = editor.value.defaultTextHeight()
+        const targetScrollTop = (startLine - 1) * lineHeight // 转换为0基础的像素位置
+
+        const editorElement = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
+        if (editorElement) {
+          // 临时移除滚动监听，避免循环触发
+          if (editorScrollCB) {
+            editor.value.off(`scroll`, editorScrollCB)
+          }
+          editorElement.scrollTo(0, targetScrollTop)
+
+          // 延迟恢复滚动监听
+          setTimeout(() => {
+            if (editor.value && editorScrollCB) {
+              editor.value.on(`scroll`, editorScrollCB)
+            }
+          }, 300)
+        }
+      }
     }
   })
 })
