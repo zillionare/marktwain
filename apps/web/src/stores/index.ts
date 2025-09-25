@@ -528,11 +528,8 @@ export const useStore = defineStore(`store`, () => {
   const goToPage = (pageIndex: number) => {
     if (pageIndex >= 0 && pageIndex < totalPages.value) {
       currentPageIndex.value = pageIndex
-      // 在分页模式下使用滚动导航
-      if (isPaginationMode.value && pageRefs.value[pageIndex]) {
-        pageRefs.value[pageIndex].scrollIntoView({ behavior: `smooth`, block: `start` })
-      }
-      else {
+      // 在分页模式下，单页显示模式不需要滚动，只需要更新页面索引
+      if (!isPaginationMode.value) {
         editorRefresh()
       }
     }
@@ -541,11 +538,8 @@ export const useStore = defineStore(`store`, () => {
   const nextPage = () => {
     if (currentPageIndex.value < totalPages.value - 1) {
       currentPageIndex.value++
-      // 在分页模式下使用滚动导航
-      if (isPaginationMode.value && pageRefs.value[currentPageIndex.value]) {
-        pageRefs.value[currentPageIndex.value].scrollIntoView({ behavior: `smooth`, block: `start` })
-      }
-      else {
+      // 在分页模式下，单页显示模式不需要滚动，只需要更新页面索引
+      if (!isPaginationMode.value) {
         editorRefresh()
       }
     }
@@ -554,11 +548,8 @@ export const useStore = defineStore(`store`, () => {
   const prevPage = () => {
     if (currentPageIndex.value > 0) {
       currentPageIndex.value--
-      // 在分页模式下使用滚动导航
-      if (isPaginationMode.value && pageRefs.value[currentPageIndex.value]) {
-        pageRefs.value[currentPageIndex.value].scrollIntoView({ behavior: `smooth`, block: `start` })
-      }
-      else {
+      // 在分页模式下，单页显示模式不需要滚动，只需要更新页面索引
+      if (!isPaginationMode.value) {
         editorRefresh()
       }
     }
@@ -1242,6 +1233,9 @@ export const useStore = defineStore(`store`, () => {
     try {
       toast.info(`开始导出 ${totalPages.value} 张图片...`)
 
+      // 保存当前页面索引，导出完成后恢复
+      const originalPageIndex = currentPageIndex.value
+
       for (let i = 0; i < pageRefs.value.length; i++) {
         const pageElement = pageRefs.value[i]
         if (!pageElement) {
@@ -1249,11 +1243,12 @@ export const useStore = defineStore(`store`, () => {
           continue
         }
 
-        // 滚动到当前页面
-        pageElement.scrollIntoView({ behavior: `instant`, block: `start` })
+        // 临时切换到当前要截图的页面（这会触发v-show显示该页面）
+        currentPageIndex.value = i
 
-        // 等待滚动完成和DOM更新
-        await new Promise(resolve => setTimeout(resolve, 200))
+        // 等待DOM更新和页面显示
+        await nextTick()
+        await new Promise(resolve => setTimeout(resolve, 300))
 
         // 截图当前页面
         const imgElement = await snapdom.toPng(pageElement, {
@@ -1278,11 +1273,20 @@ export const useStore = defineStore(`store`, () => {
         await new Promise(resolve => setTimeout(resolve, 100))
       }
 
+      // 恢复到原始页面
+      currentPageIndex.value = originalPageIndex
+      await nextTick()
+
       toast.success(`成功导出 ${totalPages.value} 张图片`)
     }
     catch (error) {
       console.error(`批量导出图片失败:`, error)
       toast.error(`批量导出图片失败，请重试`)
+
+      // 发生错误时也要恢复到原始页面
+      if (currentPageIndex.value !== undefined) {
+        currentPageIndex.value = 0
+      }
     }
   }
 

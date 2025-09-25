@@ -754,7 +754,7 @@ onUnmounted(() => {
 
               <div id="preview" ref="previewRef" class="preview-wrapper w-full p-5">
                 <div id="output-wrapper" class="w-full" :class="{ output_night: store.isDark }">
-                  <!-- 分页模式：所有页面垂直排列 -->
+                  <!-- 分页模式：单页显示 -->
                   <div v-if="store.isPaginationMode">
                     <!-- 内容截断警告 -->
                     <div v-if="store.isContentTruncated" class="truncation-warning">
@@ -763,6 +763,7 @@ onUnmounted(() => {
                     <div class="pagination-container">
                       <div
                         v-for="(page, index) in store.pages"
+                        v-show="index === store.currentPageIndex"
                         :key="index"
                         :ref="el => { if (el) store.pageRefs[index] = el }"
                         class="pagination-page"
@@ -927,10 +928,10 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   min-height: 100%;
   padding: 20px;
   overflow: auto;
-  gap: 20px;
 }
 
 .pagination-page {
@@ -945,8 +946,8 @@ onUnmounted(() => {
 }
 
 .pagination-page.current-page {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2), 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  /*border-color: #3b82f6;*/
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05);
 }
 
 /* 深色模式下的分页样式 */
