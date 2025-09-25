@@ -17,6 +17,7 @@ import { SearchTab } from '@/components/ui/search-tab'
 import { checkImage, toBase64 } from '@/utils'
 import { createExtraKeys } from '@/utils/editor'
 import { fileUpload } from '@/utils/file'
+import { toast } from '@/utils/toast'
 
 const store = useStore()
 const displayStore = useDisplayStore()
@@ -67,6 +68,10 @@ const previewRef = useTemplateRef<HTMLDivElement>(`previewRef`)
 
 const timeout = ref<NodeJS.Timeout>()
 
+// 滚动回调函数，提取到外部作用域以便在 watch 中使用
+let editorScrollCB: (() => void) | null = null
+let previewScrollCB: (() => void) | null = null
+
 // 使浏览区与编辑区滚动条建立同步联系
 function leftAndRightScroll() {
   const scrollCB = (text: string) => {
@@ -80,40 +85,109 @@ function leftAndRightScroll() {
       source = previewRef.value!
       target = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
 
-      editor.value!.off(`scroll`, editorScrollCB)
+      if (editorScrollCB) {
+        editor.value!.off(`scroll`, editorScrollCB)
+      }
       timeout.value = setTimeout(() => {
-        editor.value!.on(`scroll`, editorScrollCB)
+        if (editorScrollCB) {
+          editor.value!.on(`scroll`, editorScrollCB)
+        }
       }, 300)
     }
     else {
       source = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
       target = previewRef.value!
 
-      target.removeEventListener(`scroll`, previewScrollCB, false)
+      if (previewScrollCB) {
+        target.removeEventListener(`scroll`, previewScrollCB, false)
+      }
       timeout.value = setTimeout(() => {
-        target.addEventListener(`scroll`, previewScrollCB, false)
+        if (previewScrollCB) {
+          target.addEventListener(`scroll`, previewScrollCB, false)
+        }
       }, 300)
     }
 
-    const percentage
-      = source.scrollTop / (source.scrollHeight - source.offsetHeight)
-    const height = percentage * (target.scrollHeight - target.offsetHeight)
+    // 分页模式下的同步逻辑
+    if (store.isPaginationMode) {
+      if (text === `editor`) {
+        // 编辑区滚动时，检查分页符是否在上半部分，只有在上半部分时才切换页面
+        const editorElement = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
+        const lineHeight = editor.value!.defaultTextHeight()
+        const scrollTop = editorElement.scrollTop
+        const visibleHeight = editorElement.clientHeight
+        const halfHeight = visibleHeight / 2
 
-    target.scrollTo(0, height)
+        // 计算可视区域的行号范围
+        const firstVisibleLine = Math.floor(scrollTop / lineHeight) + 1 // CodeMirror 行号从1开始
+        // const _lastVisibleLine = Math.floor((scrollTop + visibleHeight) / lineHeight) + 1
+        const halfVisibleLine = Math.floor((scrollTop + halfHeight) / lineHeight) + 1
+
+        // 检查内容中的分页符位置
+        const content = editor.value!.getValue()
+        const lines = content.split(`\n`)
+
+        // 查找在上半部分的分页符
+        let targetPage = -1
+        for (let i = firstVisibleLine - 1; i < halfVisibleLine && i < lines.length; i++) {
+          if (lines[i].trim() === `---`) {
+            // 找到分页符在上半部分，计算对应的页面
+            const pageAfterSeparator = store.getPageByLineNumber(i + 2, content) // 分页符后的页面
+            if (pageAfterSeparator !== -1 && pageAfterSeparator !== store.currentPageIndex) {
+              targetPage = pageAfterSeparator
+              break
+            }
+          }
+        }
+
+        // 如果没有找到分页符在上半部分，使用当前可见区域的第一行所在页面
+        if (targetPage === -1) {
+          const currentPage = store.getPageByLineNumber(firstVisibleLine, content)
+          if (currentPage !== -1 && currentPage !== store.currentPageIndex) {
+            targetPage = currentPage
+          }
+        }
+
+        // 切换到目标页面
+        if (targetPage !== -1) {
+          store.goToPage(targetPage)
+        }
+      }
+      else if (text === `preview`) {
+        // 预览区切换页面时，编辑区滚动到对应页面的起始行
+        const startLine = store.getPageStartLine(store.currentPageIndex, editor.value!.getValue())
+        if (startLine !== -1) {
+          const lineHeight = editor.value!.defaultTextHeight()
+          const targetScrollTop = (startLine - 1) * lineHeight // 转换为0基础的像素位置
+
+          const editorElement = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
+          editorElement.scrollTo(0, targetScrollTop)
+        }
+      }
+    }
+    else {
+      // 普通模式下的百分比同步
+      const percentage
+        = source.scrollTop / (source.scrollHeight - source.offsetHeight)
+      const height = percentage * (target.scrollHeight - target.offsetHeight)
+
+      target.scrollTo(0, height)
+    }
   }
 
-  function editorScrollCB() {
+  // 将回调函数赋值给外部变量
+  editorScrollCB = () => {
     scrollCB(`editor`)
   }
 
-  function previewScrollCB() {
+  previewScrollCB = () => {
     scrollCB(`preview`)
   }
 
   if (previewRef.value) {
     previewRef.value.addEventListener(`scroll`, previewScrollCB, false)
   }
-  if (editor.value) {
+  if (editor.value && editorScrollCB) {
     editor.value.on(`scroll`, editorScrollCB)
   }
 }
@@ -124,6 +198,73 @@ onMounted(() => {
   setTimeout(() => {
     leftAndRightScroll()
   }, 300)
+
+  // 监听预览区域尺寸变化，用于分页模式缩放计算
+  let resizeObserver: ResizeObserver | null = null
+
+  const updateContainerSize = (width: number, height: number) => {
+    if (store.isPaginationMode) {
+      // 分页模式：获取pagination-container的实际可用尺寸
+      // 减去padding (20px * 2 = 40px)
+      const availableWidth = width - 40
+      const availableHeight = height - 40
+      store.updatePreviewContainerSize(availableWidth, availableHeight)
+    }
+    else {
+      // 普通模式：直接使用容器尺寸
+      store.updatePreviewContainerSize(width, height)
+    }
+  }
+
+  if (previewRef.value) {
+    resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect
+        updateContainerSize(width, height)
+      }
+    })
+    resizeObserver.observe(previewRef.value)
+
+    // 组件卸载时清理observer
+    onUnmounted(() => {
+      resizeObserver?.disconnect()
+    })
+  }
+
+  // 监听分页模式变化，重新计算尺寸
+  watch(() => store.isPaginationMode, () => {
+    if (previewRef.value) {
+      const rect = previewRef.value.getBoundingClientRect()
+      updateContainerSize(rect.width, rect.height)
+    }
+  })
+
+  // 监听分页切换，同步编辑区滚动
+  watch(() => store.currentPageIndex, (newPageIndex) => {
+    if (store.isPaginationMode && editor.value) {
+      const startLine = store.getPageStartLine(newPageIndex, editor.value.getValue())
+      if (startLine !== -1) {
+        const lineHeight = editor.value.defaultTextHeight()
+        const targetScrollTop = (startLine - 1) * lineHeight // 转换为0基础的像素位置
+
+        const editorElement = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
+        if (editorElement) {
+          // 临时移除滚动监听，避免循环触发
+          if (editorScrollCB) {
+            editor.value.off(`scroll`, editorScrollCB)
+          }
+          editorElement.scrollTo(0, targetScrollTop)
+
+          // 延迟恢复滚动监听
+          setTimeout(() => {
+            if (editor.value && editorScrollCB) {
+              editor.value.on(`scroll`, editorScrollCB)
+            }
+          }, 300)
+        }
+      }
+    }
+  })
 })
 
 const searchTabRef
@@ -149,6 +290,46 @@ function handleGlobalKeydown(e: KeyboardEvent) {
     searchTabRef.value.showSearchTab = false
     e.preventDefault()
     editor.value?.focus()
+  }
+
+  // Pagination keyboard shortcuts - only work in pagination mode
+  if (store.isPaginationMode) {
+    if (e.key === `ArrowRight`) {
+      // Next page with right arrow
+      e.preventDefault()
+      store.nextPage()
+    }
+    else if (e.key === `ArrowLeft`) {
+      // Previous page with left arrow
+      e.preventDefault()
+      store.prevPage()
+    }
+  }
+}
+
+// Handle auto-pagination functionality
+function handleAutoPagination() {
+  if (!editor.value) {
+    toast.error(`编辑器未初始化`)
+    return
+  }
+
+  try {
+    // Apply auto-pagination with default options
+    store.applyAutoPagination({
+      targetPageHeight: store.pageSettings.height * 0.8, // Use 80% of page height as target
+      minPageHeight: store.pageSettings.height * 0.5, // Minimum 50% of page height
+      maxPageHeight: store.pageSettings.height * 1.2, // Maximum 120% of page height
+      avoidBreakInHeaders: true,
+      avoidBreakInParagraphs: true,
+      avoidBreakInCodeBlocks: true,
+    })
+
+    toast.success(`自动分页完成`)
+  }
+  catch (error) {
+    console.error(`Auto-pagination failed:`, error)
+    toast.error(`自动分页失败，请检查内容格式`)
   }
 }
 
@@ -527,18 +708,136 @@ onUnmounted(() => {
             </div>
             <div
               v-show="!store.isMobile || (store.isMobile && !showEditor)"
-              class="relative flex-1 overflow-x-hidden transition-width"
+              class="preview-wrapper relative flex-1 overflow-x-hidden transition-width flex flex-col"
               :class="[store.isOpenRightSlider ? 'w-0' : 'w-100']"
             >
-              <div id="preview" ref="previewRef" class="preview-wrapper w-full p-5">
-                <div id="output-wrapper" class="w-full" :class="{ output_night: !backLight }">
-                  <div class="preview border-x shadow-xl" :class="[store.previewWidth]">
-                    <section id="output" class="w-full" v-html="output" />
-                    <div v-if="isCoping" class="loading-mask">
-                      <div class="loading-mask-box">
-                        <div class="loading__img" />
-                        <span>正在生成</span>
+              <!-- 预览模式切换 tab -->
+              <div class="flex border-b bg-white dark:bg-gray-800 flex-shrink-0">
+                <button
+                  class="px-4 py-2 font-medium" :class="{
+                    'border-b-2 border-blue-500 text-blue-500': !store.isPaginationMode,
+                    'text-gray-500': store.isPaginationMode,
+                  }" @click="store.setNormalMode()"
+                >
+                  普通模式
+                </button>
+                <button
+                  class="px-4 py-2 font-medium" :class="{
+                    'border-b-2 border-blue-500 text-blue-500': store.isPaginationMode,
+                    'text-gray-500': !store.isPaginationMode,
+                  }" @click="store.setPaginationMode()"
+                >
+                  分页模式
+                </button>
+                <!-- 分页控制 -->
+                <div v-if="store.isPaginationMode" class="ml-auto flex items-center gap-2 px-4">
+                  <!-- 自动分页按钮 -->
+                  <button
+                    class="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
+                    title="根据内容长度和页面高度自动插入分页符"
+                    @click="handleAutoPagination"
+                  >
+                    自动分页
+                  </button>
+                  <div class="w-px h-4 bg-gray-300 mx-1" />
+                  <!-- 分页导航图标按钮 -->
+                  <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1 shadow-sm">
+                    <!-- 第一页按钮 -->
+                    <button
+                      class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      :disabled="store.currentPageIndex === 0"
+                      title="第一页"
+                      @click="store.goToPage(0)"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <!-- 上一页按钮 -->
+                    <button
+                      class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      :disabled="store.currentPageIndex === 0"
+                      title="上一页"
+                      @click="store.prevPage()"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <!-- 页码显示 -->
+                    <span class="text-sm text-gray-700 font-medium px-2 min-w-[60px] text-center">
+                      {{ store.currentPageIndex + 1 }} of {{ store.totalPages }}
+                    </span>
+                    <!-- 下一页按钮 -->
+                    <button
+                      class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      :disabled="store.currentPageIndex === store.totalPages - 1"
+                      title="下一页"
+                      @click="store.nextPage()"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    <!-- 最后一页按钮 -->
+                    <button
+                      class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      :disabled="store.currentPageIndex === store.totalPages - 1"
+                      title="最后一页"
+                      @click="store.goToPage(store.totalPages - 1)"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="preview" ref="previewRef" class="w-full flex-1 overflow-auto">
+                <div id="output-wrapper" class="w-full p-5" :class="{ output_night: store.isDark }">
+                  <!-- 分页模式：单页显示 -->
+                  <div v-if="store.isPaginationMode" class="relative">
+                    <!-- 内容截断警告 - 浮动样式 -->
+                    <div v-if="store.isContentTruncated" class="truncation-warning-floating">
+                      内容发生截断，请重新调整分页
+                    </div>
+                    <div
+                      class="pagination-container"
+                      :style="{
+                        width: `${store.pageSettings.width * store.pageScale}px`,
+                        height: `${store.pageSettings.height * store.pageScale}px`,
+                        minWidth: `${store.pageSettings.width * store.pageScale}px`,
+                        minHeight: `${store.pageSettings.height * store.pageScale}px`,
+                      }"
+                    >
+                      <div
+                        v-for="(page, index) in store.pages"
+                        v-show="index === store.currentPageIndex"
+                        :key="index"
+                        :ref="el => { if (el) store.pageRefs[index] = el as HTMLElement }"
+                        class="pagination-page"
+                        :class="{ 'current-page': index === store.currentPageIndex }"
+                        :style="{
+                          width: `${store.pageSettings.width}px`,
+                          height: `${store.pageSettings.height}px`,
+                          transform: `scale(${store.pageScale})`,
+                          transformOrigin: 'top center',
+                        }"
+                      >
+                        <section class="w-full h-full overflow-hidden" style="padding: 20px; box-sizing: border-box;" v-html="store.renderPage(page)" />
                       </div>
+                    </div>
+                  </div>
+                  <!-- 普通模式：原有样式 -->
+                  <div v-else class="preview border-x shadow-xl" :class="[store.previewWidth]">
+                    <section id="output" class="w-full" v-html="output" />
+                  </div>
+
+                  <div v-if="isCoping" class="loading-mask">
+                    <div class="loading-mask-box">
+                      <div class="loading__img" />
+                      <span>正在生成</span>
                     </div>
                   </div>
                 </div>
@@ -621,7 +920,7 @@ onUnmounted(() => {
 #output-wrapper {
   position: relative;
   user-select: text;
-  height: 100%;
+  /* 移除固定高度，让内容自然流动 */
 }
 
 .loading-mask {
@@ -656,10 +955,76 @@ onUnmounted(() => {
 .codeMirror-wrapper,
 .preview-wrapper {
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .codeMirror-wrapper {
   overflow-x: auto;
-  height: 100%;
+}
+
+/* Tab控制区域固定高度，不参与flex伸缩 */
+.codeMirror-wrapper > .flex.border-b,
+.preview-wrapper > .flex.border-b {
+  flex-shrink: 0;
+}
+
+/* 编辑器内容区域占用剩余空间 */
+.codeMirror-wrapper > div:not(.flex),
+.codeMirror-wrapper > template + div {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 预览内容区域已通过HTML结构中的flex-1类处理 */
+
+/* 分页模式样式 */
+.truncation-warning-floating {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #fee2e2;
+  color: #dc2626;
+  padding: 8px 16px;
+  border-radius: 4px;
+  border-left: 4px solid #dc2626;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  white-space: nowrap;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  margin: 0 auto;
+  overflow: visible;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.pagination-page {
+  background: white;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.pagination-page.current-page {
+  /*border-color: #3b82f6;*/
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* 深色模式下的分页样式 */
+.output_night .pagination-page {
+  background: #1f2937;
+  border-color: #374151;
 }
 </style>

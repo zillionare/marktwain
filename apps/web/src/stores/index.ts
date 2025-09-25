@@ -7,6 +7,7 @@ import {
 import { snapdom } from '@zumer/snapdom'
 import CodeMirror from 'codemirror'
 import { v4 as uuid } from 'uuid'
+import { nextTick } from 'vue'
 import DEFAULT_CONTENT from '@/assets/example/markdown.md?raw'
 import DEFAULT_CSS_CONTENT from '@/assets/example/theme-css.txt?raw'
 
@@ -26,7 +27,6 @@ import {
   postProcessHtml,
   processHtmlContent,
   renderMarkdown,
-  sanitizeTitle,
 } from '@/utils'
 import { copyPlain } from '@/utils/clipboard'
 
@@ -47,6 +47,24 @@ interface Post {
   parentId?: string | null
   // 展开状态
   collapsed?: boolean
+}
+
+/**********************************
+ * 分页相关接口
+ *********************************/
+export interface PageLineMapping {
+  pageIndex: number
+  startLine: number
+  endLine: number
+}
+
+export interface AutoPaginationOptions {
+  targetPageHeight?: number // Target page height in pixels
+  minPageHeight?: number // Minimum page height to avoid too short pages
+  maxPageHeight?: number // Maximum page height to avoid too long pages
+  avoidBreakInHeaders?: boolean // Avoid breaking in the middle of headers
+  avoidBreakInParagraphs?: boolean // Avoid breaking in the middle of paragraphs
+  avoidBreakInCodeBlocks?: boolean // Avoid breaking in the middle of code blocks
 }
 
 export const useStore = defineStore(`store`, () => {
@@ -81,8 +99,8 @@ export const useStore = defineStore(`store`, () => {
     convertAdmonition: { enabled: true, width: 500 }, // 转换 Admonition
     convertMathBlock: { enabled: true, width: 500 }, // 转换数学公式
     convertFencedBlock: { enabled: true, width: 600 }, // 转换代码块
-    convertH2: { enabled: true, widthMode: `original` }, // 转换 h2 标题
-    convertH3: { enabled: true, widthMode: `original` }, // 转换 h3 标题
+    convertH2: { enabled: false, widthMode: `original` }, // 转换 h2 标题
+    convertH3: { enabled: false, widthMode: `original` }, // 转换 h3 标题
     convertH4: { enabled: false, widthMode: `original` }, // 转换 h4 标题
   } as {
     devicePixelRatio: number
@@ -116,6 +134,24 @@ export const useStore = defineStore(`store`, () => {
   const toggleUseJustify = useToggle(isUseJustify)
 
   const output = ref(``)
+
+  // 分页相关状态
+  const isPaginationMode = useStorage(`isPaginationMode`, false) // 是否开启分页模式
+  const currentPageIndex = ref(0) // 当前页码（从0开始）
+  const pages = ref<string[]>([]) // 分页后的内容数组
+  const totalPages = computed(() => pages.value.length) // 总页数
+  const pageRefs = ref<HTMLElement[]>([]) // 页面DOM引用数组
+
+  // 分页页面尺寸配置
+  const pageSettings = useStorage(`pageSettings`, {
+    width: 1200, // 页面宽度（px）
+    height: 1600, // 页面高度（px）
+  })
+
+  // 分页缩放相关状态
+  const pageScale = ref(1) // 当前页面缩放比例
+  const previewContainerSize = ref({ width: 0, height: 0 }) // 预览容器尺寸
+  const isContentTruncated = ref(false) // 内容是否发生截断
 
   // 文本字体
   const theme = useStorage<keyof typeof themeMap>(addPrefix(`theme`), defaultStyleConfig.theme)
@@ -399,6 +435,18 @@ export const useStore = defineStore(`store`, () => {
     level: number
   }[]>([])
 
+  // 分页相关方法
+  const splitContentToPages = (content: string): string[] => {
+    // 使用 --- 作为分页符分割内容
+    return content.split(/^---$/m).map(page => page.trim()).filter(page => page.length > 0)
+  }
+
+  // 渲染单个页面内容
+  const renderPage = (pageContent: string): string => {
+    const { html: baseHtml, readingTime: readingTimeResult } = renderMarkdown(pageContent, renderer)
+    return postProcessHtml(baseHtml, readingTimeResult, renderer)
+  }
+
   // 更新编辑器
   const editorRefresh = () => {
     codeThemeChange()
@@ -412,12 +460,52 @@ export const useStore = defineStore(`store`, () => {
       isShowLineNumbers: isShowLineNumbers.value,
     })
 
-    const raw = editor.value!.getValue()
-    const { html: baseHtml, readingTime: readingTimeResult } = renderMarkdown(raw, renderer)
-    readingTime.chars = raw.length
-    readingTime.words = readingTimeResult.words
-    readingTime.minutes = Math.ceil(readingTimeResult.minutes)
-    output.value = postProcessHtml(baseHtml, readingTimeResult, renderer)
+    // Check if editor is initialized before proceeding
+    if (!editor.value) {
+      console.warn(`Editor is not initialized yet, skipping refresh`)
+      return
+    }
+
+    const raw = editor.value.getValue()
+
+    // 分页模式处理
+    if (isPaginationMode.value) {
+      pages.value = splitContentToPages(raw)
+      // 确保当前页码在有效范围内
+      if (currentPageIndex.value >= pages.value.length) {
+        currentPageIndex.value = Math.max(0, pages.value.length - 1)
+      }
+
+      // 渲染当前页内容
+      const currentPageContent = pages.value[currentPageIndex.value] || ``
+      const { html: baseHtml, readingTime: readingTimeResult } = renderMarkdown(currentPageContent, renderer)
+      readingTime.chars = currentPageContent.length
+      readingTime.words = readingTimeResult.words
+      readingTime.minutes = Math.ceil(readingTimeResult.minutes)
+      output.value = postProcessHtml(baseHtml, readingTimeResult, renderer)
+
+      // 检测内容截断：在下一个tick中检查渲染后的内容高度
+      nextTick(() => {
+        const pageElement = document.querySelector(`.pagination-page section`)
+        if (pageElement) {
+          // 获取实际内容高度和可用高度
+          const contentHeight = pageElement.scrollHeight
+          const availableHeight = pageElement.clientHeight
+
+          // 只有当内容高度明显超过可用高度时才认为发生截断
+          // 添加5px的容差，避免由于浮点数计算或样式细微差异导致的误报
+          isContentTruncated.value = contentHeight > availableHeight + 5
+        }
+      })
+    }
+    else {
+      // 普通模式：渲染全部内容
+      const { html: baseHtml, readingTime: readingTimeResult } = renderMarkdown(raw, renderer)
+      readingTime.chars = raw.length
+      readingTime.words = readingTimeResult.words
+      readingTime.minutes = Math.ceil(readingTimeResult.minutes)
+      output.value = postProcessHtml(baseHtml, readingTimeResult, renderer)
+    }
 
     // 提取标题
     const div = document.createElement(`div`)
@@ -437,6 +525,457 @@ export const useStore = defineStore(`store`, () => {
     }
     output.value = div.innerHTML
   }
+
+  const togglePaginationMode = () => {
+    isPaginationMode.value = !isPaginationMode.value
+    currentPageIndex.value = 0
+    editorRefresh()
+  }
+
+  const setNormalMode = () => {
+    isPaginationMode.value = false
+    editorRefresh()
+  }
+
+  const setPaginationMode = () => {
+    isPaginationMode.value = true
+    currentPageIndex.value = 0
+    editorRefresh()
+  }
+
+  const goToPage = (pageIndex: number) => {
+    if (pageIndex >= 0 && pageIndex < totalPages.value) {
+      currentPageIndex.value = pageIndex
+      // 在分页模式下，单页显示模式不需要滚动，只需要更新页面索引
+      if (!isPaginationMode.value) {
+        editorRefresh()
+      }
+    }
+  }
+
+  const nextPage = () => {
+    if (currentPageIndex.value < totalPages.value - 1) {
+      currentPageIndex.value++
+      // 在分页模式下，单页显示模式不需要滚动，只需要更新页面索引
+      if (!isPaginationMode.value) {
+        editorRefresh()
+      }
+    }
+  }
+
+  const prevPage = () => {
+    if (currentPageIndex.value > 0) {
+      currentPageIndex.value--
+      // 在分页模式下，单页显示模式不需要滚动，只需要更新页面索引
+      if (!isPaginationMode.value) {
+        editorRefresh()
+      }
+    }
+  }
+
+  // 计算页面行号映射的辅助函数
+
+  // Calculate line number mapping for each page
+  const calculatePageLineMapping = (content: string): PageLineMapping[] => {
+    const lines = content.split(`\n`)
+    const mappings: PageLineMapping[] = []
+    let currentLine = 0
+    let pageIndex = 0
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+
+      // Check if this line is a page separator (---)
+      if (line.trim() === `---`) {
+        // End current page (if it has content)
+        if (i > currentLine) {
+          mappings.push({
+            pageIndex,
+            startLine: currentLine,
+            endLine: i - 1,
+          })
+          pageIndex++
+        }
+        // Start next page after the separator
+        currentLine = i + 1
+      }
+    }
+
+    // Add the last page if there's remaining content
+    if (currentLine < lines.length) {
+      mappings.push({
+        pageIndex,
+        startLine: currentLine,
+        endLine: lines.length - 1,
+      })
+    }
+
+    return mappings
+  }
+
+  // Get page index by line number
+  const getPageByLineNumber = (lineNumber: number, content: string): number => {
+    const mappings = calculatePageLineMapping(content)
+
+    for (const mapping of mappings) {
+      if (lineNumber >= mapping.startLine && lineNumber <= mapping.endLine) {
+        return mapping.pageIndex
+      }
+    }
+
+    // If line number is beyond all pages, return the last page
+    return Math.max(0, mappings.length - 1)
+  }
+
+  // Get start line number of a specific page
+  const getPageStartLine = (pageIndex: number, content: string): number => {
+    const mappings = calculatePageLineMapping(content)
+
+    if (pageIndex >= 0 && pageIndex < mappings.length) {
+      return mappings[pageIndex].startLine
+    }
+
+    return 0
+  }
+
+  // Get the first visible page when multiple pages are visible in editor
+  const getFirstVisiblePage = (topLine: number, bottomLine: number, content: string): number => {
+    const mappings = calculatePageLineMapping(content)
+
+    for (const mapping of mappings) {
+      // If this page overlaps with the visible area
+      if (mapping.endLine >= topLine && mapping.startLine <= bottomLine) {
+        return mapping.pageIndex
+      }
+    }
+
+    return 0
+  }
+
+  // Auto-pagination functionality
+
+  // Calculate estimated content height for a given markdown content
+  const estimateContentHeight = (content: string): number => {
+    const lines = content.split(`\n`)
+    let estimatedHeight = 0
+    let inCodeBlock = false
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmedLine = line.trim()
+      const prevLine = i > 0 ? lines[i - 1]?.trim() : ``
+      const nextLine = i < lines.length - 1 ? lines[i + 1]?.trim() : ``
+
+      // Track code block state
+      if (trimmedLine.startsWith(`\`\`\``)) {
+        inCodeBlock = !inCodeBlock
+      }
+
+      if (!trimmedLine) {
+        // Empty line - add spacing based on context
+        if (prevLine && (prevLine.startsWith(`#`) || prevLine.startsWith(`\`\`\``))) {
+          estimatedHeight += 30 // More space after headers and code blocks
+        }
+        else {
+          estimatedHeight += 20 // Normal empty line spacing
+        }
+      }
+      else if (trimmedLine.startsWith(`# `)) {
+        // H1 header - add margin based on context
+        estimatedHeight += i > 0 ? 80 : 60 // More space if not at beginning
+      }
+      else if (trimmedLine.startsWith(`## `)) {
+        // H2 header
+        estimatedHeight += i > 0 ? 70 : 50
+      }
+      else if (trimmedLine.startsWith(`### `)) {
+        // H3 header
+        estimatedHeight += i > 0 ? 60 : 40
+      }
+      else if (trimmedLine.startsWith(`#### `) || trimmedLine.startsWith(`##### `) || trimmedLine.startsWith(`###### `)) {
+        // H4-H6 headers
+        estimatedHeight += i > 0 ? 50 : 35
+      }
+      else if (trimmedLine.startsWith(`\`\`\``)) {
+        // Code block delimiter
+        estimatedHeight += 25
+      }
+      else if (trimmedLine.startsWith(`- `) || trimmedLine.startsWith(`* `) || /^\d+\. /.test(trimmedLine)) {
+        // List items - consider nesting and content length
+        const indentLevel = (line.length - line.trimStart().length) / 2
+        const baseHeight = 25
+        const contentLength = trimmedLine.length - 2 // Remove list marker
+        const extraLines = Math.max(0, Math.ceil(contentLength / 70) - 1)
+        estimatedHeight += baseHeight + (extraLines * 20) + (indentLevel * 5)
+      }
+      else if (trimmedLine.startsWith(`> `)) {
+        // Blockquote - consider content length
+        const contentLength = trimmedLine.length - 2
+        const extraLines = Math.max(0, Math.ceil(contentLength / 70) - 1)
+        estimatedHeight += 30 + (extraLines * 24)
+      }
+      else {
+        // Regular paragraph line - improved calculation
+        const lineLength = trimmedLine.length
+
+        if (inCodeBlock) {
+          // Code lines are typically shorter and have fixed height
+          estimatedHeight += 22
+        }
+        else {
+          // Regular text - consider line wrapping more accurately
+          const charactersPerLine = 75 // Slightly more conservative estimate
+          const estimatedLines = Math.max(1, Math.ceil(lineLength / charactersPerLine))
+          const lineHeight = 24
+
+          // Add paragraph spacing for first line of paragraph
+          if (!prevLine || prevLine.startsWith(`#`) || prevLine.startsWith(`\`\`\``)
+            || prevLine.startsWith(`- `) || prevLine.startsWith(`* `)
+            || /^\d+\. /.test(prevLine) || prevLine.startsWith(`> `)) {
+            estimatedHeight += 10 // Paragraph top margin
+          }
+
+          estimatedHeight += estimatedLines * lineHeight
+
+          // Add paragraph spacing for last line of paragraph
+          if (!nextLine || nextLine.startsWith(`#`) || nextLine.startsWith(`\`\`\``)
+            || nextLine.startsWith(`- `) || nextLine.startsWith(`* `)
+            || /^\d+\. /.test(nextLine) || nextLine.startsWith(`> `)) {
+            estimatedHeight += 10 // Paragraph bottom margin
+          }
+        }
+      }
+    }
+
+    return estimatedHeight
+  }
+
+  // Find optimal pagination points in markdown content
+  const findOptimalPaginationPoints = (content: string, options: AutoPaginationOptions = {}): number[] => {
+    const {
+      targetPageHeight = pageSettings.value.height * 0.8, // Use 80% of page height as target
+      minPageHeight = pageSettings.value.height * 0.5, // Minimum 50% of page height
+      maxPageHeight = pageSettings.value.height * 1.2, // Maximum 120% of page height
+      avoidBreakInHeaders = true,
+      avoidBreakInParagraphs = true,
+      avoidBreakInCodeBlocks = true,
+    } = options
+
+    const lines = content.split(`\n`)
+    const paginationPoints: number[] = []
+    let currentPageHeight = 0
+    let inCodeBlock = false
+    let inParagraph = false
+    let lastGoodBreakPoint = -1
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmedLine = line.trim()
+      const nextLine = i < lines.length - 1 ? lines[i + 1]?.trim() : ``
+
+      // Track code block state
+      if (trimmedLine.startsWith(`\`\`\``)) {
+        inCodeBlock = !inCodeBlock
+      }
+
+      // Track paragraph state - improved logic for better paragraph boundary detection
+      if (!trimmedLine) {
+        // Empty line - if we were in a paragraph, this marks the end
+        if (inParagraph) {
+          inParagraph = false
+          lastGoodBreakPoint = i // Record good break point at paragraph end
+        }
+      }
+      else if (!inParagraph && !trimmedLine.startsWith(`#`) && !trimmedLine.startsWith(`\`\`\``) && !trimmedLine.startsWith(`- `) && !trimmedLine.startsWith(`* `) && !/^\d+\. /.test(trimmedLine) && !trimmedLine.startsWith(`> `)) {
+        // Start of a new paragraph (not header, code block, list, or quote)
+        inParagraph = true
+      }
+
+      // Calculate line height
+      let lineHeight = 0
+      if (!trimmedLine) {
+        lineHeight = 20
+      }
+      else if (trimmedLine.startsWith(`# `)) {
+        lineHeight = 60
+        // Don't record break point at header itself, wait for content after header
+      }
+      else if (trimmedLine.startsWith(`## `)) {
+        lineHeight = 50
+        // Don't record break point at header itself, wait for content after header
+      }
+      else if (trimmedLine.startsWith(`### `)) {
+        lineHeight = 40
+        // Don't record break point at header itself, wait for content after header
+      }
+      else if (trimmedLine.startsWith(`#### `) || trimmedLine.startsWith(`##### `) || trimmedLine.startsWith(`###### `)) {
+        lineHeight = 35
+        // Don't record break point at header itself, wait for content after header
+      }
+      else if (trimmedLine.startsWith(`\`\`\``)) {
+        lineHeight = 25
+        if (!inCodeBlock)
+          lastGoodBreakPoint = i // Good break point after code block ends
+      }
+      else if (trimmedLine.startsWith(`- `) || trimmedLine.startsWith(`* `) || /^\d+\. /.test(trimmedLine)) {
+        lineHeight = 25
+      }
+      else if (trimmedLine.startsWith(`> `)) {
+        lineHeight = 30
+      }
+      else {
+        const lineLength = trimmedLine.length
+        const estimatedLines = Math.ceil(lineLength / 80)
+        lineHeight = estimatedLines * 24
+
+        // Record good break point for regular content lines (not in code blocks)
+        // This ensures we can break after headers and regular paragraphs
+        if (!inCodeBlock && i > 0) {
+          const prevLine = lines[i - 1]?.trim()
+          // If previous line was a header, this is a good place to potentially break
+          if (prevLine && prevLine.startsWith(`#`)) {
+            lastGoodBreakPoint = i
+          }
+        }
+      }
+
+      currentPageHeight += lineHeight
+
+      // Check if we should paginate
+      const shouldPaginate = currentPageHeight >= targetPageHeight
+      const mustPaginate = currentPageHeight >= maxPageHeight
+      const canPaginate = currentPageHeight >= minPageHeight
+
+      if ((shouldPaginate || mustPaginate) && canPaginate) {
+        let breakPoint = i
+
+        // Try to find a better break point
+        if (!mustPaginate && lastGoodBreakPoint > (paginationPoints[paginationPoints.length - 1] || -1)) {
+          // Use the last good break point if it's reasonable
+          const heightAtBreakPoint = estimateContentHeight(lines.slice((paginationPoints[paginationPoints.length - 1] || 0) + 1, lastGoodBreakPoint + 1).join(`\n`))
+          if (heightAtBreakPoint >= minPageHeight) {
+            breakPoint = lastGoodBreakPoint
+          }
+        }
+
+        // Avoid breaking in problematic locations
+        if (avoidBreakInCodeBlocks && inCodeBlock) {
+          continue // Skip this break point
+        }
+        if (avoidBreakInHeaders && (trimmedLine.startsWith(`#`) || nextLine.startsWith(`#`))) {
+          continue // Skip this break point
+        }
+        if (avoidBreakInParagraphs && inParagraph && trimmedLine) {
+          continue // Skip this break point
+        }
+
+        // Add pagination point
+        paginationPoints.push(breakPoint)
+        currentPageHeight = 0
+        lastGoodBreakPoint = -1
+      }
+    }
+
+    return paginationPoints
+  }
+
+  // Auto-paginate content by inserting page separators
+  const autoPaginateContent = (content: string, options: AutoPaginationOptions = {}): string => {
+    const paginationPoints = findOptimalPaginationPoints(content, options)
+
+    if (paginationPoints.length === 0) {
+      return content // No pagination needed
+    }
+
+    const lines = content.split(`\n`)
+    const result: string[] = []
+    let lastIndex = 0
+
+    for (const point of paginationPoints) {
+      // Add content up to this pagination point
+      result.push(...lines.slice(lastIndex, point + 1))
+
+      // Add page separator
+      result.push(`---`)
+
+      lastIndex = point + 1
+    }
+
+    // Add remaining content
+    if (lastIndex < lines.length) {
+      result.push(...lines.slice(lastIndex))
+    }
+
+    return result.join(`\n`)
+  }
+
+  // Apply auto-pagination to current editor content
+  const applyAutoPagination = (options: AutoPaginationOptions = {}) => {
+    if (!editor.value) {
+      console.warn(`Editor is not initialized`)
+      return
+    }
+
+    const currentContent = editor.value.getValue()
+
+    // Remove existing page separators to avoid double pagination
+    const cleanContent = currentContent.replace(/^---$/gm, ``).replace(/\n{2,}/g, `\n\n`)
+
+    // Apply auto-pagination
+    const paginatedContent = autoPaginateContent(cleanContent, options)
+
+    // Update editor content
+    editor.value.setValue(paginatedContent)
+
+    // Refresh editor to update pagination
+    editorRefresh()
+
+    // Switch to pagination mode if not already enabled
+    if (!isPaginationMode.value) {
+      setPaginationMode()
+    }
+
+    toast.success(`自动分页完成，共生成 ${pages.value.length} 页`)
+  }
+
+  // 计算页面缩放比例
+  const calculatePageScale = (containerWidth: number, containerHeight: number) => {
+    const pageWidth = pageSettings.value.width
+    const pageHeight = pageSettings.value.height
+
+    // 计算宽度和高度的缩放比例
+    // 考虑容器的padding和边距，预留一些空间
+    const paddingX = 40 // 左右各20px的padding
+    const paddingY = 40 // 上下各20px的padding
+    const availableWidth = Math.max(containerWidth - paddingX, 100)
+    const availableHeight = Math.max(containerHeight - paddingY, 100)
+
+    const scaleX = availableWidth / pageWidth
+    const scaleY = availableHeight / pageHeight
+
+    // 取较小的缩放比例，确保页面完全适配容器
+    const finalScale = Math.min(scaleX, scaleY, 1) // 最大不超过1，避免放大
+
+    return Math.max(finalScale, 0.1) // 最小缩放比例为0.1，避免过小
+  }
+
+  // 更新预览容器尺寸并重新计算缩放比例
+  const updatePreviewContainerSize = (width: number, height: number) => {
+    previewContainerSize.value = { width, height }
+    pageScale.value = calculatePageScale(width, height)
+  }
+
+  // 更新页面设置
+  const updatePageSettings = (width: number, height: number) => {
+    pageSettings.value.width = width
+    pageSettings.value.height = height
+    // 重新计算缩放比例
+    if (previewContainerSize.value.width > 0 && previewContainerSize.value.height > 0) {
+      pageScale.value = calculatePageScale(previewContainerSize.value.width, previewContainerSize.value.height)
+    }
+  }
+
+  // 更新编辑器
 
   // 更新 CSS
   const updateCss = () => {
@@ -653,27 +1192,137 @@ export const useStore = defineStore(`store`, () => {
     exportPureHTML(editor.value!.getValue(), posts.value[currentPostIndex.value].title)
   }
 
-  // 下载卡片
-  const downloadAsCardImage = async () => {
-    const el = document.querySelector<HTMLElement>(`#output-wrapper>.preview`)!
-    const imgElement = await snapdom.toPng(el, {
-      backgroundColor: isDark.value ? `` : `#fff`,
-      dpr: conversionConfig.value.devicePixelRatio || 2,
-    })
+  // 生成4位随机字符
+  const generateRandomId = (): string => {
+    const chars = `abcdefghijklmnopqrstuvwxyz0123456789`
+    let result = ``
+    for (let i = 0; i < 4; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return result
+  }
 
-    // 将 HTMLImageElement 转换为 data URL
-    const canvas = document.createElement(`canvas`)
-    const ctx = canvas.getContext(`2d`)!
-    canvas.width = imgElement.width
-    canvas.height = imgElement.height
-    ctx.drawImage(imgElement, 0, 0)
-    const dataUrl = canvas.toDataURL(`image/png`)
+  // 普通模式下载单张图片
+  const downloadSingleImage = async () => {
+    const el = document.querySelector<HTMLElement>(`#output-wrapper>.preview`)
+    if (!el) {
+      toast.error(`未找到预览元素，请确保内容已加载`)
+      return
+    }
 
-    downloadFile(dataUrl, `${sanitizeTitle(posts.value[currentPostIndex.value].title)}.png`, `image/png`)
+    try {
+      const imgElement = await snapdom.toPng(el, {
+        backgroundColor: isDark.value ? `` : `#fff`,
+        dpr: conversionConfig.value.devicePixelRatio || 2,
+      })
+
+      // 将 HTMLImageElement 转换为 data URL
+      const canvas = document.createElement(`canvas`)
+      const ctx = canvas.getContext(`2d`)!
+      canvas.width = imgElement.width
+      canvas.height = imgElement.height
+      ctx.drawImage(imgElement, 0, 0)
+      const dataUrl = canvas.toDataURL(`image/png`)
+
+      const randomId = generateRandomId()
+      downloadFile(dataUrl, `1-md-${randomId}.png`, `image/png`)
+      toast.success(`图片导出成功`)
+    }
+    catch (error) {
+      console.error(`导出图片失败:`, error)
+      toast.error(`导出图片失败，请重试`)
+    }
+  }
+
+  // 分页模式下载所有页面图片
+  const downloadPaginatedImages = async () => {
+    if (!pageRefs.value || pageRefs.value.length === 0) {
+      toast.error(`未找到分页元素，请确保分页内容已加载`)
+      return
+    }
+
+    // 保存当前页面索引，导出完成后恢复
+    const originalPageIndex = currentPageIndex.value
+
+    try {
+      toast.info(`开始导出 ${totalPages.value} 张图片...`)
+
+      for (let i = 0; i < pageRefs.value.length; i++) {
+        const pageElement = pageRefs.value[i]
+        if (!pageElement) {
+          console.warn(`页面 ${i + 1} 的DOM元素不存在，跳过`)
+          continue
+        }
+
+        // 临时切换到当前要截图的页面（这会触发v-show显示该页面）
+        currentPageIndex.value = i
+
+        // 等待DOM更新和页面显示
+        await nextTick()
+        await new Promise(resolve => setTimeout(resolve, 300))
+
+        // 截图当前页面
+        const imgElement = await snapdom.toPng(pageElement, {
+          backgroundColor: isDark.value ? `` : `#fff`,
+          dpr: conversionConfig.value.devicePixelRatio || 2,
+        })
+
+        // 将 HTMLImageElement 转换为 data URL
+        const canvas = document.createElement(`canvas`)
+        const ctx = canvas.getContext(`2d`)!
+        canvas.width = imgElement.width
+        canvas.height = imgElement.height
+        ctx.drawImage(imgElement, 0, 0)
+        const dataUrl = canvas.toDataURL(`image/png`)
+
+        // 生成文件名：seq-md-uuid.png
+        const randomId = generateRandomId()
+        const filename = `${i + 1}-md-${randomId}.png`
+        downloadFile(dataUrl, filename, `image/png`)
+
+        // 短暂延时避免下载过快
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+
+      // 恢复到原始页面
+      currentPageIndex.value = originalPageIndex
+      await nextTick()
+
+      toast.success(`成功导出 ${totalPages.value} 张图片`)
+    }
+    catch (error) {
+      console.error(`批量导出图片失败:`, error)
+      toast.error(`批量导出图片失败，请重试`)
+
+      // 发生错误时也要恢复到原始页面
+      currentPageIndex.value = originalPageIndex
+      await nextTick()
+    }
+  }
+
+  // 下载页面图片
+  const downloadAsPageImage = async () => {
+    if (isPaginationMode.value) {
+      // 分页模式：批量截图所有页面
+      await downloadPaginatedImages()
+    }
+    else {
+      // 普通模式：单张截图
+      await downloadSingleImage()
+    }
   }
 
   // 导出编辑器内容为 PDF
-  const exportEditorContent2PDF = () => {
+  const exportEditorContent2PDF = async () => {
+    // 如果当前处于分页模式，自动切换到普通模式
+    if (isPaginationMode.value) {
+      setNormalMode()
+      toast.info(`已自动切换到普通模式以导出PDF`)
+
+      // 等待DOM更新完成后再执行PDF导出
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+
     exportPDF(primaryColor.value, posts.value[currentPostIndex.value].title)
     document.querySelector(`#output`)!.innerHTML = output.value
   }
@@ -753,14 +1402,14 @@ export const useStore = defineStore(`store`, () => {
         scrollbar-width: none !important;
         -ms-overflow-style: none !important;
       }
-      
+
       /* 隐藏webkit滚动条 */
       *::-webkit-scrollbar {
         display: none !important;
         width: 0 !important;
         height: 0 !important;
       }
-      
+
       /* 确保body和html不显示滚动条 */
       body, html {
         overflow: hidden !important;
@@ -1549,7 +2198,7 @@ export const useStore = defineStore(`store`, () => {
     exportEditorContent2PureHTML,
     exportEditorContent2MD,
     exportEditorContent2PDF,
-    downloadAsCardImage,
+    downloadAsPageImage,
 
     // 转图功能相关
     originalMarkdown,
@@ -1602,6 +2251,41 @@ export const useStore = defineStore(`store`, () => {
     expandAllPosts,
 
     editorContent2HTML,
+
+    // 分页相关
+    isPaginationMode,
+    currentPageIndex,
+    pages,
+    pageRefs,
+    totalPages,
+    renderPage,
+    togglePaginationMode,
+    setNormalMode,
+    setPaginationMode,
+    goToPage,
+    nextPage,
+    prevPage,
+
+    // 分页行号映射相关
+    calculatePageLineMapping,
+    getPageByLineNumber,
+    getPageStartLine,
+    getFirstVisiblePage,
+
+    // 分页缩放相关
+    pageSettings,
+    pageScale,
+    previewContainerSize,
+    calculatePageScale,
+    updatePreviewContainerSize,
+    updatePageSettings,
+    isContentTruncated,
+
+    // 自动分页相关
+    estimateContentHeight,
+    findOptimalPaginationPoints,
+    autoPaginateContent,
+    applyAutoPagination,
   }
 })
 

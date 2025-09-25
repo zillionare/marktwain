@@ -14,7 +14,7 @@ const {
   exportEditorContent2HTML,
   exportEditorContent2PureHTML,
   exportEditorContent2MD,
-  downloadAsCardImage,
+  downloadAsPageImage,
   exportEditorContent2PDF,
   exportConvertedMarkdownV1,
 } = store
@@ -57,7 +57,7 @@ const importMarkdownContent = useImportMarkdownContent()
         <FileText class="mr-2 size-4" />
         导出 .pdf
       </MenubarItem>
-      <MenubarItem @click="downloadAsCardImage()">
+      <MenubarItem @click="downloadAsPageImage()">
         <Download class="mr-2 size-4" />
         导出 .png
       </MenubarItem>

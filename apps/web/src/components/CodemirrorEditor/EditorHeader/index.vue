@@ -9,6 +9,11 @@ import {
 import { altSign, ctrlKey, ctrlSign, shiftSign } from '@/configs/shortcut-key'
 import { useStore } from '@/stores'
 import { addPrefix, processClipboardContent } from '@/utils'
+import EditDropdown from './EditDropdown.vue'
+import FileDropdown from './FileDropdown.vue'
+import HelpDropdown from './HelpDropdown.vue'
+import SettingsDropdown from './SettingsDropdown.vue'
+import StyleDropdown from './StyleDropdown.vue'
 
 const emit = defineEmits([`startCopy`, `endCopy`])
 
@@ -96,6 +101,14 @@ const { copy: copyContent } = useClipboard({
 // 转图处理函数
 async function handleConvertToImages() {
   try {
+    // 检查转图时的模式切换
+    if (store.isPaginationMode) {
+      store.setNormalMode()
+      toast.info(`转图需要在普通模式下进行，已自动为您切换`)
+      // 等待模式切换完成后再继续
+      await nextTick()
+    }
+
     await convertToImages()
     toast.success(`转图完成`)
   }
@@ -146,6 +159,14 @@ async function copy() {
 
   // 以下处理非 Markdown 的复制流程
   emit(`startCopy`)
+
+  // 检查公众号格式复制时的模式切换
+  if (copyMode.value === `txt` && store.isPaginationMode) {
+    store.setNormalMode()
+    toast.info(`复制为公众号格式需要在普通模式下进行，已自动为您切换`)
+    // 等待模式切换完成后再继续
+    await nextTick()
+  }
 
   setTimeout(() => {
     nextTick(async () => {
@@ -240,6 +261,7 @@ async function copy() {
         </MenubarMenu>
         <EditDropdown />
         <StyleDropdown />
+        <SettingsDropdown />
         <HelpDropdown />
       </Menubar>
     </div>
