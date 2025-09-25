@@ -124,6 +124,46 @@ onMounted(() => {
   setTimeout(() => {
     leftAndRightScroll()
   }, 300)
+
+  // 监听预览区域尺寸变化，用于分页模式缩放计算
+  let resizeObserver: ResizeObserver | null = null
+
+  const updateContainerSize = (width: number, height: number) => {
+    if (store.isPaginationMode) {
+      // 分页模式：获取pagination-container的实际可用尺寸
+      // 减去padding (20px * 2 = 40px)
+      const availableWidth = width - 40
+      const availableHeight = height - 40
+      store.updatePreviewContainerSize(availableWidth, availableHeight)
+    }
+    else {
+      // 普通模式：直接使用容器尺寸
+      store.updatePreviewContainerSize(width, height)
+    }
+  }
+
+  if (previewRef.value) {
+    resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect
+        updateContainerSize(width, height)
+      }
+    })
+    resizeObserver.observe(previewRef.value)
+
+    // 组件卸载时清理observer
+    onUnmounted(() => {
+      resizeObserver?.disconnect()
+    })
+  }
+
+  // 监听分页模式变化，重新计算尺寸
+  watch(() => store.isPaginationMode, () => {
+    if (previewRef.value) {
+      const rect = previewRef.value.getBoundingClientRect()
+      updateContainerSize(rect.width, rect.height)
+    }
+  })
 })
 
 const searchTabRef
@@ -149,6 +189,20 @@ function handleGlobalKeydown(e: KeyboardEvent) {
     searchTabRef.value.showSearchTab = false
     e.preventDefault()
     editor.value?.focus()
+  }
+
+  // Pagination keyboard shortcuts - only work in pagination mode
+  if (store.isPaginationMode) {
+    if (e.key === `ArrowRight`) {
+      // Next page with right arrow
+      e.preventDefault()
+      store.nextPage()
+    }
+    else if (e.key === `ArrowLeft`) {
+      // Previous page with left arrow
+      e.preventDefault()
+      store.prevPage()
+    }
   }
 }
 
@@ -530,15 +584,77 @@ onUnmounted(() => {
               class="relative flex-1 overflow-x-hidden transition-width"
               :class="[store.isOpenRightSlider ? 'w-0' : 'w-100']"
             >
+              <!-- 预览模式切换 tab -->
+              <div class="flex border-b bg-white dark:bg-gray-800">
+                <button
+                  class="px-4 py-2 font-medium" :class="{
+                    'border-b-2 border-blue-500 text-blue-500': !store.isPaginationMode,
+                    'text-gray-500': store.isPaginationMode,
+                  }" @click="store.setNormalMode()"
+                >
+                  普通模式
+                </button>
+                <button
+                  class="px-4 py-2 font-medium" :class="{
+                    'border-b-2 border-blue-500 text-blue-500': store.isPaginationMode,
+                    'text-gray-500': !store.isPaginationMode,
+                  }" @click="store.setPaginationMode()"
+                >
+                  分页模式
+                </button>
+                <!-- 分页控制 -->
+                <div v-if="store.isPaginationMode" class="ml-auto flex items-center gap-2 px-4">
+                  <button
+                    class="px-2 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-50"
+                    :disabled="store.currentPageIndex === 0"
+                    @click="store.prevPage()"
+                  >
+                    上一页
+                  </button>
+                  <span class="text-sm text-gray-600">
+                    {{ store.currentPageIndex + 1 }} / {{ store.totalPages }}
+                  </span>
+                  <button
+                    class="px-2 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-50"
+                    :disabled="store.currentPageIndex === store.totalPages - 1"
+                    @click="store.nextPage()"
+                  >
+                    下一页
+                  </button>
+                </div>
+              </div>
+
               <div id="preview" ref="previewRef" class="preview-wrapper w-full p-5">
-                <div id="output-wrapper" class="w-full" :class="{ output_night: !backLight }">
-                  <div class="preview border-x shadow-xl" :class="[store.previewWidth]">
-                    <section id="output" class="w-full" v-html="output" />
-                    <div v-if="isCoping" class="loading-mask">
-                      <div class="loading-mask-box">
-                        <div class="loading__img" />
-                        <span>正在生成</span>
+                <div id="output-wrapper" class="w-full" :class="{ output_night: store.isDark }">
+                  <!-- 分页模式：固定尺寸容器 -->
+                  <div v-if="store.isPaginationMode">
+                    <!-- 内容截断警告 -->
+                    <div v-if="store.isContentTruncated" class="truncation-warning">
+                      内容发生截断，请重新调整分页
+                    </div>
+                    <div class="pagination-container">
+                      <div
+                        class="pagination-page"
+                        :style="{
+                          width: `${store.pageSettings.width}px`,
+                          height: `${store.pageSettings.height}px`,
+                          transform: `scale(${store.pageScale})`,
+                          transformOrigin: 'top left',
+                        }"
+                      >
+                        <section class="w-full h-full overflow-hidden" style="padding: 20px; box-sizing: border-box;" v-html="output" />
                       </div>
+                    </div>
+                  </div>
+                  <!-- 普通模式：原有样式 -->
+                  <div v-else class="preview border-x shadow-xl" :class="[store.previewWidth]">
+                    <section id="output" class="w-full" v-html="output" />
+                  </div>
+
+                  <div v-if="isCoping" class="loading-mask">
+                    <div class="loading-mask-box">
+                      <div class="loading__img" />
+                      <span>正在生成</span>
                     </div>
                   </div>
                 </div>
@@ -661,5 +777,42 @@ onUnmounted(() => {
 .codeMirror-wrapper {
   overflow-x: auto;
   height: 100%;
+}
+
+/* 分页模式样式 */
+.truncation-warning {
+  background-color: #fee2e2;
+  color: #dc2626;
+  padding: 8px 16px;
+  margin-bottom: 16px;
+  border-radius: 4px;
+  border-left: 4px solid #dc2626;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  min-height: 100%;
+  padding: 20px;
+  overflow: auto;
+}
+
+.pagination-page {
+  background: white;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* 深色模式下的分页样式 */
+.output_night .pagination-page {
+  background: #1f2937;
+  border-color: #374151;
 }
 </style>

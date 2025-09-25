@@ -9,6 +9,11 @@ import {
 import { altSign, ctrlKey, ctrlSign, shiftSign } from '@/configs/shortcut-key'
 import { useStore } from '@/stores'
 import { addPrefix, processClipboardContent } from '@/utils'
+import EditDropdown from './EditDropdown.vue'
+import FileDropdown from './FileDropdown.vue'
+import HelpDropdown from './HelpDropdown.vue'
+import SettingsDropdown from './SettingsDropdown.vue'
+import StyleDropdown from './StyleDropdown.vue'
 
 const emit = defineEmits([`startCopy`, `endCopy`])
 
@@ -240,6 +245,7 @@ async function copy() {
         </MenubarMenu>
         <EditDropdown />
         <StyleDropdown />
+        <SettingsDropdown />
         <HelpDropdown />
       </Menubar>
     </div>

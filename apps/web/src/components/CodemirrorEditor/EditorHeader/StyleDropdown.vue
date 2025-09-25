@@ -10,7 +10,6 @@ import {
 } from '@md/shared/configs'
 import PickColors from 'vue-pick-colors'
 import { useDisplayStore, useStore } from '@/stores'
-import ConversionConfigDialog from './ConversionConfigDialog.vue'
 
 const store = useStore()
 const { toggleShowCssEditor } = useDisplayStore()
@@ -54,13 +53,6 @@ function customStyle() {
 const pickColorsContainer = useTemplateRef(`pickColorsContainer`)
 const format = ref<Format>(`rgb`)
 const formatOptions = ref<Format[]>([`rgb`, `hex`, `hsl`, `hsv`])
-
-// 转图配置对话框
-const conversionConfigDialog = ref<{ open: () => void } | null>(null)
-
-function openConversionConfig() {
-  conversionConfigDialog.value?.open()
-}
 </script>
 
 <template>
@@ -127,9 +119,7 @@ function openConversionConfig() {
       <MenubarCheckboxItem @click="customStyle">
         自定义 CSS
       </MenubarCheckboxItem>
-      <MenubarCheckboxItem @click="openConversionConfig">
-        转图配置
-      </MenubarCheckboxItem>
+
       <MenubarSeparator />
       <MenubarCheckboxItem :checked="isMacCodeBlock" @click="macCodeBlockChanged">
         Mac 代码块
@@ -140,7 +130,4 @@ function openConversionConfig() {
       </MenubarCheckboxItem>
     </MenubarContent>
   </MenubarMenu>
-
-  <!-- 转图配置对话框 -->
-  <ConversionConfigDialog ref="conversionConfigDialog" />
 </template>
