@@ -85,18 +85,26 @@ function leftAndRightScroll() {
       source = previewRef.value!
       target = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
 
-      editor.value!.off(`scroll`, editorScrollCB)
+      if (editorScrollCB) {
+        editor.value!.off(`scroll`, editorScrollCB)
+      }
       timeout.value = setTimeout(() => {
-        editor.value!.on(`scroll`, editorScrollCB)
+        if (editorScrollCB) {
+          editor.value!.on(`scroll`, editorScrollCB)
+        }
       }, 300)
     }
     else {
       source = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
       target = previewRef.value!
 
-      target.removeEventListener(`scroll`, previewScrollCB, false)
+      if (previewScrollCB) {
+        target.removeEventListener(`scroll`, previewScrollCB, false)
+      }
       timeout.value = setTimeout(() => {
-        target.addEventListener(`scroll`, previewScrollCB, false)
+        if (previewScrollCB) {
+          target.addEventListener(`scroll`, previewScrollCB, false)
+        }
       }, 300)
     }
 
@@ -112,7 +120,7 @@ function leftAndRightScroll() {
 
         // 计算可视区域的行号范围
         const firstVisibleLine = Math.floor(scrollTop / lineHeight) + 1 // CodeMirror 行号从1开始
-        const _lastVisibleLine = Math.floor((scrollTop + visibleHeight) / lineHeight) + 1
+        // const _lastVisibleLine = Math.floor((scrollTop + visibleHeight) / lineHeight) + 1
         const halfVisibleLine = Math.floor((scrollTop + halfHeight) / lineHeight) + 1
 
         // 检查内容中的分页符位置
@@ -179,7 +187,7 @@ function leftAndRightScroll() {
   if (previewRef.value) {
     previewRef.value.addEventListener(`scroll`, previewScrollCB, false)
   }
-  if (editor.value) {
+  if (editor.value && editorScrollCB) {
     editor.value.on(`scroll`, editorScrollCB)
   }
 }
@@ -700,11 +708,11 @@ onUnmounted(() => {
             </div>
             <div
               v-show="!store.isMobile || (store.isMobile && !showEditor)"
-              class="relative flex-1 overflow-x-hidden transition-width"
+              class="preview-wrapper relative flex-1 overflow-x-hidden transition-width flex flex-col"
               :class="[store.isOpenRightSlider ? 'w-0' : 'w-100']"
             >
               <!-- 预览模式切换 tab -->
-              <div class="flex border-b bg-white dark:bg-gray-800">
+              <div class="flex border-b bg-white dark:bg-gray-800 flex-shrink-0">
                 <button
                   class="px-4 py-2 font-medium" :class="{
                     'border-b-2 border-blue-500 text-blue-500': !store.isPaginationMode,
@@ -752,20 +760,28 @@ onUnmounted(() => {
                 </div>
               </div>
 
-              <div id="preview" ref="previewRef" class="preview-wrapper w-full p-5">
-                <div id="output-wrapper" class="w-full" :class="{ output_night: store.isDark }">
+              <div id="preview" ref="previewRef" class="w-full flex-1 overflow-auto">
+                <div id="output-wrapper" class="w-full p-5" :class="{ output_night: store.isDark }">
                   <!-- 分页模式：单页显示 -->
                   <div v-if="store.isPaginationMode">
                     <!-- 内容截断警告 -->
                     <div v-if="store.isContentTruncated" class="truncation-warning">
                       内容发生截断，请重新调整分页
                     </div>
-                    <div class="pagination-container">
+                    <div
+                      class="pagination-container"
+                      :style="{
+                        width: `${store.pageSettings.width * store.pageScale}px`,
+                        height: `${store.pageSettings.height * store.pageScale}px`,
+                        minWidth: `${store.pageSettings.width * store.pageScale}px`,
+                        minHeight: `${store.pageSettings.height * store.pageScale}px`,
+                      }"
+                    >
                       <div
                         v-for="(page, index) in store.pages"
                         v-show="index === store.currentPageIndex"
                         :key="index"
-                        :ref="el => { if (el) store.pageRefs[index] = el }"
+                        :ref="el => { if (el) store.pageRefs[index] = el as HTMLElement }"
                         class="pagination-page"
                         :class="{ 'current-page': index === store.currentPageIndex }"
                         :style="{
@@ -870,7 +886,7 @@ onUnmounted(() => {
 #output-wrapper {
   position: relative;
   user-select: text;
-  height: 100%;
+  /* 移除固定高度，让内容自然流动 */
 }
 
 .loading-mask {
@@ -905,12 +921,28 @@ onUnmounted(() => {
 .codeMirror-wrapper,
 .preview-wrapper {
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .codeMirror-wrapper {
   overflow-x: auto;
-  height: 100%;
 }
+
+/* Tab控制区域固定高度，不参与flex伸缩 */
+.codeMirror-wrapper > .flex.border-b,
+.preview-wrapper > .flex.border-b {
+  flex-shrink: 0;
+}
+
+/* 编辑器内容区域占用剩余空间 */
+.codeMirror-wrapper > div:not(.flex),
+.codeMirror-wrapper > template + div {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 预览内容区域已通过HTML结构中的flex-1类处理 */
 
 /* 分页模式样式 */
 .truncation-warning {
@@ -926,12 +958,11 @@ onUnmounted(() => {
 
 .pagination-container {
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  min-height: 100%;
-  padding: 20px;
-  overflow: auto;
+  align-items: flex-start;
+  margin: 0 auto;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .pagination-page {

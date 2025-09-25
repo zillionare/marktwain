@@ -49,6 +49,24 @@ interface Post {
   collapsed?: boolean
 }
 
+/**********************************
+ * 分页相关接口
+ *********************************/
+export interface PageLineMapping {
+  pageIndex: number
+  startLine: number
+  endLine: number
+}
+
+export interface AutoPaginationOptions {
+  targetPageHeight?: number // Target page height in pixels
+  minPageHeight?: number // Minimum page height to avoid too short pages
+  maxPageHeight?: number // Maximum page height to avoid too long pages
+  avoidBreakInHeaders?: boolean // Avoid breaking in the middle of headers
+  avoidBreakInParagraphs?: boolean // Avoid breaking in the middle of paragraphs
+  avoidBreakInCodeBlocks?: boolean // Avoid breaking in the middle of code blocks
+}
+
 export const useStore = defineStore(`store`, () => {
   // 是否开启深色模式
   const isDark = useDark()
@@ -556,11 +574,6 @@ export const useStore = defineStore(`store`, () => {
   }
 
   // 计算页面行号映射的辅助函数
-  interface PageLineMapping {
-    pageIndex: number
-    startLine: number
-    endLine: number
-  }
 
   // Calculate line number mapping for each page
   const calculatePageLineMapping = (content: string): PageLineMapping[] => {
@@ -640,14 +653,6 @@ export const useStore = defineStore(`store`, () => {
   }
 
   // Auto-pagination functionality
-  interface AutoPaginationOptions {
-    targetPageHeight?: number // Target page height in pixels
-    minPageHeight?: number // Minimum page height to avoid too short pages
-    maxPageHeight?: number // Maximum page height to avoid too long pages
-    avoidBreakInHeaders?: boolean // Avoid breaking in the middle of headers
-    avoidBreakInParagraphs?: boolean // Avoid breaking in the middle of paragraphs
-    avoidBreakInCodeBlocks?: boolean // Avoid breaking in the middle of code blocks
-  }
 
   // Calculate estimated content height for a given markdown content
   const estimateContentHeight = (content: string): number => {
