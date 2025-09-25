@@ -152,6 +152,14 @@ async function copy() {
   // 以下处理非 Markdown 的复制流程
   emit(`startCopy`)
 
+  // 检查公众号格式复制时的模式切换
+  if (copyMode.value === `txt` && store.isPaginationMode) {
+    store.setNormalMode()
+    toast.info(`复制为公众号格式需要在普通模式下进行，已自动为您切换`)
+    // 等待模式切换完成后再继续
+    await nextTick()
+  }
+
   setTimeout(() => {
     nextTick(async () => {
       await processClipboardContent(primaryColor.value)
