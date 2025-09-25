@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+
 import { useStore } from '@/stores'
 import { addPrefix } from '@/utils'
 
@@ -172,6 +172,25 @@ function updatePreset(presetId: string, field: keyof Omit<PagePreset, `id`>, val
   }
 }
 
+// 根据预设获取预览框的CSS类
+function getPresetBoxClass(preset: PagePreset) {
+  const ratio = preset.width / preset.height
+
+  // 根据宽高比确定预览框的尺寸
+  if (Math.abs(ratio - 1) < 0.1) {
+    // 1:1 比例 - 正方形
+    return `w-20 h-20`
+  }
+  else if (ratio > 1) {
+    // 横向比例 (如 4:3)
+    return `w-24 h-18`
+  }
+  else {
+    // 纵向比例 (如 3:4)
+    return `w-18 h-24`
+  }
+}
+
 // 暴露给父组件的方法
 defineExpose({
   open,
@@ -189,28 +208,12 @@ defineExpose({
       </DialogHeader>
 
       <div class="mt-6">
-        <Tabs v-model="activePresetId" class="w-full">
+        <!-- 预设选择区域 -->
+        <div class="mb-6">
           <div class="flex items-center justify-between mb-4">
-            <TabsList class="grid w-full grid-cols-auto gap-2">
-              <TabsTrigger
-                v-for="preset in presets"
-                :key="preset.id"
-                :value="preset.id"
-                class="relative group"
-              >
-                {{ preset.name }}
-                <Button
-                  v-if="presets.length > 1"
-                  variant="ghost"
-                  size="sm"
-                  class="ml-2 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  @click.stop="deletePreset(preset.id)"
-                >
-                  <Trash2 class="h-3 w-3" />
-                </Button>
-              </TabsTrigger>
-            </TabsList>
-
+            <h3 class="text-lg font-medium">
+              选择预设
+            </h3>
             <Button
               variant="outline"
               size="sm"
@@ -221,131 +224,173 @@ defineExpose({
             </Button>
           </div>
 
-          <!-- 新增预设表单 -->
-          <div v-if="showAddForm" class="mb-6 p-4 border rounded-lg bg-muted/50">
-            <h4 class="text-sm font-medium mb-3">
-              新增预设
-            </h4>
-            <div class="grid grid-cols-2 gap-4">
+          <!-- 预设预览网格 -->
+          <div class="grid grid-cols-4 gap-4 mb-6">
+            <div
+              v-for="preset in presets"
+              :key="preset.id"
+              class="relative group cursor-pointer"
+              @click="activePresetId = preset.id"
+            >
+              <!-- 预设预览框容器 -->
+              <div class="flex flex-col items-center">
+                <!-- 预设预览框 -->
+                <div
+                  class="border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center transition-all duration-200 hover:border-gray-400 relative"
+                  :class="[
+                    {
+                      'border-primary bg-primary/5': activePresetId === preset.id,
+                      'bg-gray-50': activePresetId !== preset.id,
+                    },
+                    getPresetBoxClass(preset),
+                  ]"
+                >
+                  <!-- 比例文字 -->
+                  <span class="text-sm font-medium text-gray-600">{{ preset.name }}</span>
+
+                  <!-- 删除按钮 -->
+                  <Button
+                    v-if="presets.length > 1"
+                    variant="ghost"
+                    size="sm"
+                    class="absolute -top-2 -right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-white shadow-sm border"
+                    @click.stop="deletePreset(preset.id)"
+                  >
+                    <Trash2 class="h-3 w-3" />
+                  </Button>
+                </div>
+
+                <!-- 预设名称 -->
+                <div class="mt-2 text-center">
+                  <span class="text-xs text-gray-500">{{ preset.width }}×{{ preset.height }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 新增预设表单 -->
+        <div v-if="showAddForm" class="mb-6 p-4 border rounded-lg bg-muted/50">
+          <h4 class="text-sm font-medium mb-3">
+            新增预设
+          </h4>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <Label for="new-name">名称</Label>
+              <Input
+                id="new-name"
+                v-model="newPresetForm.name"
+                placeholder="输入预设名称"
+              />
+            </div>
+            <div class="space-y-2">
+              <Label for="new-width">屏幕宽度 (px)</Label>
+              <Input
+                id="new-width"
+                v-model.number="newPresetForm.width"
+                type="number"
+                min="100"
+              />
+            </div>
+            <div class="space-y-2">
+              <Label for="new-height">屏幕高度 (px)</Label>
+              <Input
+                id="new-height"
+                v-model.number="newPresetForm.height"
+                type="number"
+                min="100"
+              />
+            </div>
+            <div class="space-y-2">
+              <Label for="new-ratio">像素比</Label>
+              <Input
+                id="new-ratio"
+                v-model.number="newPresetForm.pixelRatio"
+                type="number"
+                min="1"
+                max="10"
+                step="1"
+              />
+            </div>
+          </div>
+          <div class="flex justify-end gap-2 mt-4">
+            <Button variant="outline" size="sm" @click="showAddForm = false">
+              取消
+            </Button>
+            <Button size="sm" @click="addPreset">
+              添加
+            </Button>
+          </div>
+        </div>
+
+        <!-- 当前预设配置 -->
+        <div v-if="currentPreset" class="border rounded-lg p-6">
+          <h3 class="text-lg font-medium mb-4">
+            配置预设: {{ currentPreset.name }}
+          </h3>
+          <div class="grid grid-cols-2 gap-6">
+            <div class="space-y-4">
               <div class="space-y-2">
-                <Label for="new-name">名称</Label>
+                <Label :for="`name-${currentPreset.id}`">预设名称</Label>
                 <Input
-                  id="new-name"
-                  v-model="newPresetForm.name"
+                  :id="`name-${currentPreset.id}`"
+                  :model-value="currentPreset.name"
                   placeholder="输入预设名称"
+                  @update:model-value="updatePreset(currentPreset.id, 'name', $event)"
                 />
               </div>
+
               <div class="space-y-2">
-                <Label for="new-width">屏幕宽度 (px)</Label>
+                <Label :for="`width-${currentPreset.id}`">屏幕宽度 (px)</Label>
                 <Input
-                  id="new-width"
-                  v-model.number="newPresetForm.width"
+                  :id="`width-${currentPreset.id}`"
+                  :model-value="currentPreset.width"
                   type="number"
                   min="100"
+                  @update:model-value="updatePreset(currentPreset.id, 'width', Number($event))"
                 />
               </div>
+            </div>
+
+            <div class="space-y-4">
               <div class="space-y-2">
-                <Label for="new-height">屏幕高度 (px)</Label>
+                <Label :for="`height-${currentPreset.id}`">屏幕高度 (px)</Label>
                 <Input
-                  id="new-height"
-                  v-model.number="newPresetForm.height"
+                  :id="`height-${currentPreset.id}`"
+                  :model-value="currentPreset.height"
                   type="number"
                   min="100"
+                  @update:model-value="updatePreset(currentPreset.id, 'height', Number($event))"
                 />
               </div>
+
               <div class="space-y-2">
-                <Label for="new-ratio">像素比</Label>
+                <Label :for="`ratio-${currentPreset.id}`">像素比</Label>
                 <Input
-                  id="new-ratio"
-                  v-model.number="newPresetForm.pixelRatio"
+                  :id="`ratio-${currentPreset.id}`"
+                  :model-value="currentPreset.pixelRatio"
                   type="number"
                   min="1"
                   max="10"
                   step="1"
+                  @update:model-value="updatePreset(currentPreset.id, 'pixelRatio', Number($event))"
                 />
               </div>
             </div>
-            <div class="flex justify-end gap-2 mt-4">
-              <Button variant="outline" size="sm" @click="showAddForm = false">
-                取消
-              </Button>
-              <Button size="sm" @click="addPreset">
-                添加
-              </Button>
-            </div>
           </div>
 
-          <!-- 预设配置内容 -->
-          <TabsContent
-            v-for="preset in presets"
-            :key="preset.id"
-            :value="preset.id"
-            class="mt-0"
-          >
-            <div class="grid grid-cols-2 gap-6">
-              <div class="space-y-4">
-                <div class="space-y-2">
-                  <Label :for="`name-${preset.id}`">预设名称</Label>
-                  <Input
-                    :id="`name-${preset.id}`"
-                    :model-value="preset.name"
-                    placeholder="输入预设名称"
-                    @update:model-value="updatePreset(preset.id, 'name', $event)"
-                  />
-                </div>
-
-                <div class="space-y-2">
-                  <Label :for="`width-${preset.id}`">屏幕宽度 (px)</Label>
-                  <Input
-                    :id="`width-${preset.id}`"
-                    :model-value="preset.width"
-                    type="number"
-                    min="100"
-                    @update:model-value="updatePreset(preset.id, 'width', Number($event))"
-                  />
-                </div>
-              </div>
-
-              <div class="space-y-4">
-                <div class="space-y-2">
-                  <Label :for="`height-${preset.id}`">屏幕高度 (px)</Label>
-                  <Input
-                    :id="`height-${preset.id}`"
-                    :model-value="preset.height"
-                    type="number"
-                    min="100"
-                    @update:model-value="updatePreset(preset.id, 'height', Number($event))"
-                  />
-                </div>
-
-                <div class="space-y-2">
-                  <Label :for="`ratio-${preset.id}`">像素比</Label>
-                  <Input
-                    :id="`ratio-${preset.id}`"
-                    :model-value="preset.pixelRatio"
-                    type="number"
-                    min="1"
-                    max="10"
-                    step="1"
-                    @update:model-value="updatePreset(preset.id, 'pixelRatio', Number($event))"
-                  />
-                </div>
-              </div>
+          <!-- 预览信息 -->
+          <div class="mt-6 p-4 bg-muted/50 rounded-lg">
+            <h4 class="text-sm font-medium mb-2">
+              当前设置
+            </h4>
+            <div class="text-sm text-muted-foreground space-y-1">
+              <div>分辨率: {{ currentPreset.width }} × {{ currentPreset.height }}</div>
+              <div>像素比: {{ currentPreset.pixelRatio }}x</div>
+              <div>实际像素: {{ currentPreset.width * currentPreset.pixelRatio }} × {{ currentPreset.height * currentPreset.pixelRatio }}</div>
             </div>
-
-            <!-- 预览信息 -->
-            <div class="mt-6 p-4 bg-muted/50 rounded-lg">
-              <h4 class="text-sm font-medium mb-2">
-                当前设置
-              </h4>
-              <div class="text-sm text-muted-foreground space-y-1">
-                <div>分辨率: {{ preset.width }} × {{ preset.height }}</div>
-                <div>像素比: {{ preset.pixelRatio }}x</div>
-                <div>实际像素: {{ preset.width * preset.pixelRatio }} × {{ preset.height * preset.pixelRatio }}</div>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </div>
     </DialogContent>
   </Dialog>
