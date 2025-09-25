@@ -740,23 +740,57 @@ onUnmounted(() => {
                     自动分页
                   </button>
                   <div class="w-px h-4 bg-gray-300 mx-1" />
-                  <button
-                    class="px-2 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-50"
-                    :disabled="store.currentPageIndex === 0"
-                    @click="store.prevPage()"
-                  >
-                    上一页
-                  </button>
-                  <span class="text-sm text-gray-600">
-                    {{ store.currentPageIndex + 1 }} / {{ store.totalPages }}
-                  </span>
-                  <button
-                    class="px-2 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-50"
-                    :disabled="store.currentPageIndex === store.totalPages - 1"
-                    @click="store.nextPage()"
-                  >
-                    下一页
-                  </button>
+                  <!-- 分页导航图标按钮 -->
+                  <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1 shadow-sm">
+                    <!-- 第一页按钮 -->
+                    <button
+                      class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      :disabled="store.currentPageIndex === 0"
+                      title="第一页"
+                      @click="store.goToPage(0)"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <!-- 上一页按钮 -->
+                    <button
+                      class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      :disabled="store.currentPageIndex === 0"
+                      title="上一页"
+                      @click="store.prevPage()"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <!-- 页码显示 -->
+                    <span class="text-sm text-gray-700 font-medium px-2 min-w-[60px] text-center">
+                      {{ store.currentPageIndex + 1 }} of {{ store.totalPages }}
+                    </span>
+                    <!-- 下一页按钮 -->
+                    <button
+                      class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      :disabled="store.currentPageIndex === store.totalPages - 1"
+                      title="下一页"
+                      @click="store.nextPage()"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    <!-- 最后一页按钮 -->
+                    <button
+                      class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      :disabled="store.currentPageIndex === store.totalPages - 1"
+                      title="最后一页"
+                      @click="store.goToPage(store.totalPages - 1)"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
 

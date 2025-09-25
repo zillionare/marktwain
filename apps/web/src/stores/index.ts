@@ -1313,7 +1313,16 @@ export const useStore = defineStore(`store`, () => {
   }
 
   // 导出编辑器内容为 PDF
-  const exportEditorContent2PDF = () => {
+  const exportEditorContent2PDF = async () => {
+    // 如果当前处于分页模式，自动切换到普通模式
+    if (isPaginationMode.value) {
+      setNormalMode()
+      toast.info(`已自动切换到普通模式以导出PDF`)
+
+      // 等待DOM更新完成后再执行PDF导出
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+
     exportPDF(primaryColor.value, posts.value[currentPostIndex.value].title)
     document.querySelector(`#output`)!.innerHTML = output.value
   }

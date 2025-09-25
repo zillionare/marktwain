@@ -91,7 +91,11 @@ function setStyles(element: Element) {
   }
 
   // 判断是否是包裹代码块的 pre 元素
-  function isPre(element: Element) {
+  function isPre(element: Element | null) {
+    if (!element) {
+      return false
+    }
+
     return (
       element.tagName === `PRE`
       && Array.from(element.classList).includes(`code__pre`)
@@ -111,7 +115,7 @@ function setStyles(element: Element) {
     return (
       element.tagName === `SPAN`
       && (isCode(element.parentElement)
-        || isCode((element.parentElement!).parentElement))
+        || (element.parentElement && isCode(element.parentElement.parentElement)))
     )
   }
 }
@@ -122,7 +126,12 @@ function setStyles(element: Element) {
  * @returns {string} 处理后的HTML字符串
  */
 export function processHtmlContent(primaryColor: string): string {
-  const element = document.querySelector(`#output`)!
+  const element = document.querySelector(`#output`)
+  if (!element) {
+    console.error(`无法找到#output元素`)
+    return ``
+  }
+
   setStyles(element)
 
   return element.innerHTML
