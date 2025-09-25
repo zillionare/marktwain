@@ -99,8 +99,8 @@ export const useStore = defineStore(`store`, () => {
     convertAdmonition: { enabled: true, width: 500 }, // 转换 Admonition
     convertMathBlock: { enabled: true, width: 500 }, // 转换数学公式
     convertFencedBlock: { enabled: true, width: 600 }, // 转换代码块
-    convertH2: { enabled: true, widthMode: `original` }, // 转换 h2 标题
-    convertH3: { enabled: true, widthMode: `original` }, // 转换 h3 标题
+    convertH2: { enabled: false, widthMode: `original` }, // 转换 h2 标题
+    convertH3: { enabled: false, widthMode: `original` }, // 转换 h3 标题
     convertH4: { enabled: false, widthMode: `original` }, // 转换 h4 标题
   } as {
     devicePixelRatio: number

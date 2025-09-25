@@ -61,6 +61,15 @@ const currentPreset = computed(() => {
   return presets.value.find(p => p.id === activePresetId.value) || presets.value[0]
 })
 
+// 计算实际像素值
+const actualPixels = computed(() => {
+  if (!currentPreset.value)
+    return null
+  const actualWidth = currentPreset.value.width * currentPreset.value.pixelRatio
+  const actualHeight = currentPreset.value.height * currentPreset.value.pixelRatio
+  return `实际像素 ${actualWidth} × ${actualHeight}`
+})
+
 // 新增预设表单数据
 const newPresetForm = ref({
   name: ``,
@@ -325,9 +334,6 @@ defineExpose({
 
         <!-- 当前预设配置 -->
         <div v-if="currentPreset" class="border rounded-lg p-6">
-          <h3 class="text-lg font-medium mb-4">
-            配置预设: {{ currentPreset.name }}
-          </h3>
           <div class="grid grid-cols-2 gap-6">
             <div class="space-y-4">
               <div class="space-y-2">
@@ -379,15 +385,10 @@ defineExpose({
             </div>
           </div>
 
-          <!-- 预览信息 -->
-          <div class="mt-6 p-4 bg-muted/50 rounded-lg">
-            <h4 class="text-sm font-medium mb-2">
-              当前设置
-            </h4>
-            <div class="text-sm text-muted-foreground space-y-1">
-              <div>分辨率: {{ currentPreset.width }} × {{ currentPreset.height }}</div>
-              <div>像素比: {{ currentPreset.pixelRatio }}x</div>
-              <div>实际像素: {{ currentPreset.width * currentPreset.pixelRatio }} × {{ currentPreset.height * currentPreset.pixelRatio }}</div>
+          <!-- 实际像素信息 -->
+          <div v-if="actualPixels" class="mt-6 p-4 rounded-lg">
+            <div class="text-sm text-muted-foreground">
+              {{ actualPixels }}
             </div>
           </div>
         </div>

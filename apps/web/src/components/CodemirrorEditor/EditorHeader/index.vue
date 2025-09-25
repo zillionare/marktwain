@@ -101,6 +101,14 @@ const { copy: copyContent } = useClipboard({
 // 转图处理函数
 async function handleConvertToImages() {
   try {
+    // 检查转图时的模式切换
+    if (store.isPaginationMode) {
+      store.setNormalMode()
+      toast.info(`转图需要在普通模式下进行，已自动为您切换`)
+      // 等待模式切换完成后再继续
+      await nextTick()
+    }
+
     await convertToImages()
     toast.success(`转图完成`)
   }
