@@ -944,13 +944,19 @@ export const useStore = defineStore(`store`, () => {
     const pageHeight = pageSettings.value.height
 
     // 计算宽度和高度的缩放比例
-    const scaleX = containerWidth / pageWidth
-    const scaleY = containerHeight / pageHeight
+    // 考虑容器的padding和边距，预留一些空间
+    const paddingX = 40 // 左右各20px的padding
+    const paddingY = 40 // 上下各20px的padding
+    const availableWidth = Math.max(containerWidth - paddingX, 100)
+    const availableHeight = Math.max(containerHeight - paddingY, 100)
+
+    const scaleX = availableWidth / pageWidth
+    const scaleY = availableHeight / pageHeight
 
     // 取较小的缩放比例，确保页面完全适配容器
     const finalScale = Math.min(scaleX, scaleY, 1) // 最大不超过1，避免放大
 
-    return finalScale
+    return Math.max(finalScale, 0.1) // 最小缩放比例为0.1，避免过小
   }
 
   // 更新预览容器尺寸并重新计算缩放比例
@@ -1235,11 +1241,11 @@ export const useStore = defineStore(`store`, () => {
       return
     }
 
+    // 保存当前页面索引，导出完成后恢复
+    const originalPageIndex = currentPageIndex.value
+
     try {
       toast.info(`开始导出 ${totalPages.value} 张图片...`)
-
-      // 保存当前页面索引，导出完成后恢复
-      const originalPageIndex = currentPageIndex.value
 
       for (let i = 0; i < pageRefs.value.length; i++) {
         const pageElement = pageRefs.value[i]
@@ -1289,9 +1295,8 @@ export const useStore = defineStore(`store`, () => {
       toast.error(`批量导出图片失败，请重试`)
 
       // 发生错误时也要恢复到原始页面
-      if (currentPageIndex.value !== undefined) {
-        currentPageIndex.value = 0
-      }
+      currentPageIndex.value = originalPageIndex
+      await nextTick()
     }
   }
 

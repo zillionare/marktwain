@@ -763,9 +763,9 @@ onUnmounted(() => {
               <div id="preview" ref="previewRef" class="w-full flex-1 overflow-auto">
                 <div id="output-wrapper" class="w-full p-5" :class="{ output_night: store.isDark }">
                   <!-- 分页模式：单页显示 -->
-                  <div v-if="store.isPaginationMode">
-                    <!-- 内容截断警告 -->
-                    <div v-if="store.isContentTruncated" class="truncation-warning">
+                  <div v-if="store.isPaginationMode" class="relative">
+                    <!-- 内容截断警告 - 浮动样式 -->
+                    <div v-if="store.isContentTruncated" class="truncation-warning-floating">
                       内容发生截断，请重新调整分页
                     </div>
                     <div
@@ -788,7 +788,7 @@ onUnmounted(() => {
                           width: `${store.pageSettings.width}px`,
                           height: `${store.pageSettings.height}px`,
                           transform: `scale(${store.pageScale})`,
-                          transformOrigin: 'top left',
+                          transformOrigin: 'top center',
                         }"
                       >
                         <section class="w-full h-full overflow-hidden" style="padding: 20px; box-sizing: border-box;" v-html="store.renderPage(page)" />
@@ -945,15 +945,21 @@ onUnmounted(() => {
 /* 预览内容区域已通过HTML结构中的flex-1类处理 */
 
 /* 分页模式样式 */
-.truncation-warning {
+.truncation-warning-floating {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
   background-color: #fee2e2;
   color: #dc2626;
   padding: 8px 16px;
-  margin-bottom: 16px;
   border-radius: 4px;
   border-left: 4px solid #dc2626;
   font-size: 14px;
   font-weight: 500;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  white-space: nowrap;
 }
 
 .pagination-container {
@@ -961,8 +967,9 @@ onUnmounted(() => {
   justify-content: center;
   align-items: flex-start;
   margin: 0 auto;
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
+  position: relative;
 }
 
 .pagination-page {
