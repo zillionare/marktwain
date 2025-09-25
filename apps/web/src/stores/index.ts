@@ -7,6 +7,7 @@ import {
 import { snapdom } from '@zumer/snapdom'
 import CodeMirror from 'codemirror'
 import { v4 as uuid } from 'uuid'
+import { nextTick } from 'vue'
 import DEFAULT_CONTENT from '@/assets/example/markdown.md?raw'
 import DEFAULT_CSS_CONTENT from '@/assets/example/theme-css.txt?raw'
 
@@ -26,7 +27,6 @@ import {
   postProcessHtml,
   processHtmlContent,
   renderMarkdown,
-  sanitizeTitle,
 } from '@/utils'
 import { copyPlain } from '@/utils/clipboard'
 
@@ -122,6 +122,7 @@ export const useStore = defineStore(`store`, () => {
   const currentPageIndex = ref(0) // 当前页码（从0开始）
   const pages = ref<string[]>([]) // 分页后的内容数组
   const totalPages = computed(() => pages.value.length) // 总页数
+  const pageRefs = ref<HTMLElement[]>([]) // 页面DOM引用数组
 
   // 分页页面尺寸配置
   const pageSettings = useStorage(`pageSettings`, {
@@ -422,6 +423,12 @@ export const useStore = defineStore(`store`, () => {
     return content.split(/^---$/m).map(page => page.trim()).filter(page => page.length > 0)
   }
 
+  // 渲染单个页面内容
+  const renderPage = (pageContent: string): string => {
+    const { html: baseHtml, readingTime: readingTimeResult } = renderMarkdown(pageContent, renderer)
+    return postProcessHtml(baseHtml, readingTimeResult, renderer)
+  }
+
   // 更新编辑器
   const editorRefresh = () => {
     codeThemeChange()
@@ -521,21 +528,39 @@ export const useStore = defineStore(`store`, () => {
   const goToPage = (pageIndex: number) => {
     if (pageIndex >= 0 && pageIndex < totalPages.value) {
       currentPageIndex.value = pageIndex
-      editorRefresh()
+      // 在分页模式下使用滚动导航
+      if (isPaginationMode.value && pageRefs.value[pageIndex]) {
+        pageRefs.value[pageIndex].scrollIntoView({ behavior: `smooth`, block: `start` })
+      }
+      else {
+        editorRefresh()
+      }
     }
   }
 
   const nextPage = () => {
     if (currentPageIndex.value < totalPages.value - 1) {
       currentPageIndex.value++
-      editorRefresh()
+      // 在分页模式下使用滚动导航
+      if (isPaginationMode.value && pageRefs.value[currentPageIndex.value]) {
+        pageRefs.value[currentPageIndex.value].scrollIntoView({ behavior: `smooth`, block: `start` })
+      }
+      else {
+        editorRefresh()
+      }
     }
   }
 
   const prevPage = () => {
     if (currentPageIndex.value > 0) {
       currentPageIndex.value--
-      editorRefresh()
+      // 在分页模式下使用滚动导航
+      if (isPaginationMode.value && pageRefs.value[currentPageIndex.value]) {
+        pageRefs.value[currentPageIndex.value].scrollIntoView({ behavior: `smooth`, block: `start` })
+      }
+      else {
+        editorRefresh()
+      }
     }
   }
 
@@ -1165,23 +1190,112 @@ export const useStore = defineStore(`store`, () => {
     exportPureHTML(editor.value!.getValue(), posts.value[currentPostIndex.value].title)
   }
 
-  // 下载卡片
-  const downloadAsCardImage = async () => {
-    const el = document.querySelector<HTMLElement>(`#output-wrapper>.preview`)!
-    const imgElement = await snapdom.toPng(el, {
-      backgroundColor: isDark.value ? `` : `#fff`,
-      dpr: conversionConfig.value.devicePixelRatio || 2,
-    })
+  // 生成4位随机字符
+  const generateRandomId = (): string => {
+    const chars = `abcdefghijklmnopqrstuvwxyz0123456789`
+    let result = ``
+    for (let i = 0; i < 4; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return result
+  }
 
-    // 将 HTMLImageElement 转换为 data URL
-    const canvas = document.createElement(`canvas`)
-    const ctx = canvas.getContext(`2d`)!
-    canvas.width = imgElement.width
-    canvas.height = imgElement.height
-    ctx.drawImage(imgElement, 0, 0)
-    const dataUrl = canvas.toDataURL(`image/png`)
+  // 普通模式下载单张图片
+  const downloadSingleImage = async () => {
+    const el = document.querySelector<HTMLElement>(`#output-wrapper>.preview`)
+    if (!el) {
+      toast.error(`未找到预览元素，请确保内容已加载`)
+      return
+    }
 
-    downloadFile(dataUrl, `${sanitizeTitle(posts.value[currentPostIndex.value].title)}.png`, `image/png`)
+    try {
+      const imgElement = await snapdom.toPng(el, {
+        backgroundColor: isDark.value ? `` : `#fff`,
+        dpr: conversionConfig.value.devicePixelRatio || 2,
+      })
+
+      // 将 HTMLImageElement 转换为 data URL
+      const canvas = document.createElement(`canvas`)
+      const ctx = canvas.getContext(`2d`)!
+      canvas.width = imgElement.width
+      canvas.height = imgElement.height
+      ctx.drawImage(imgElement, 0, 0)
+      const dataUrl = canvas.toDataURL(`image/png`)
+
+      const randomId = generateRandomId()
+      downloadFile(dataUrl, `1-md-${randomId}.png`, `image/png`)
+      toast.success(`图片导出成功`)
+    }
+    catch (error) {
+      console.error(`导出图片失败:`, error)
+      toast.error(`导出图片失败，请重试`)
+    }
+  }
+
+  // 分页模式下载所有页面图片
+  const downloadPaginatedImages = async () => {
+    if (!pageRefs.value || pageRefs.value.length === 0) {
+      toast.error(`未找到分页元素，请确保分页内容已加载`)
+      return
+    }
+
+    try {
+      toast.info(`开始导出 ${totalPages.value} 张图片...`)
+
+      for (let i = 0; i < pageRefs.value.length; i++) {
+        const pageElement = pageRefs.value[i]
+        if (!pageElement) {
+          console.warn(`页面 ${i + 1} 的DOM元素不存在，跳过`)
+          continue
+        }
+
+        // 滚动到当前页面
+        pageElement.scrollIntoView({ behavior: `instant`, block: `start` })
+
+        // 等待滚动完成和DOM更新
+        await new Promise(resolve => setTimeout(resolve, 200))
+
+        // 截图当前页面
+        const imgElement = await snapdom.toPng(pageElement, {
+          backgroundColor: isDark.value ? `` : `#fff`,
+          dpr: conversionConfig.value.devicePixelRatio || 2,
+        })
+
+        // 将 HTMLImageElement 转换为 data URL
+        const canvas = document.createElement(`canvas`)
+        const ctx = canvas.getContext(`2d`)!
+        canvas.width = imgElement.width
+        canvas.height = imgElement.height
+        ctx.drawImage(imgElement, 0, 0)
+        const dataUrl = canvas.toDataURL(`image/png`)
+
+        // 生成文件名：seq-md-uuid.png
+        const randomId = generateRandomId()
+        const filename = `${i + 1}-md-${randomId}.png`
+        downloadFile(dataUrl, filename, `image/png`)
+
+        // 短暂延时避免下载过快
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+
+      toast.success(`成功导出 ${totalPages.value} 张图片`)
+    }
+    catch (error) {
+      console.error(`批量导出图片失败:`, error)
+      toast.error(`批量导出图片失败，请重试`)
+    }
+  }
+
+  // 下载页面图片
+  const downloadAsPageImage = async () => {
+    if (isPaginationMode.value) {
+      // 分页模式：批量截图所有页面
+      await downloadPaginatedImages()
+    }
+    else {
+      // 普通模式：单张截图
+      await downloadSingleImage()
+    }
   }
 
   // 导出编辑器内容为 PDF
@@ -2061,7 +2175,7 @@ export const useStore = defineStore(`store`, () => {
     exportEditorContent2PureHTML,
     exportEditorContent2MD,
     exportEditorContent2PDF,
-    downloadAsCardImage,
+    downloadAsPageImage,
 
     // 转图功能相关
     originalMarkdown,
@@ -2119,7 +2233,9 @@ export const useStore = defineStore(`store`, () => {
     isPaginationMode,
     currentPageIndex,
     pages,
+    pageRefs,
     totalPages,
+    renderPage,
     togglePaginationMode,
     setNormalMode,
     setPaginationMode,

@@ -754,7 +754,7 @@ onUnmounted(() => {
 
               <div id="preview" ref="previewRef" class="preview-wrapper w-full p-5">
                 <div id="output-wrapper" class="w-full" :class="{ output_night: store.isDark }">
-                  <!-- 分页模式：固定尺寸容器 -->
+                  <!-- 分页模式：所有页面垂直排列 -->
                   <div v-if="store.isPaginationMode">
                     <!-- 内容截断警告 -->
                     <div v-if="store.isContentTruncated" class="truncation-warning">
@@ -762,7 +762,11 @@ onUnmounted(() => {
                     </div>
                     <div class="pagination-container">
                       <div
+                        v-for="(page, index) in store.pages"
+                        :key="index"
+                        :ref="el => { if (el) store.pageRefs[index] = el }"
                         class="pagination-page"
+                        :class="{ 'current-page': index === store.currentPageIndex }"
                         :style="{
                           width: `${store.pageSettings.width}px`,
                           height: `${store.pageSettings.height}px`,
@@ -770,7 +774,7 @@ onUnmounted(() => {
                           transformOrigin: 'top left',
                         }"
                       >
-                        <section class="w-full h-full overflow-hidden" style="padding: 20px; box-sizing: border-box;" v-html="output" />
+                        <section class="w-full h-full overflow-hidden" style="padding: 20px; box-sizing: border-box;" v-html="store.renderPage(page)" />
                       </div>
                     </div>
                   </div>
@@ -921,11 +925,12 @@ onUnmounted(() => {
 
 .pagination-container {
   display: flex;
-  justify-content: flex-start;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
   min-height: 100%;
   padding: 20px;
   overflow: auto;
+  gap: 20px;
 }
 
 .pagination-page {
@@ -936,6 +941,12 @@ onUnmounted(() => {
   overflow: hidden;
   position: relative;
   flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.pagination-page.current-page {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2), 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 /* 深色模式下的分页样式 */

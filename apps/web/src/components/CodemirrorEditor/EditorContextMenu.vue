@@ -10,7 +10,7 @@ const {
   copyToClipboard,
   pasteFromClipboard,
   resetStyleConfirm,
-  downloadAsCardImage,
+  downloadAsPageImage,
   clearContent,
 } = useStore()
 
@@ -60,7 +60,7 @@ const importMarkdownContent = useImportMarkdownContent()
       <ContextMenuItem inset @click="exportEditorContent2HTML()">
         导出 .html
       </ContextMenuItem>
-      <ContextMenuItem inset @click="downloadAsCardImage()">
+      <ContextMenuItem inset @click="downloadAsPageImage()">
         导出 .png
       </ContextMenuItem>
       <ContextMenuSeparator />

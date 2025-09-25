@@ -275,7 +275,7 @@ function extractHljsStylesFromPage(): string {
     return hljsCss ? `<style>${hljsCss}</style>` : ``
   }
   catch (error) {
-    console.warn(`无法提取highlight.js样式`, error)
+    console.warn(`提取highlight.js样式时发生错误:`, error)
     return ``
   }
 }
