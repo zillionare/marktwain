@@ -650,11 +650,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="container flex flex-col">
+  <!-- 根容器：使用Grid固定头部与底部 -->
+  <div class="container grid">
     <EditorHeader @start-copy="startCopy" @end-copy="endCopy" />
 
-    <!-- 文档显示区域 -->
-    <div class="relative flex-1 flex flex-col">
+    <!-- 文档显示区域：中间主区域 -->
+    <div class="content-area relative flex-1 flex flex-col">
       <DocumentArea />
 
       <main class="container-main flex flex-1 flex-col" :class="{ hidden: displayStore.isShowDocumentArea }">
@@ -917,10 +918,25 @@ onUnmounted(() => {
   height: 100vh;
   min-width: 100%;
   padding: 0;
+  /* Fixed header & footer layout */
+  display: grid; /* Use grid to fix header & footer */
+  grid-template-rows: auto 1fr auto; /* header | main | footer */
+  overflow: hidden; /* prevent body scroll */
+}
+
+/* Middle area should not scroll itself, allow children to shrink */
+.content-area {
+  min-height: 0; /* allow inner flex panels to compute height */
+  overflow: hidden; /* scrolling occurs inside editor/preview content */
 }
 
 .container-main {
   overflow: hidden;
+  min-height: 0; /* ensure ResizablePanel computes height correctly */
+}
+
+.container-main-section {
+  min-height: 0; /* prevent inner overflow and allow child flex to shrink */
 }
 
 #output-wrapper {
