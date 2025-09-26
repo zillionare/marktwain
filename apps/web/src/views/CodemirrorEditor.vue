@@ -920,7 +920,7 @@ onUnmounted(() => {
 #output-wrapper {
   position: relative;
   user-select: text;
-  /* 移除固定高度，让内容自然流动 */
+  height: 100% !important;
 }
 
 .loading-mask {
