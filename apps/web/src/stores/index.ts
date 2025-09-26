@@ -214,19 +214,20 @@ export const useStore = defineStore(`store`, () => {
     {
       id: uuid(),
       name: `MarkArrow 签名`,
-      content: `<div style="display:flex;flex-direction:column;color: #888;">
-      <div style="display:flex; justify-content: flex-end">
-      <div style="display: inline-flex; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 0.3rem; margin-left: auto;">
-        <span style="margin: 0 0.5rem;">♥️</span>
-        自豪地使用
-        <span style="margin: 0 0.5rem;">
-          <img src="https://images.jieyu.ai/images/hot/logo/markarrow.png" style="height: 1rem; vertical-align: middle;">
-        </span>
-        编辑
-      </div>
-      </div>
-      <div style="display:flex; justify-content: flex-end;font-style:italic">md.jieyu.ai</div>
-      </div>`,
+      content: `<div style="width: 100%; color: #888; display: grid; justify-items: end; gap: 0.3rem;">
+   <!-- 第一行内容 -->
+   <div style="display: grid; grid-auto-flow: column; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 0.3rem; white-space: nowrap;">
+     <span style="margin: 0 0.5rem;">♥️</span>
+     <span>自豪地使用</span>
+     <span style="margin: 0 0.5rem;">
+       <img src="https://images.jieyu.ai/images/hot/logo/markarrow.png" style="height: 1rem; vertical-align: middle;">
+     </span>
+     <span>编辑</span>
+   </div>
+   
+   <!-- 第二行内容 -->
+   <div style="font-style: italic;">md.jieyu.ai</div>
+ </div>`,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     },
