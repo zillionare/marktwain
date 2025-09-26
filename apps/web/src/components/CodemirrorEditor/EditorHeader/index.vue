@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   ChevronDownIcon,
+  Edit,
   Image,
   PanelLeftClose,
   PanelLeftOpen,
@@ -14,6 +15,7 @@ import FileDropdown from './FileDropdown.vue'
 import HelpDropdown from './HelpDropdown.vue'
 import SettingsDropdown from './SettingsDropdown.vue'
 import StyleDropdown from './StyleDropdown.vue'
+import TemplateDropdown from './TemplateDropdown.vue'
 
 const emit = defineEmits([`startCopy`, `endCopy`])
 
@@ -28,6 +30,9 @@ const {
   editor,
   isConverting,
   isImageReplaced,
+  isTemplateEditing,
+  currentEditingTemplateId,
+  templates,
 } = storeToRefs(store)
 
 const {
@@ -170,8 +175,21 @@ async function copy() {
 
   setTimeout(() => {
     nextTick(async () => {
-      await processClipboardContent(primaryColor.value)
+      try {
+        await processClipboardContent(primaryColor.value)
+      }
+      catch (error) {
+        console.error(`处理剪贴板内容时出错:`, error)
+        toast.error(`处理内容失败，请联系开发者。${error}`)
+        return
+      }
+
       const clipboardDiv = document.getElementById(`output`)!
+      if (!clipboardDiv) {
+        toast.error(`找不到输出元素，请刷新页面重试。`)
+        return
+      }
+
       clipboardDiv.focus()
       window.getSelection()!.removeAllRanges()
 
@@ -180,20 +198,40 @@ async function copy() {
       if (copyMode.value === `txt`) {
         // execCommand 已废弃，且会丢失 SVG 等复杂内容
         try {
+          // 检查浏览器兼容性
+          if (!navigator.clipboard || !window.ClipboardItem) {
+            throw new Error(`浏览器不支持现代剪贴板API，请使用较新版本的浏览器`)
+          }
+
           const plainText = clipboardDiv.textContent || ``
+          if (!temp || !plainText) {
+            throw new Error(`内容为空，无法复制`)
+          }
+
           const clipboardItem = new ClipboardItem({
             'text/html': new Blob([temp], { type: `text/html` }),
             'text/plain': new Blob([plainText], { type: `text/plain` }),
           })
+
           // FIX: https://stackoverflow.com/questions/62327358/javascript-clipboard-api-safari-ios-notallowederror-message
           // NotAllowedError: the request is not allowed by the user agent or the platform in the current context,
           // possibly because the user denied permission.
-          setTimeout(async () => {
-            await navigator.clipboard.write([clipboardItem])
-          }, 0)
+          await new Promise<void>((resolve, reject) => {
+            setTimeout(async () => {
+              try {
+                await navigator.clipboard.write([clipboardItem])
+                resolve()
+              }
+              catch (err) {
+                reject(err)
+              }
+            }, 0)
+          })
         }
         catch (error) {
-          toast.error(`复制失败，请联系开发者。${error}`)
+          console.error(`复制失败详细错误:`, error)
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          toast.error(`复制失败：${errorMessage}`)
           return
         }
       }
@@ -261,6 +299,19 @@ async function copy() {
         </MenubarMenu>
         <EditDropdown />
         <StyleDropdown />
+        <TemplateDropdown />
+
+        <!-- 模板编辑状态指示器 -->
+        <div v-if="isTemplateEditing" class="flex items-center px-2 py-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-sm text-blue-700 dark:text-blue-300">
+          <Edit class="mr-1 h-3 w-3" />
+          <span>
+            {{ currentEditingTemplateId
+              ? `编辑: ${templates.find(t => t.id === currentEditingTemplateId)?.name || '未知模板'}`
+              : '新建模板'
+            }}
+          </span>
+        </div>
+
         <SettingsDropdown />
         <HelpDropdown />
       </Menubar>

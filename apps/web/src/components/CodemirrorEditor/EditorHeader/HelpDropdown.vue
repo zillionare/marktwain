@@ -12,12 +12,11 @@ const fundDialogVisible = ref(false)
         <span>关于</span>
       </MenubarCheckboxItem>
       <MenubarCheckboxItem @click="fundDialogVisible = true">
-        <span>赞赏</span>
+        <span>文档</span>
       </MenubarCheckboxItem>
     </MenubarContent>
   </MenubarMenu>
 
   <!-- 各弹窗挂载 -->
   <AboutDialog :visible="aboutDialogVisible" @close="aboutDialogVisible = false" />
-  <FundDialog :visible="fundDialogVisible" @close="fundDialogVisible = false" />
 </template>

@@ -225,7 +225,7 @@ onMounted(() => {
     })
     resizeObserver.observe(previewRef.value)
 
-    // 组件卸载时清理observer
+    // 组件卸载时清理observer和事件监听器
     onUnmounted(() => {
       resizeObserver?.disconnect()
     })
@@ -974,6 +974,18 @@ onUnmounted(() => {
 .codeMirror-wrapper > template + div {
   flex: 1;
   overflow: hidden;
+}
+
+/* Override CodeMirror default height and ensure it fills the container */
+:deep(.CodeMirror) {
+  height: 100% !important;
+  min-height: 500px;
+}
+
+:deep(.CodeMirror-scroll) {
+  overflow-y: auto;
+  overflow-x: auto;
+  height: 100%;
 }
 
 /* 预览内容区域已通过HTML结构中的flex-1类处理 */

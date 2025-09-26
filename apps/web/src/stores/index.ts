@@ -50,6 +50,18 @@ interface Post {
 }
 
 /**********************************
+ * Template 结构接口
+ *********************************/
+interface Template {
+  id: string
+  name: string
+  content: string
+  description?: string
+  createdAt: number
+  updatedAt: number
+}
+
+/**********************************
  * 分页相关接口
  *********************************/
 export interface PageLineMapping {
@@ -195,6 +207,35 @@ export const useStore = defineStore(`store`, () => {
     },
   ])
 
+  /*******************************
+   * 模板管理
+   ******************************/
+  const templates = useStorage<Template[]>(addPrefix(`templates`), [
+    {
+      id: uuid(),
+      name: `MarkArrow 签名`,
+      content: `<div style="display:flex;flex-direction:column;color: #888;">
+      <div style="display:flex; justify-content: flex-end">
+      <div style="display: inline-flex; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 0.3rem; margin-left: auto;">
+        <span style="margin: 0 0.5rem;">♥️</span>
+        自豪地使用
+        <span style="margin: 0 0.5rem;">
+          <img src="https://images.jieyu.ai/images/hot/logo/markarrow.png" style="height: 1rem; vertical-align: middle;">
+        </span>
+        编辑
+      </div>
+      </div>
+      <div style="display:flex; justify-content: flex-end;font-style:italic">md.jieyu.ai</div>
+      </div>`,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    },
+  ])
+
+  // 模板编辑状态管理
+  const isTemplateEditing = ref(false) // 是否正在编辑模板
+  const currentEditingTemplateId = ref<string | null>(null) // 当前编辑的模板ID，null表示新建模板
+
   // currentPostId 先存空串
   const currentPostId = useStorage(addPrefix(`current_post_id`), ``)
 
@@ -300,6 +341,81 @@ export const useStore = defineStore(`store`, () => {
     posts.value.forEach((post) => {
       post.collapsed = false
     })
+  }
+
+  /********************************
+   * 模板管理 CRUD
+   ********************************/
+  const addTemplate = (name: string, content: string, description?: string) => {
+    const newTemplate: Template = {
+      id: uuid(),
+      name,
+      content,
+      description,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }
+    templates.value.push(newTemplate)
+    return newTemplate
+  }
+
+  const updateTemplate = (id: string, name: string, content: string, description?: string) => {
+    const template = templates.value.find(t => t.id === id)
+    if (template) {
+      template.name = name
+      template.content = content
+      template.description = description
+      template.updatedAt = Date.now()
+    }
+  }
+
+  const deleteTemplate = (id: string) => {
+    const index = templates.value.findIndex(t => t.id === id)
+    if (index !== -1) {
+      templates.value.splice(index, 1)
+    }
+  }
+
+  // 插入模板到编辑器光标位置
+  const insertTemplate = (templateId: string) => {
+    const template = templates.value.find(t => t.id === templateId)
+    if (!template || !editor.value)
+      return
+
+    const cursor = editor.value.getCursor()
+    editor.value.replaceRange(template.content, cursor)
+
+    // 计算插入内容后的光标位置
+    const lines = template.content.split(`\n`)
+    let newCursor
+
+    if (lines.length === 1) {
+      // 单行内容：光标移动到当前行的插入内容末尾
+      newCursor = {
+        line: cursor.line,
+        ch: cursor.ch + template.content.length,
+      }
+    }
+    else {
+      // 多行内容：光标移动到最后一行的末尾
+      newCursor = {
+        line: cursor.line + lines.length - 1,
+        ch: lines[lines.length - 1].length,
+      }
+    }
+
+    // 设置光标到插入内容的末尾
+    editor.value.setCursor(newCursor)
+
+    // 确保编辑器获得焦点
+    editor.value.focus()
+
+    // 更新当前文章内容
+    const currentPost = getPostById(currentPostId.value)
+    if (currentPost) {
+      currentPost.content = editor.value.getValue()
+      currentPost.updateDatetime = new Date()
+    }
   }
 
   /********************************
@@ -2286,6 +2402,15 @@ export const useStore = defineStore(`store`, () => {
     findOptimalPaginationPoints,
     autoPaginateContent,
     applyAutoPagination,
+
+    // 模板相关
+    templates,
+    addTemplate,
+    updateTemplate,
+    deleteTemplate,
+    insertTemplate,
+    isTemplateEditing,
+    currentEditingTemplateId,
   }
 })
 
