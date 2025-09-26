@@ -2418,6 +2418,10 @@ export const useDisplayStore = defineStore(`display`, () => {
     aiDialogVisible.value = value ?? !aiDialogVisible.value
   }
 
+  // 是否展示文档区域
+  const isShowDocumentArea = ref(false)
+  const toggleShowDocumentArea = useToggle(isShowDocumentArea)
+
   return {
     isShowCssEditor,
     toggleShowCssEditor,
@@ -2429,6 +2433,8 @@ export const useDisplayStore = defineStore(`display`, () => {
     toggleShowUploadImgDialog,
     aiDialogVisible,
     toggleAIDialog,
+    isShowDocumentArea,
+    toggleShowDocumentArea,
   }
 })
 

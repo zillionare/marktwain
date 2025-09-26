@@ -1,6 +1,13 @@
 <script setup lang="ts">
+import { useDisplayStore } from '@/stores'
+
 const aboutDialogVisible = ref(false)
-const fundDialogVisible = ref(false)
+const displayStore = useDisplayStore()
+
+// 切换文档显示状态
+function toggleDocument() {
+  displayStore.toggleShowDocumentArea()
+}
 </script>
 
 <template>
@@ -11,7 +18,7 @@ const fundDialogVisible = ref(false)
       <MenubarCheckboxItem @click="aboutDialogVisible = true">
         <span>关于</span>
       </MenubarCheckboxItem>
-      <MenubarCheckboxItem @click="fundDialogVisible = true">
+      <MenubarCheckboxItem @click="toggleDocument">
         <span>文档</span>
       </MenubarCheckboxItem>
     </MenubarContent>

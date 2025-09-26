@@ -9,9 +9,10 @@ import Components from 'unplugin-vue-components/vite'
 import { defineConfig } from 'vite'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import { VitePluginRadar } from 'vite-plugin-radar'
+import { viteStaticCopy } from 'vite-plugin-static-copy'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
-const base = process.env.SERVER_ENV === `NETLIFY` ? `/` : (process.env.CUSTOM_DOMAIN === `true` ? `/` : `/marktwain/`)
+const base = `/`
 
 // 调试信息
 console.log(`Environment variables:`)
@@ -78,6 +79,15 @@ export default defineConfig({
     }),
     Components({
       resolvers: [],
+    }),
+    // Copy README.md from project root to public directory during build
+    viteStaticCopy({
+      targets: [
+        {
+          src: `../../README.md`, // Path from apps/web to project root
+          dest: `.`, // Copy to public root
+        },
+      ],
     }),
   ],
   resolve: {

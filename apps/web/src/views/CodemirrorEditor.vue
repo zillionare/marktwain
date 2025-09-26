@@ -8,6 +8,7 @@ import {
   AIPolishPopover,
   useAIPolish,
 } from '@/components/AIPolish'
+import DocumentArea from '@/components/CodemirrorEditor/DocumentArea.vue'
 import {
   ResizableHandle,
   ResizablePanel,
@@ -652,251 +653,256 @@ onUnmounted(() => {
   <div class="container flex flex-col">
     <EditorHeader @start-copy="startCopy" @end-copy="endCopy" />
 
-    <main class="container-main flex flex-1 flex-col">
-      <div class="container-main-section border-radius-10 relative flex flex-1 overflow-hidden border">
-        <ResizablePanelGroup direction="horizontal">
-          <ResizablePanel
-            :default-size="15" :max-size="store.isOpenPostSlider ? 30 : 0"
-            :min-size="store.isOpenPostSlider ? 10 : 0"
-          >
-            <PostSlider />
-          </ResizablePanel>
-          <ResizableHandle />
-          <ResizablePanel class="flex">
-            <div
-              v-show="!store.isMobile || (store.isMobile && showEditor)" ref="codeMirrorWrapper"
-              class="codeMirror-wrapper relative flex-1" :class="{
-                'order-1 border-l': !store.isEditOnLeft,
-                'border-r': store.isEditOnLeft,
-              }"
+    <!-- 文档显示区域 -->
+    <div class="relative flex-1 flex flex-col">
+      <DocumentArea />
+
+      <main class="container-main flex flex-1 flex-col" :class="{ hidden: displayStore.isShowDocumentArea }">
+        <div class="container-main-section border-radius-10 relative flex flex-1 overflow-hidden border">
+          <ResizablePanelGroup direction="horizontal">
+            <ResizablePanel
+              :default-size="15" :max-size="store.isOpenPostSlider ? 30 : 0"
+              :min-size="store.isOpenPostSlider ? 10 : 0"
             >
-              <!-- 添加 tab 控制 -->
-              <div class="flex border-b">
-                <button
-                  class="px-4 py-2 font-medium" :class="{
-                    'border-b-2 border-blue-500 text-blue-500': activeTab === 'original',
-                    'text-gray-500': activeTab !== 'original',
-                  }" @click="activeTab = 'original'"
-                >
-                  原始文档
-                </button>
-                <button
-                  class="px-4 py-2 font-medium" :class="{
-                    'border-b-2 border-blue-500 text-blue-500': activeTab === 'converted',
-                    'text-gray-500': activeTab !== 'converted',
-                  }" @click="activeTab = 'converted'"
-                >
-                  转图后
-                </button>
-              </div>
-
-              <div v-if="activeTab === 'converted' && !convertedMarkdownV1" class="p-4 text-gray-500">
-                请先执行转图操作
-              </div>
-
-              <template v-else>
-                <SearchTab v-if="editor" ref="searchTabRef" :editor="editor" />
-                <AIFixedBtn :is-mobile="store.isMobile" :show-editor="showEditor" />
-
-                <EditorContextMenu>
-                  <textarea
-                    id="editor" ref="editorRef" type="textarea" placeholder="Your markdown text here."
-                    :value="activeTab === 'original' ? store.posts[store.currentPostIndex]?.content : convertedMarkdownV1"
-                  />
-                </EditorContextMenu>
-              </template>
-            </div>
-            <div
-              v-show="!store.isMobile || (store.isMobile && !showEditor)"
-              class="preview-wrapper relative flex-1 overflow-x-hidden transition-width flex flex-col"
-              :class="[store.isOpenRightSlider ? 'w-0' : 'w-100']"
-            >
-              <!-- 预览模式切换 tab -->
-              <div class="flex border-b bg-white dark:bg-gray-800 flex-shrink-0">
-                <button
-                  class="px-4 py-2 font-medium" :class="{
-                    'border-b-2 border-blue-500 text-blue-500': !store.isPaginationMode,
-                    'text-gray-500': store.isPaginationMode,
-                  }" @click="store.setNormalMode()"
-                >
-                  普通模式
-                </button>
-                <button
-                  class="px-4 py-2 font-medium" :class="{
-                    'border-b-2 border-blue-500 text-blue-500': store.isPaginationMode,
-                    'text-gray-500': !store.isPaginationMode,
-                  }" @click="store.setPaginationMode()"
-                >
-                  分页模式
-                </button>
-                <!-- 分页控制 -->
-                <div v-if="store.isPaginationMode" class="ml-auto flex items-center gap-2 px-4">
-                  <!-- 自动分页按钮 -->
+              <PostSlider />
+            </ResizablePanel>
+            <ResizableHandle />
+            <ResizablePanel class="flex">
+              <div
+                v-show="!store.isMobile || (store.isMobile && showEditor)" ref="codeMirrorWrapper"
+                class="codeMirror-wrapper relative flex-1" :class="{
+                  'order-1 border-l': !store.isEditOnLeft,
+                  'border-r': store.isEditOnLeft,
+                }"
+              >
+                <!-- 添加 tab 控制 -->
+                <div class="flex border-b">
                   <button
-                    class="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
-                    title="根据内容长度和页面高度自动插入分页符"
-                    @click="handleAutoPagination"
+                    class="px-4 py-2 font-medium" :class="{
+                      'border-b-2 border-blue-500 text-blue-500': activeTab === 'original',
+                      'text-gray-500': activeTab !== 'original',
+                    }" @click="activeTab = 'original'"
                   >
-                    自动分页
+                    原始文档
                   </button>
-                  <div class="w-px h-4 bg-gray-300 mx-1" />
-                  <!-- 分页导航图标按钮 -->
-                  <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1 shadow-sm">
-                    <!-- 第一页按钮 -->
+                  <button
+                    class="px-4 py-2 font-medium" :class="{
+                      'border-b-2 border-blue-500 text-blue-500': activeTab === 'converted',
+                      'text-gray-500': activeTab !== 'converted',
+                    }" @click="activeTab = 'converted'"
+                  >
+                    转图后
+                  </button>
+                </div>
+
+                <div v-if="activeTab === 'converted' && !convertedMarkdownV1" class="p-4 text-gray-500">
+                  请先执行转图操作
+                </div>
+
+                <template v-else>
+                  <SearchTab v-if="editor" ref="searchTabRef" :editor="editor" />
+                  <AIFixedBtn :is-mobile="store.isMobile" :show-editor="showEditor" />
+
+                  <EditorContextMenu>
+                    <textarea
+                      id="editor" ref="editorRef" type="textarea" placeholder="Your markdown text here."
+                      :value="activeTab === 'original' ? store.posts[store.currentPostIndex]?.content : convertedMarkdownV1"
+                    />
+                  </EditorContextMenu>
+                </template>
+              </div>
+              <div
+                v-show="!store.isMobile || (store.isMobile && !showEditor)"
+                class="preview-wrapper relative flex-1 overflow-x-hidden transition-width flex flex-col"
+                :class="[store.isOpenRightSlider ? 'w-0' : 'w-100']"
+              >
+                <!-- 预览模式切换 tab -->
+                <div class="flex border-b bg-white dark:bg-gray-800 flex-shrink-0">
+                  <button
+                    class="px-4 py-2 font-medium" :class="{
+                      'border-b-2 border-blue-500 text-blue-500': !store.isPaginationMode,
+                      'text-gray-500': store.isPaginationMode,
+                    }" @click="store.setNormalMode()"
+                  >
+                    普通模式
+                  </button>
+                  <button
+                    class="px-4 py-2 font-medium" :class="{
+                      'border-b-2 border-blue-500 text-blue-500': store.isPaginationMode,
+                      'text-gray-500': !store.isPaginationMode,
+                    }" @click="store.setPaginationMode()"
+                  >
+                    分页模式
+                  </button>
+                  <!-- 分页控制 -->
+                  <div v-if="store.isPaginationMode" class="ml-auto flex items-center gap-2 px-4">
+                    <!-- 自动分页按钮 -->
                     <button
-                      class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      :disabled="store.currentPageIndex === 0"
-                      title="第一页"
-                      @click="store.goToPage(0)"
+                      class="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
+                      title="根据内容长度和页面高度自动插入分页符"
+                      @click="handleAutoPagination"
                     >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                      </svg>
+                      自动分页
                     </button>
-                    <!-- 上一页按钮 -->
-                    <button
-                      class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      :disabled="store.currentPageIndex === 0"
-                      title="上一页"
-                      @click="store.prevPage()"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </button>
-                    <!-- 页码显示 -->
-                    <span class="text-sm text-gray-700 font-medium px-2 min-w-[60px] text-center">
-                      {{ store.currentPageIndex + 1 }} of {{ store.totalPages }}
-                    </span>
-                    <!-- 下一页按钮 -->
-                    <button
-                      class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      :disabled="store.currentPageIndex === store.totalPages - 1"
-                      title="下一页"
-                      @click="store.nextPage()"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                    <!-- 最后一页按钮 -->
-                    <button
-                      class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      :disabled="store.currentPageIndex === store.totalPages - 1"
-                      title="最后一页"
-                      @click="store.goToPage(store.totalPages - 1)"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                      </svg>
-                    </button>
+                    <div class="w-px h-4 bg-gray-300 mx-1" />
+                    <!-- 分页导航图标按钮 -->
+                    <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1 shadow-sm">
+                      <!-- 第一页按钮 -->
+                      <button
+                        class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        :disabled="store.currentPageIndex === 0"
+                        title="第一页"
+                        @click="store.goToPage(0)"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                        </svg>
+                      </button>
+                      <!-- 上一页按钮 -->
+                      <button
+                        class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        :disabled="store.currentPageIndex === 0"
+                        title="上一页"
+                        @click="store.prevPage()"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+                      <!-- 页码显示 -->
+                      <span class="text-sm text-gray-700 font-medium px-2 min-w-[60px] text-center">
+                        {{ store.currentPageIndex + 1 }} of {{ store.totalPages }}
+                      </span>
+                      <!-- 下一页按钮 -->
+                      <button
+                        class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        :disabled="store.currentPageIndex === store.totalPages - 1"
+                        title="下一页"
+                        @click="store.nextPage()"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                      <!-- 最后一页按钮 -->
+                      <button
+                        class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        :disabled="store.currentPageIndex === store.totalPages - 1"
+                        title="最后一页"
+                        @click="store.goToPage(store.totalPages - 1)"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div id="preview" ref="previewRef" class="w-full flex-1 overflow-auto">
-                <div id="output-wrapper" class="w-full p-5" :class="{ output_night: store.isDark }">
-                  <!-- 分页模式：单页显示 -->
-                  <div v-if="store.isPaginationMode" class="relative">
-                    <!-- 内容截断警告 - 浮动样式 -->
-                    <div v-if="store.isContentTruncated" class="truncation-warning-floating">
-                      内容发生截断，请重新调整分页
-                    </div>
-                    <div
-                      class="pagination-container"
-                      :style="{
-                        width: `${store.pageSettings.width * store.pageScale}px`,
-                        height: `${store.pageSettings.height * store.pageScale}px`,
-                        minWidth: `${store.pageSettings.width * store.pageScale}px`,
-                        minHeight: `${store.pageSettings.height * store.pageScale}px`,
-                      }"
-                    >
+                <div id="preview" ref="previewRef" class="w-full flex-1 overflow-auto">
+                  <div id="output-wrapper" class="w-full p-5" :class="{ output_night: store.isDark }">
+                    <!-- 分页模式：单页显示 -->
+                    <div v-if="store.isPaginationMode" class="relative">
+                      <!-- 内容截断警告 - 浮动样式 -->
+                      <div v-if="store.isContentTruncated" class="truncation-warning-floating">
+                        内容发生截断，请重新调整分页
+                      </div>
                       <div
-                        v-for="(page, index) in store.pages"
-                        v-show="index === store.currentPageIndex"
-                        :key="index"
-                        :ref="el => { if (el) store.pageRefs[index] = el as HTMLElement }"
-                        class="pagination-page"
-                        :class="{ 'current-page': index === store.currentPageIndex }"
+                        class="pagination-container"
                         :style="{
-                          width: `${store.pageSettings.width}px`,
-                          height: `${store.pageSettings.height}px`,
-                          transform: `scale(${store.pageScale})`,
-                          transformOrigin: 'top center',
+                          width: `${store.pageSettings.width * store.pageScale}px`,
+                          height: `${store.pageSettings.height * store.pageScale}px`,
+                          minWidth: `${store.pageSettings.width * store.pageScale}px`,
+                          minHeight: `${store.pageSettings.height * store.pageScale}px`,
                         }"
                       >
-                        <section class="w-full h-full overflow-hidden" style="padding: 20px; box-sizing: border-box;" v-html="store.renderPage(page)" />
+                        <div
+                          v-for="(page, index) in store.pages"
+                          v-show="index === store.currentPageIndex"
+                          :key="index"
+                          :ref="el => { if (el) store.pageRefs[index] = el as HTMLElement }"
+                          class="pagination-page"
+                          :class="{ 'current-page': index === store.currentPageIndex }"
+                          :style="{
+                            width: `${store.pageSettings.width}px`,
+                            height: `${store.pageSettings.height}px`,
+                            transform: `scale(${store.pageScale})`,
+                            transformOrigin: 'top center',
+                          }"
+                        >
+                          <section class="w-full h-full overflow-hidden" style="padding: 20px; box-sizing: border-box;" v-html="store.renderPage(page)" />
+                        </div>
+                      </div>
+                    </div>
+                    <!-- 普通模式：原有样式 -->
+                    <div v-else class="preview border-x shadow-xl" :class="[store.previewWidth]">
+                      <section id="output" class="w-full" v-html="output" />
+                    </div>
+
+                    <div v-if="isCoping" class="loading-mask">
+                      <div class="loading-mask-box">
+                        <div class="loading__img" />
+                        <span>正在生成</span>
                       </div>
                     </div>
                   </div>
-                  <!-- 普通模式：原有样式 -->
-                  <div v-else class="preview border-x shadow-xl" :class="[store.previewWidth]">
-                    <section id="output" class="w-full" v-html="output" />
-                  </div>
-
-                  <div v-if="isCoping" class="loading-mask">
-                    <div class="loading-mask-box">
-                      <div class="loading__img" />
-                      <span>正在生成</span>
-                    </div>
-                  </div>
+                  <BackTop target="preview" :right="store.isMobile ? 24 : 20" :bottom="store.isMobile ? 90 : 20" />
                 </div>
-                <BackTop target="preview" :right="store.isMobile ? 24 : 20" :bottom="store.isMobile ? 90 : 20" />
+
+                <FloatingToc />
               </div>
+              <CssEditor class="order-2 flex-1" />
+              <RightSlider class="order-2" />
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </div>
 
-              <FloatingToc />
-            </div>
-            <CssEditor class="order-2 flex-1" />
-            <RightSlider class="order-2" />
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </div>
+        <!-- 移动端浮动按钮组 -->
+        <div v-if="store.isMobile" class="fixed bottom-16 right-6 z-50 flex flex-col gap-2">
+          <!-- 切换编辑/预览按钮 -->
+          <button
+            class="bg-primary flex items-center justify-center rounded-full p-3 text-white shadow-lg transition active:scale-95 hover:scale-105 dark:bg-gray-700 dark:text-white dark:ring-2 dark:ring-white/30"
+            aria-label="切换编辑/预览" @click="toggleView"
+          >
+            <component :is="showEditor ? Eye : Pen" class="h-5 w-5" />
+          </button>
+        </div>
 
-      <!-- 移动端浮动按钮组 -->
-      <div v-if="store.isMobile" class="fixed bottom-16 right-6 z-50 flex flex-col gap-2">
-        <!-- 切换编辑/预览按钮 -->
-        <button
-          class="bg-primary flex items-center justify-center rounded-full p-3 text-white shadow-lg transition active:scale-95 hover:scale-105 dark:bg-gray-700 dark:text-white dark:ring-2 dark:ring-white/30"
-          aria-label="切换编辑/预览" @click="toggleView"
-        >
-          <component :is="showEditor ? Eye : Pen" class="h-5 w-5" />
-        </button>
-      </div>
+        <AIPolishButton
+          v-if="store.showAIToolbox" ref="AIPolishBtnRef" :position="position"
+          @click="AIPolishPopoverRef?.show"
+        />
 
-      <AIPolishButton
-        v-if="store.showAIToolbox" ref="AIPolishBtnRef" :position="position"
-        @click="AIPolishPopoverRef?.show"
-      />
+        <AIPolishPopover
+          v-if="store.showAIToolbox" ref="AIPolishPopoverRef" :position="position"
+          :selected-text="selectedText" :is-dragging="isDragging" :is-mobile="store.isMobile"
+          @close-btn="AIPolishBtnRef?.close" @recalc-pos="recalcPos" @start-drag="startDrag"
+        />
 
-      <AIPolishPopover
-        v-if="store.showAIToolbox" ref="AIPolishPopoverRef" :position="position"
-        :selected-text="selectedText" :is-dragging="isDragging" :is-mobile="store.isMobile"
-        @close-btn="AIPolishBtnRef?.close" @recalc-pos="recalcPos" @start-drag="startDrag"
-      />
+        <UploadImgDialog @upload-image="uploadImage" />
 
-      <UploadImgDialog @upload-image="uploadImage" />
+        <InsertFormDialog />
 
-      <InsertFormDialog />
+        <InsertMpCardDialog />
 
-      <InsertMpCardDialog />
-
-      <AlertDialog v-model:open="store.isOpenConfirmDialog">
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>提示</AlertDialogTitle>
-            <AlertDialogDescription>
-              此操作将丢失本地自定义样式，是否继续？
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction @click="store.resetStyle()">
-              确认
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </main>
+        <AlertDialog v-model:open="store.isOpenConfirmDialog">
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>提示</AlertDialogTitle>
+              <AlertDialogDescription>
+                此操作将丢失本地自定义样式，是否继续？
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>取消</AlertDialogCancel>
+              <AlertDialogAction @click="store.resetStyle()">
+                确认
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </main>
+    </div>
 
     <Footer />
   </div>
