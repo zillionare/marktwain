@@ -193,7 +193,7 @@ export function exportPDF(primaryColor: string, title: string = `untitled`) {
             color: #666;
           }
           @bottom-left {
-            content: "微信 Markdown 编辑器";
+            content: "Marktwain | 公众号 小红书 PDF 转图";
             font-size: 10px;
             color: #999;
           }

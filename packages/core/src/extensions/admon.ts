@@ -76,7 +76,7 @@ export function markedAdmon(options: AdmonOptions = {}): MarkedExtension {
     const { meta, tokens = [] } = token
 
     let text = this.parser.parse(tokens)
-    console.log(`🔍 parsed text:`, text)
+    console.debug(`🔍 parsed text:`, text)
 
     // 为所有段落添加样式，确保每个 <p> 标签都有正确的样式
     text = text.replace(/<p(?:\s[^>]*)?>/g, `<p style="${getStyleString(meta.contentStyle)}">`)
