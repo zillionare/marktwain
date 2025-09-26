@@ -197,7 +197,7 @@ export const useStore = defineStore(`store`, () => {
   const posts = useStorage<Post[]>(addPrefix(`posts`), [
     {
       id: uuid(),
-      title: `内容1`,
+      title: `marktwain`,
       content: DEFAULT_CONTENT,
       history: [
         { datetime: new Date().toLocaleString(`zh-cn`), content: DEFAULT_CONTENT },
@@ -385,30 +385,10 @@ export const useStore = defineStore(`store`, () => {
     const cursor = editor.value.getCursor()
     editor.value.replaceRange(template.content, cursor)
 
-    // 计算插入内容后的光标位置
-    const lines = template.content.split(`\n`)
-    let newCursor
-
-    if (lines.length === 1) {
-      // 单行内容：光标移动到当前行的插入内容末尾
-      newCursor = {
-        line: cursor.line,
-        ch: cursor.ch + template.content.length,
-      }
-    }
-    else {
-      // 多行内容：光标移动到最后一行的末尾
-      newCursor = {
-        line: cursor.line + lines.length - 1,
-        ch: lines[lines.length - 1].length,
-      }
-    }
-
-    // 设置光标到插入内容的末尾
-    editor.value.setCursor(newCursor)
-
     // 确保编辑器获得焦点
-    editor.value.focus()
+    nextTick(() => {
+      editor.value?.focus()
+    })
 
     // 更新当前文章内容
     const currentPost = getPostById(currentPostId.value)
