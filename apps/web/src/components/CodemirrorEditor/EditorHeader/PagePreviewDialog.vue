@@ -25,22 +25,22 @@ const defaultPresets: PagePreset[] = [
   {
     id: `preset-1`,
     name: `1:1`,
-    width: 960,
-    height: 960,
+    width: 480,
+    height: 480,
     pixelRatio: 2,
   },
   {
     id: `preset-2`,
     name: `3:4`,
-    width: 960,
-    height: 1280,
+    width: 480,
+    height: 640,
     pixelRatio: 2,
   },
   {
     id: `preset-3`,
     name: `4:3`,
-    width: 1280,
-    height: 960,
+    width: 640,
+    height: 480,
     pixelRatio: 2,
   },
 ]

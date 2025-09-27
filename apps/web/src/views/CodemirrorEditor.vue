@@ -902,7 +902,7 @@ onUnmounted(() => {
                 </div>
 
                 <div id="preview" ref="previewRef" class="w-full flex-1 overflow-auto">
-                  <div id="output-wrapper" class="w-full p-5" :class="{ output_night: store.isDark }">
+                  <div id="output-wrapper" class="w-full p-5" :class="{ 'output_night': store.isDark, 'pagination-dark-bg': store.isPaginationMode }">
                     <!-- 分页模式：单页显示 -->
                     <div v-if="store.isPaginationMode" class="relative">
                       <!-- 内容截断警告 - 浮动样式 -->
@@ -1155,6 +1155,12 @@ onUnmounted(() => {
 .pagination-page.current-page {
   /*border-color: #3b82f6;*/
   box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* 分页模式深色背景 */
+.pagination-dark-bg {
+  background: #2d3748 !important;
+  border-radius: 8px;
 }
 
 /* 深色模式下的分页样式 */

@@ -156,12 +156,12 @@ export const useStore = defineStore(`store`, () => {
 
   // 分页页面尺寸配置
   const pageSettings = useStorage(`pageSettings`, {
-    width: 1200, // 页面宽度（px）
-    height: 1600, // 页面高度（px）
+    width: 360, // 页面宽度（px）
+    height: 360, // 页面高度（px）
   })
 
   // 分页缩放相关状态
-  const pageScale = ref(1) // 当前页面缩放比例
+  const pageScale = ref(3) // 当前页面缩放比例
   const previewContainerSize = ref({ width: 0, height: 0 }) // 预览容器尺寸
   const isContentTruncated = ref(false) // 内容是否发生截断
 
