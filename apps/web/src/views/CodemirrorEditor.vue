@@ -924,7 +924,12 @@ onUnmounted(() => {
                           :key="index"
                           :ref="el => { if (el) store.pageRefs[index] = el as HTMLElement }"
                           class="pagination-page"
-                          :class="{ 'current-page': index === store.currentPageIndex }"
+                          :class="[
+                            store.pages.length === 1 ? 'page-cover page-end'
+                            : index === 0 ? 'page-cover'
+                              : index === store.pages.length - 1 ? 'page-end'
+                                : `page-${index + 1}`,
+                          ]"
                           :style="{
                             width: `${store.pageSettings.width}px`,
                             height: `${store.pageSettings.height}px`,
@@ -1152,10 +1157,11 @@ onUnmounted(() => {
   transition: all 0.3s ease;
 }
 
-.pagination-page.current-page {
-  /*border-color: #3b82f6;*/
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05);
-}
+/* 页面特定样式可以通过以下class进行自定义：
+   .page-cover - 封面页
+   .page-end - 结尾页
+   .page-1, .page-2, .page-3... - 具体页码
+*/
 
 /* 分页模式深色背景 */
 .pagination-dark-bg {

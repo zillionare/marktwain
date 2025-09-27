@@ -156,8 +156,8 @@ export const useStore = defineStore(`store`, () => {
 
   // 分页页面尺寸配置
   const pageSettings = useStorage(`pageSettings`, {
-    width: 360, // 页面宽度（px）
-    height: 360, // 页面高度（px）
+    width: 480, // 页面宽度（px）
+    height: 480, // 页面高度（px）
   })
 
   // 分页缩放相关状态
@@ -224,7 +224,7 @@ export const useStore = defineStore(`store`, () => {
      </span>
      <span>编辑</span>
    </div>
-   
+
    <!-- 第二行内容 -->
    <div style="font-style: italic;">md.jieyu.ai</div>
  </div>`,
