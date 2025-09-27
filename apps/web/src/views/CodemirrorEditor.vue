@@ -72,41 +72,92 @@ const timeout = ref<NodeJS.Timeout>()
 // 滚动回调函数，提取到外部作用域以便在 watch 中使用
 let editorScrollCB: (() => void) | null = null
 let previewScrollCB: (() => void) | null = null
+// Add lock flags to prevent feedback loops between editor and preview scroll
+let isSyncingFromEditor = false // when true, ignore preview->editor callbacks
+let isSyncingFromPreview = false // when true, ignore editor->preview callbacks
 
-// 使浏览区与编辑区滚动条建立同步联系
+// Heading-based scroll mapping caches
+const headingLinesCache = ref<number[]>([]) // source line index for each heading
+let headingOffsetsCache: number[] = [] // preview scrollTop offsets for each heading id
+
+// Build heading line indices from editor content
+function recomputeHeadingLines() {
+  const content = editor.value?.getValue() || ``
+  const lines = content.split(`\n`)
+  const indices: number[] = []
+  for (let i = 0; i < lines.length; i++) {
+    if (/^#{1,6}\s/.test(lines[i])) {
+      indices.push(i + 1) // CodeMirror line numbers start at 1
+    }
+  }
+  headingLinesCache.value = indices
+}
+
+// Measure preview heading offsets relative to preview container scrollTop
+function recomputeHeadingOffsets() {
+  const container = previewRef.value
+  if (!container)
+    return
+  // Use [data-heading] anchors inside preview to build offsets
+  const anchors = Array.from(container.querySelectorAll<HTMLElement>(`[data-heading]`))
+  const offsets: number[] = []
+  for (const el of anchors) {
+    const elRect = el.getBoundingClientRect()
+    const cRect = container.getBoundingClientRect()
+    // compute offset relative to preview scrollTop
+    offsets.push(container.scrollTop + (elRect.top - cRect.top))
+  }
+  if (!offsets.length) {
+    // Fallback: minimal offsets to avoid huge jumps
+    headingOffsetsCache = [container.scrollTop, container.scrollHeight]
+    return
+  }
+  // Append a virtual end anchor (container scrollHeight) to bound the last section
+  offsets.push(container.scrollHeight)
+  headingOffsetsCache = offsets
+}
+
+// Helper: find nearest heading index for given line
+function findHeadingIndicesAround(line: number) {
+  const lines = headingLinesCache.value
+  if (!lines.length)
+    return { prevIdx: -1, nextIdx: -1, prevLine: -1, nextLine: -1 }
+  let prevIdx = -1
+  let nextIdx = -1
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i] <= line)
+      prevIdx = i
+    if (lines[i] > line) {
+      nextIdx = i
+      break
+    }
+  }
+  const prevLine = prevIdx >= 0 ? lines[prevIdx] : 1
+  const nextLine = nextIdx >= 0 ? lines[nextIdx] : Number.MAX_SAFE_INTEGER
+  return { prevIdx, nextIdx, prevLine, nextLine }
+}
+
+// Helper: get first visible editor line
+function getFirstVisibleEditorLine() {
+  const cmScroll = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)
+  if (!cmScroll || !editor.value)
+    return 1
+  const lineHeight = editor.value!.defaultTextHeight()
+  const scrollTop = cmScroll.scrollTop
+  return Math.floor(scrollTop / lineHeight) + 1
+}
+
+// ... existing code ...
 function leftAndRightScroll() {
   const scrollCB = (text: string) => {
     // AIPolishBtnRef.value?.close()
 
-    let source: HTMLElement
-    let target: HTMLElement
-
-    clearTimeout(timeout.value)
+    // Replace detach/reattach logic with lock-based mechanism to avoid delays
     if (text === `preview`) {
-      source = previewRef.value!
-      target = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
-
-      if (editorScrollCB) {
-        editor.value!.off(`scroll`, editorScrollCB)
-      }
-      timeout.value = setTimeout(() => {
-        if (editorScrollCB) {
-          editor.value!.on(`scroll`, editorScrollCB)
-        }
-      }, 300)
+      isSyncingFromPreview = true
     }
     else {
-      source = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
-      target = previewRef.value!
-
-      if (previewScrollCB) {
-        target.removeEventListener(`scroll`, previewScrollCB, false)
-      }
-      timeout.value = setTimeout(() => {
-        if (previewScrollCB) {
-          target.addEventListener(`scroll`, previewScrollCB, false)
-        }
-      }, 300)
+      isSyncingFromEditor = true
     }
 
     // 分页模式下的同步逻辑
@@ -167,21 +218,71 @@ function leftAndRightScroll() {
       }
     }
     else {
-      // 普通模式下的百分比同步
-      const percentage
-        = source.scrollTop / (source.scrollHeight - source.offsetHeight)
-      const height = percentage * (target.scrollHeight - target.offsetHeight)
+      // 普通模式下的精准同步：优先使用“标题锚点映射”，在段落内按比例插值；若无标题则回退到DOM比例
+      if (text === `editor`) {
+        if (!headingLinesCache.value.length)
+          recomputeHeadingLines()
+        if (!headingOffsetsCache.length)
+          recomputeHeadingOffsets()
+        const container = previewRef.value!
+        const cmScroll = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
+        const cmDenom = Math.max(1, cmScroll.scrollHeight - cmScroll.clientHeight)
+        const percentageFallback = cmDenom > 0 ? cmScroll.scrollTop / cmDenom : 0
+        const firstLine = getFirstVisibleEditorLine()
+        const { prevIdx, nextIdx, prevLine, nextLine } = findHeadingIndicesAround(firstLine)
+        const lastOffsetIndex = Math.max(0, headingOffsetsCache.length - 1) // last is virtual end
+        if (prevIdx >= 0 && lastOffsetIndex > 0) {
+          // Clamp indices to available real anchors (exclude virtual end for prev)
+          const prevOffsetIndex = Math.min(prevIdx, lastOffsetIndex - 1)
+          const nextOffsetIndex = nextIdx >= 0 ? Math.min(nextIdx, lastOffsetIndex - 1) : lastOffsetIndex
+          const sectionLen = Math.max(1, nextLine - prevLine)
+          const ratioInSection = Math.min(1, Math.max(0, (firstLine - prevLine) / sectionLen))
+          const anchorTop = headingOffsetsCache[prevOffsetIndex] ?? container.scrollTop
+          const anchorNext = headingOffsetsCache[nextOffsetIndex] ?? container.scrollHeight
+          const targetTop = anchorTop + ratioInSection * Math.max(0, (anchorNext - anchorTop))
+          container.scrollTo(0, Math.min(Math.max(0, targetTop), container.scrollHeight - container.clientHeight))
+        }
+        else {
+          const pMax = Math.max(1, container.scrollHeight - container.clientHeight)
+          container.scrollTo(0, percentageFallback * pMax)
+        }
+      }
+      else {
+        // Preview -> Editor：保持百分比同步（锚点反向映射可在需要时补充）
+        const p = previewRef.value!
+        const pDenom = Math.max(1, p.scrollHeight - p.clientHeight)
+        const percentage = pDenom > 0 ? p.scrollTop / pDenom : 0
+        const cmScroll = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
+        const cmMax = Math.max(1, cmScroll.scrollHeight - cmScroll.clientHeight)
+        cmScroll.scrollTo(0, percentage * cmMax)
+      }
+    }
 
-      target.scrollTo(0, height)
+    // Release lock on next frame to avoid feedback loops while keeping listeners attached
+    if (text === `preview`) {
+      requestAnimationFrame(() => {
+        isSyncingFromPreview = false
+      })
+    }
+    else {
+      requestAnimationFrame(() => {
+        isSyncingFromEditor = false
+      })
     }
   }
 
   // 将回调函数赋值给外部变量
   editorScrollCB = () => {
+    // Ignore editor->preview when preview-side initiated sync is in progress
+    if (isSyncingFromPreview)
+      return
     scrollCB(`editor`)
   }
 
   previewScrollCB = () => {
+    // Ignore preview->editor when editor-side initiated sync is in progress
+    if (isSyncingFromEditor)
+      return
     scrollCB(`preview`)
   }
 
