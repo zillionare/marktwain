@@ -20,6 +20,7 @@ export {
   customCssWithTemplate,
   customizeTheme,
   getStyleString,
+  injectExtraStyles,
   modifyHtmlContent,
   postProcessHtml,
   renderMarkdown,

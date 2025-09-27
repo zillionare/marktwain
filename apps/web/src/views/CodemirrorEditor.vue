@@ -1150,7 +1150,6 @@ onUnmounted(() => {
   background: white;
   border: 1px solid #e5e7eb;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  border-radius: 8px;
   overflow: hidden;
   position: relative;
   flex-shrink: 0;
@@ -1166,7 +1165,6 @@ onUnmounted(() => {
 /* 分页模式深色背景 */
 .pagination-dark-bg {
   background: #2d3748 !important;
-  border-radius: 8px;
 }
 
 /* 深色模式下的分页样式 */

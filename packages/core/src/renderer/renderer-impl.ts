@@ -41,10 +41,25 @@ function buildTheme({ theme: _theme, fonts, size, isUseIndent, isUseJustify }: I
     Object.fromEntries(
       Object.entries(styles).map(([ele, style]) => [ele, toMerged(base, style)]),
     )
-  return {
+
+  // Build the result with inline, block, and extra styles
+  const result = {
     ...mergeStyles(theme.inline),
     ...mergeStyles(theme.block),
   } as ThemeStyles
+
+  // Add extra styles if they exist (for pagination classes and custom CSS selectors)
+  if (theme.extra) {
+    console.log(`[DEBUG] buildTheme processing theme.extra:`, theme.extra)
+    const extraMerged = mergeStyles(theme.extra)
+    console.log(`[DEBUG] buildTheme merged extra styles:`, extraMerged)
+    Object.assign(result, extraMerged)
+  }
+  else {
+    console.log(`[DEBUG] buildTheme: no theme.extra found`)
+  }
+
+  return result
 }
 
 function escapeHtml(text: string): string {
@@ -77,11 +92,19 @@ function buildAddition(): string {
 }
 
 function getStyles(styleMapping: ThemeStyles, tokenName: string, addition: string = ``): string {
+  console.log(`[DEBUG] getStyles called with tokenName:`, tokenName)
+  console.log(`[DEBUG] Available styleMapping keys:`, Object.keys(styleMapping))
+
   const dict = styleMapping[tokenName as keyof ThemeStyles]
   if (!dict) {
+    console.log(`[DEBUG] No styles found for tokenName:`, tokenName)
     return ``
   }
+
+  console.log(`[DEBUG] Found styles for ${tokenName}:`, dict)
   const styles = getStyleString(dict)
+  console.log(`[DEBUG] Generated CSS string for ${tokenName}:`, styles)
+
   return `style="${styles}${addition}"`
 }
 

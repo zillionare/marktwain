@@ -24,6 +24,7 @@ import {
   exportPDF,
   exportPureHTML,
   formatDoc,
+  injectExtraStyles,
   postProcessHtml,
   processHtmlContent,
   renderMarkdown,
@@ -142,7 +143,7 @@ export const useStore = defineStore(`store`, () => {
   const isUseIndent = useStorage(addPrefix(`use_indent`), false)
   const toggleUseIndent = useToggle(isUseIndent)
 
-  const isUseJustify = useStorage(addPrefix(`use_justify`), false)
+  const isUseJustify = useStorage(addPrefix(`use_justify`), true)
   const toggleUseJustify = useToggle(isUseJustify)
 
   const output = ref(``)
@@ -1088,6 +1089,9 @@ export const useStore = defineStore(`store`, () => {
     renderer.setOptions({
       theme: newTheme,
     })
+
+    // 注入 theme.extra 中的样式到页面
+    injectExtraStyles(newTheme)
 
     editorRefresh()
   }
