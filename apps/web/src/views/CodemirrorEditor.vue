@@ -147,119 +147,128 @@ function getFirstVisibleEditorLine() {
   return Math.floor(scrollTop / lineHeight) + 1
 }
 
-// ... existing code ...
-function leftAndRightScroll() {
-  const scrollCB = (text: string) => {
-    // AIPolishBtnRef.value?.close()
+// Handle pagination mode scroll synchronization
+function handlePaginationModeScroll(direction: `editor` | `preview`) {
+  if (direction === `editor`) {
+    // Editor scroll: check if page separator is in upper half, switch page only when in upper half
+    const editorElement = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
+    const lineHeight = editor.value!.defaultTextHeight()
+    const scrollTop = editorElement.scrollTop
+    const visibleHeight = editorElement.clientHeight
+    const halfHeight = visibleHeight / 2
 
-    // Replace detach/reattach logic with lock-based mechanism to avoid delays
-    if (text === `preview`) {
+    // Calculate visible line range
+    const firstVisibleLine = Math.floor(scrollTop / lineHeight) + 1 // CodeMirror lines start from 1
+    const halfVisibleLine = Math.floor((scrollTop + halfHeight) / lineHeight) + 1
+
+    // Check page separator positions in content
+    const content = editor.value!.getValue()
+    const lines = content.split(`\n`)
+
+    // Find page separator in upper half
+    let targetPage = -1
+    for (let i = firstVisibleLine - 1; i < halfVisibleLine && i < lines.length; i++) {
+      if (lines[i].trim() === `---`) {
+        // Found separator in upper half, calculate corresponding page
+        const pageAfterSeparator = store.getPageByLineNumber(i + 2, content) // Page after separator
+        if (pageAfterSeparator !== -1 && pageAfterSeparator !== store.currentPageIndex) {
+          targetPage = pageAfterSeparator
+          break
+        }
+      }
+    }
+
+    // If no separator found in upper half, use page of first visible line
+    if (targetPage === -1) {
+      const currentPage = store.getPageByLineNumber(firstVisibleLine, content)
+      if (currentPage !== -1 && currentPage !== store.currentPageIndex) {
+        targetPage = currentPage
+      }
+    }
+
+    // Switch to target page
+    if (targetPage !== -1) {
+      store.goToPage(targetPage)
+    }
+  }
+  else if (direction === `preview`) {
+    // Preview page switch: scroll editor to corresponding page start line
+    const startLine = store.getPageStartLine(store.currentPageIndex, editor.value!.getValue())
+    if (startLine !== -1) {
+      const lineHeight = editor.value!.defaultTextHeight()
+      const targetScrollTop = (startLine - 1) * lineHeight // Convert to 0-based pixel position
+
+      const editorElement = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
+      editorElement.scrollTo(0, targetScrollTop)
+    }
+  }
+}
+
+// Handle normal mode scroll synchronization
+function handleNormalModeScroll(direction: `editor` | `preview`) {
+  if (direction === `editor`) {
+    // Editor -> Preview: precise sync using heading anchor mapping with proportional interpolation
+    if (!headingLinesCache.value.length)
+      recomputeHeadingLines()
+    if (!headingOffsetsCache.length)
+      recomputeHeadingOffsets()
+
+    const container = previewRef.value!
+    const cmScroll = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
+    const cmDenom = Math.max(1, cmScroll.scrollHeight - cmScroll.clientHeight)
+    const percentageFallback = cmDenom > 0 ? cmScroll.scrollTop / cmDenom : 0
+    const firstLine = getFirstVisibleEditorLine()
+    const { prevIdx, nextIdx, prevLine, nextLine } = findHeadingIndicesAround(firstLine)
+    const lastOffsetIndex = Math.max(0, headingOffsetsCache.length - 1) // last is virtual end
+
+    if (prevIdx >= 0 && lastOffsetIndex > 0) {
+      // Clamp indices to available real anchors (exclude virtual end for prev)
+      const prevOffsetIndex = Math.min(prevIdx, lastOffsetIndex - 1)
+      const nextOffsetIndex = nextIdx >= 0 ? Math.min(nextIdx, lastOffsetIndex - 1) : lastOffsetIndex
+      const sectionLen = Math.max(1, nextLine - prevLine)
+      const ratioInSection = Math.min(1, Math.max(0, (firstLine - prevLine) / sectionLen))
+      const anchorTop = headingOffsetsCache[prevOffsetIndex] ?? container.scrollTop
+      const anchorNext = headingOffsetsCache[nextOffsetIndex] ?? container.scrollHeight
+      const targetTop = anchorTop + ratioInSection * Math.max(0, (anchorNext - anchorTop))
+      container.scrollTo(0, Math.min(Math.max(0, targetTop), container.scrollHeight - container.clientHeight))
+    }
+    else {
+      // Fallback to percentage sync when no headings available
+      const pMax = Math.max(1, container.scrollHeight - container.clientHeight)
+      container.scrollTo(0, percentageFallback * pMax)
+    }
+  }
+  else {
+    // Preview -> Editor: use percentage sync for simplicity
+    const p = previewRef.value!
+    const pDenom = Math.max(1, p.scrollHeight - p.clientHeight)
+    const percentage = pDenom > 0 ? p.scrollTop / pDenom : 0
+    const cmScroll = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
+    const cmMax = Math.max(1, cmScroll.scrollHeight - cmScroll.clientHeight)
+    cmScroll.scrollTo(0, percentage * cmMax)
+  }
+}
+
+function leftAndRightScroll() {
+  const scrollCB = (direction: `editor` | `preview`) => {
+    // Set sync lock to prevent feedback loops
+    if (direction === `preview`) {
       isSyncingFromPreview = true
     }
     else {
       isSyncingFromEditor = true
     }
 
-    // 分页模式下的同步逻辑
+    // Route to appropriate handler based on mode
     if (store.isPaginationMode) {
-      if (text === `editor`) {
-        // 编辑区滚动时，检查分页符是否在上半部分，只有在上半部分时才切换页面
-        const editorElement = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
-        const lineHeight = editor.value!.defaultTextHeight()
-        const scrollTop = editorElement.scrollTop
-        const visibleHeight = editorElement.clientHeight
-        const halfHeight = visibleHeight / 2
-
-        // 计算可视区域的行号范围
-        const firstVisibleLine = Math.floor(scrollTop / lineHeight) + 1 // CodeMirror 行号从1开始
-        // const _lastVisibleLine = Math.floor((scrollTop + visibleHeight) / lineHeight) + 1
-        const halfVisibleLine = Math.floor((scrollTop + halfHeight) / lineHeight) + 1
-
-        // 检查内容中的分页符位置
-        const content = editor.value!.getValue()
-        const lines = content.split(`\n`)
-
-        // 查找在上半部分的分页符
-        let targetPage = -1
-        for (let i = firstVisibleLine - 1; i < halfVisibleLine && i < lines.length; i++) {
-          if (lines[i].trim() === `---`) {
-            // 找到分页符在上半部分，计算对应的页面
-            const pageAfterSeparator = store.getPageByLineNumber(i + 2, content) // 分页符后的页面
-            if (pageAfterSeparator !== -1 && pageAfterSeparator !== store.currentPageIndex) {
-              targetPage = pageAfterSeparator
-              break
-            }
-          }
-        }
-
-        // 如果没有找到分页符在上半部分，使用当前可见区域的第一行所在页面
-        if (targetPage === -1) {
-          const currentPage = store.getPageByLineNumber(firstVisibleLine, content)
-          if (currentPage !== -1 && currentPage !== store.currentPageIndex) {
-            targetPage = currentPage
-          }
-        }
-
-        // 切换到目标页面
-        if (targetPage !== -1) {
-          store.goToPage(targetPage)
-        }
-      }
-      else if (text === `preview`) {
-        // 预览区切换页面时，编辑区滚动到对应页面的起始行
-        const startLine = store.getPageStartLine(store.currentPageIndex, editor.value!.getValue())
-        if (startLine !== -1) {
-          const lineHeight = editor.value!.defaultTextHeight()
-          const targetScrollTop = (startLine - 1) * lineHeight // 转换为0基础的像素位置
-
-          const editorElement = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
-          editorElement.scrollTo(0, targetScrollTop)
-        }
-      }
+      handlePaginationModeScroll(direction)
     }
     else {
-      // 普通模式下的精准同步：优先使用“标题锚点映射”，在段落内按比例插值；若无标题则回退到DOM比例
-      if (text === `editor`) {
-        if (!headingLinesCache.value.length)
-          recomputeHeadingLines()
-        if (!headingOffsetsCache.length)
-          recomputeHeadingOffsets()
-        const container = previewRef.value!
-        const cmScroll = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
-        const cmDenom = Math.max(1, cmScroll.scrollHeight - cmScroll.clientHeight)
-        const percentageFallback = cmDenom > 0 ? cmScroll.scrollTop / cmDenom : 0
-        const firstLine = getFirstVisibleEditorLine()
-        const { prevIdx, nextIdx, prevLine, nextLine } = findHeadingIndicesAround(firstLine)
-        const lastOffsetIndex = Math.max(0, headingOffsetsCache.length - 1) // last is virtual end
-        if (prevIdx >= 0 && lastOffsetIndex > 0) {
-          // Clamp indices to available real anchors (exclude virtual end for prev)
-          const prevOffsetIndex = Math.min(prevIdx, lastOffsetIndex - 1)
-          const nextOffsetIndex = nextIdx >= 0 ? Math.min(nextIdx, lastOffsetIndex - 1) : lastOffsetIndex
-          const sectionLen = Math.max(1, nextLine - prevLine)
-          const ratioInSection = Math.min(1, Math.max(0, (firstLine - prevLine) / sectionLen))
-          const anchorTop = headingOffsetsCache[prevOffsetIndex] ?? container.scrollTop
-          const anchorNext = headingOffsetsCache[nextOffsetIndex] ?? container.scrollHeight
-          const targetTop = anchorTop + ratioInSection * Math.max(0, (anchorNext - anchorTop))
-          container.scrollTo(0, Math.min(Math.max(0, targetTop), container.scrollHeight - container.clientHeight))
-        }
-        else {
-          const pMax = Math.max(1, container.scrollHeight - container.clientHeight)
-          container.scrollTo(0, percentageFallback * pMax)
-        }
-      }
-      else {
-        // Preview -> Editor：保持百分比同步（锚点反向映射可在需要时补充）
-        const p = previewRef.value!
-        const pDenom = Math.max(1, p.scrollHeight - p.clientHeight)
-        const percentage = pDenom > 0 ? p.scrollTop / pDenom : 0
-        const cmScroll = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
-        const cmMax = Math.max(1, cmScroll.scrollHeight - cmScroll.clientHeight)
-        cmScroll.scrollTo(0, percentage * cmMax)
-      }
+      handleNormalModeScroll(direction)
     }
 
-    // Release lock on next frame to avoid feedback loops while keeping listeners attached
-    if (text === `preview`) {
+    // Release lock on next frame to avoid feedback loops
+    if (direction === `preview`) {
       requestAnimationFrame(() => {
         isSyncingFromPreview = false
       })
@@ -271,7 +280,15 @@ function leftAndRightScroll() {
     }
   }
 
-  // 将回调函数赋值给外部变量
+  // Remove old listeners before adding new ones to prevent duplicates
+  if (previewRef.value && previewScrollCB) {
+    previewRef.value.removeEventListener(`scroll`, previewScrollCB, false)
+  }
+  if (editor.value && editorScrollCB) {
+    editor.value.off(`scroll`, editorScrollCB)
+  }
+
+  // Create callback functions
   editorScrollCB = () => {
     // Ignore editor->preview when preview-side initiated sync is in progress
     if (isSyncingFromPreview)
@@ -286,6 +303,7 @@ function leftAndRightScroll() {
     scrollCB(`preview`)
   }
 
+  // Add new listeners
   if (previewRef.value) {
     previewRef.value.addEventListener(`scroll`, previewScrollCB, false)
   }
@@ -351,18 +369,14 @@ onMounted(() => {
 
         const editorElement = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
         if (editorElement) {
-          // 临时移除滚动监听，避免循环触发
-          if (editorScrollCB) {
-            editor.value.off(`scroll`, editorScrollCB)
-          }
+          // Use lock mechanism instead of removing/adding listeners
+          isSyncingFromPreview = true
           editorElement.scrollTo(0, targetScrollTop)
 
-          // 延迟恢复滚动监听
-          setTimeout(() => {
-            if (editor.value && editorScrollCB) {
-              editor.value.on(`scroll`, editorScrollCB)
-            }
-          }, 300)
+          // Release lock on next frame
+          requestAnimationFrame(() => {
+            isSyncingFromPreview = false
+          })
         }
       }
     }
