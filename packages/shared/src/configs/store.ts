@@ -31,4 +31,13 @@ export const storeLabels: Record<string, string> = {
   isShowInsertMpCardDialog: `显示插入公众号名片对话框`,
   isShowUploadImgDialog: `显示上传图片对话框`,
   aiDialogVisible: `AI 对话框可见`,
+
+  // 转图设置
+  conversionConfig: `转图设置`,
+
+  // 分页预览设置
+  pagePresets: `分页预览设置`,
+
+  // 模板配置
+  templates: `模板配置`,
 }
