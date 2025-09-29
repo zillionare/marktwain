@@ -75,6 +75,11 @@ let previewScrollCB: (() => void) | null = null
 // Add lock flags to prevent feedback loops between editor and preview scroll
 let isSyncingFromEditor = false // when true, ignore preview->editor callbacks
 let isSyncingFromPreview = false // when true, ignore editor->preview callbacks
+// Store scroll positions to restore after content updates
+let lastEditorScrollTop = 0
+let lastPreviewScrollTop = 0
+// Debounce timer for scroll events
+let scrollDebounceTimer: NodeJS.Timeout | null = null
 
 // Heading-based scroll mapping caches
 const headingLinesCache = ref<number[]>([]) // source line index for each heading
@@ -207,99 +212,172 @@ function handlePaginationModeScroll(direction: `editor` | `preview`) {
 // Handle normal mode scroll synchronization
 function handleNormalModeScroll(direction: `editor` | `preview`) {
   if (direction === `editor`) {
-    // Editor -> Preview: precise sync using heading anchor mapping with proportional interpolation
-    if (!headingLinesCache.value.length)
-      recomputeHeadingLines()
-    if (!headingOffsetsCache.length)
-      recomputeHeadingOffsets()
-
+    // Editor -> Preview: use simple percentage-based sync to avoid complexity
     const container = previewRef.value!
-    const cmScroll = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
-    const cmDenom = Math.max(1, cmScroll.scrollHeight - cmScroll.clientHeight)
-    const percentageFallback = cmDenom > 0 ? cmScroll.scrollTop / cmDenom : 0
-    const firstLine = getFirstVisibleEditorLine()
-    const { prevIdx, nextIdx, prevLine, nextLine } = findHeadingIndicesAround(firstLine)
-    const lastOffsetIndex = Math.max(0, headingOffsetsCache.length - 1) // last is virtual end
+    // Use .codeMirror-wrapper instead of .CodeMirror-scroll for correct viewport calculation
+    const cmWrapper = document.querySelector<HTMLElement>(`.codeMirror-wrapper`)!
 
-    if (prevIdx >= 0 && lastOffsetIndex > 0) {
-      // Clamp indices to available real anchors (exclude virtual end for prev)
-      const prevOffsetIndex = Math.min(prevIdx, lastOffsetIndex - 1)
-      const nextOffsetIndex = nextIdx >= 0 ? Math.min(nextIdx, lastOffsetIndex - 1) : lastOffsetIndex
-      const sectionLen = Math.max(1, nextLine - prevLine)
-      const ratioInSection = Math.min(1, Math.max(0, (firstLine - prevLine) / sectionLen))
-      const anchorTop = headingOffsetsCache[prevOffsetIndex] ?? container.scrollTop
-      const anchorNext = headingOffsetsCache[nextOffsetIndex] ?? container.scrollHeight
-      const targetTop = anchorTop + ratioInSection * Math.max(0, (anchorNext - anchorTop))
-      container.scrollTo(0, Math.min(Math.max(0, targetTop), container.scrollHeight - container.clientHeight))
-    }
-    else {
-      // Fallback to percentage sync when no headings available
-      const pMax = Math.max(1, container.scrollHeight - container.clientHeight)
-      container.scrollTo(0, percentageFallback * pMax)
-    }
+    // Calculate scroll percentage from editor wrapper (actual viewport)
+    const cmScrollTop = cmWrapper.scrollTop
+    const cmScrollHeight = cmWrapper.scrollHeight
+    const cmClientHeight = cmWrapper.clientHeight
+    const cmDenom = Math.max(1, cmScrollHeight - cmClientHeight)
+    const percentage = cmDenom > 0 ? cmScrollTop / cmDenom : 0
+
+    // Apply percentage to preview
+    const pScrollHeight = container.scrollHeight
+    const pClientHeight = container.clientHeight
+    const pMax = Math.max(1, pScrollHeight - pClientHeight)
+    const targetScrollTop = percentage * pMax
+
+    // Debug logging for scroll sync
+    console.log(`[Editor->Preview] 编辑器滚动同步:`, {
+      editorScrollTop: cmScrollTop,
+      editorScrollHeight: cmScrollHeight,
+      editorClientHeight: cmClientHeight,
+      editorScrollableHeight: cmDenom,
+      calculatedPercentage: percentage,
+      previewScrollHeight: pScrollHeight,
+      previewClientHeight: pClientHeight,
+      previewScrollableHeight: pMax,
+      targetPreviewScrollTop: targetScrollTop
+    })
+
+    // Store the target position before scrolling
+    lastPreviewScrollTop = targetScrollTop
+
+    // Use smooth scrolling to avoid jarring movements
+    container.scrollTo({
+      top: targetScrollTop,
+      behavior: 'auto' // Use 'auto' instead of 'smooth' for immediate sync
+    })
   }
   else {
-    // Preview -> Editor: use percentage sync for simplicity
+    // Preview -> Editor: use percentage sync
     const p = previewRef.value!
-    const pDenom = Math.max(1, p.scrollHeight - p.clientHeight)
-    const percentage = pDenom > 0 ? p.scrollTop / pDenom : 0
-    const cmScroll = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
-    const cmMax = Math.max(1, cmScroll.scrollHeight - cmScroll.clientHeight)
-    cmScroll.scrollTo(0, percentage * cmMax)
+    const pScrollTop = p.scrollTop
+    const pScrollHeight = p.scrollHeight
+    const pClientHeight = p.clientHeight
+    const pDenom = Math.max(1, pScrollHeight - pClientHeight)
+    const percentage = pDenom > 0 ? pScrollTop / pDenom : 0
+
+    // Use .codeMirror-wrapper instead of .CodeMirror-scroll for correct viewport calculation
+    const cmWrapper = document.querySelector<HTMLElement>(`.codeMirror-wrapper`)!
+    const cmScrollHeight = cmWrapper.scrollHeight
+    const cmClientHeight = cmWrapper.clientHeight
+    const cmMax = Math.max(1, cmScrollHeight - cmClientHeight)
+    const targetScrollTop = percentage * cmMax
+
+    // Debug logging for scroll sync
+    console.log(`[Preview->Editor] 预览区滚动同步:`, {
+      previewScrollTop: pScrollTop,
+      previewScrollHeight: pScrollHeight,
+      previewClientHeight: pClientHeight,
+      previewScrollableHeight: pDenom,
+      calculatedPercentage: percentage,
+      editorScrollHeight: cmScrollHeight,
+      editorClientHeight: cmClientHeight,
+      editorScrollableHeight: cmMax,
+      targetEditorScrollTop: targetScrollTop
+    })
+
+    // Store the target position before scrolling
+    lastEditorScrollTop = targetScrollTop
+
+    // Use scrollTo for immediate positioning
+    cmWrapper.scrollTo(0, targetScrollTop)
   }
 }
 
 function leftAndRightScroll() {
   const scrollCB = (direction: `editor` | `preview`) => {
-    // Set sync lock to prevent feedback loops
-    if (direction === `preview`) {
-      isSyncingFromPreview = true
-    }
-    else {
-      isSyncingFromEditor = true
+    // Clear existing debounce timer
+    if (scrollDebounceTimer) {
+      clearTimeout(scrollDebounceTimer)
     }
 
-    // Route to appropriate handler based on mode
-    if (store.isPaginationMode) {
-      handlePaginationModeScroll(direction)
-    }
-    else {
-      handleNormalModeScroll(direction)
-    }
+    // Debounce scroll events to prevent excessive firing
+    scrollDebounceTimer = setTimeout(() => {
+      // Set sync lock to prevent feedback loops
+      if (direction === `preview`) {
+        isSyncingFromPreview = true
+      }
+      else {
+        isSyncingFromEditor = true
+      }
 
-    // Release lock on next frame to avoid feedback loops
-    if (direction === `preview`) {
-      requestAnimationFrame(() => {
-        isSyncingFromPreview = false
-      })
-    }
-    else {
-      requestAnimationFrame(() => {
-        isSyncingFromEditor = false
-      })
-    }
+      // Route to appropriate handler based on mode
+      if (store.isPaginationMode) {
+        handlePaginationModeScroll(direction)
+      }
+      else {
+        handleNormalModeScroll(direction)
+      }
+
+      // Release lock on next frame to avoid feedback loops
+      if (direction === `preview`) {
+        requestAnimationFrame(() => {
+          isSyncingFromPreview = false
+        })
+      }
+      else {
+        requestAnimationFrame(() => {
+          isSyncingFromEditor = false
+        })
+      }
+    }, 16) // ~60fps debounce
   }
 
   // Remove old listeners before adding new ones to prevent duplicates
   if (previewRef.value && previewScrollCB) {
     previewRef.value.removeEventListener(`scroll`, previewScrollCB, false)
   }
-  if (editor.value && editorScrollCB) {
-    editor.value.off(`scroll`, editorScrollCB)
+  const cmWrapper = document.querySelector<HTMLElement>(`.codeMirror-wrapper`)
+  if (cmWrapper && editorScrollCB) {
+    cmWrapper.removeEventListener(`scroll`, editorScrollCB, false)
   }
 
   // Create callback functions
   editorScrollCB = () => {
+    // Store current scroll position
+    const cmWrapper = document.querySelector<HTMLElement>(`.codeMirror-wrapper`)
+    if (cmWrapper) {
+      lastEditorScrollTop = cmWrapper.scrollTop
+
+      // Debug logging for received scroll event
+      console.log(`[ScrollEvent] 编辑器滚动事件:`, {
+        scrollTop: cmWrapper.scrollTop,
+        scrollHeight: cmWrapper.scrollHeight,
+        clientHeight: cmWrapper.clientHeight,
+        isSyncingFromPreview: isSyncingFromPreview
+      })
+    }
+
     // Ignore editor->preview when preview-side initiated sync is in progress
     if (isSyncingFromPreview)
       return
+
     scrollCB(`editor`)
   }
 
   previewScrollCB = () => {
+    // Store current scroll position
+    if (previewRef.value) {
+      lastPreviewScrollTop = previewRef.value.scrollTop
+
+      // Debug logging for received scroll event
+      console.log(`[ScrollEvent] 预览区滚动事件:`, {
+        scrollTop: previewRef.value.scrollTop,
+        scrollHeight: previewRef.value.scrollHeight,
+        clientHeight: previewRef.value.clientHeight,
+        isSyncingFromEditor: isSyncingFromEditor
+      })
+    }
+
     // Ignore preview->editor when editor-side initiated sync is in progress
     if (isSyncingFromEditor)
       return
+
     scrollCB(`preview`)
   }
 
@@ -307,8 +385,9 @@ function leftAndRightScroll() {
   if (previewRef.value) {
     previewRef.value.addEventListener(`scroll`, previewScrollCB, false)
   }
-  if (editor.value && editorScrollCB) {
-    editor.value.on(`scroll`, editorScrollCB)
+  const cmWrapperForListener = document.querySelector<HTMLElement>(`.codeMirror-wrapper`)
+  if (cmWrapperForListener && editorScrollCB) {
+    cmWrapperForListener.addEventListener(`scroll`, editorScrollCB, false)
   }
 }
 
@@ -729,6 +808,27 @@ watch(activeTab, (newTab) => {
   })
 })
 
+// 监听预览内容变化，在DOM更新后恢复滚动位置
+watch(output, () => {
+  nextTick(() => {
+    // 恢复预览区滚动位置
+    if (previewRef.value && lastPreviewScrollTop > 0) {
+      // 使用 requestAnimationFrame 确保DOM完全更新后再恢复滚动位置
+      requestAnimationFrame(() => {
+        if (previewRef.value) {
+          previewRef.value.scrollTop = lastPreviewScrollTop
+        }
+      })
+    }
+
+    // 重新计算标题偏移量，因为内容已更新
+    if (!store.isPaginationMode) {
+      recomputeHeadingLines()
+      recomputeHeadingOffsets()
+    }
+  })
+})
+
 // 历史记录的定时器
 const historyTimer = ref<NodeJS.Timeout>()
 onMounted(() => {
@@ -776,37 +876,29 @@ onUnmounted(() => {
       <main class="container-main flex flex-1 flex-col" :class="{ hidden: displayStore.isShowDocumentArea }">
         <div class="container-main-section border-radius-10 relative flex flex-1 overflow-hidden border">
           <ResizablePanelGroup direction="horizontal">
-            <ResizablePanel
-              :default-size="15" :max-size="store.isOpenPostSlider ? 30 : 0"
-              :min-size="store.isOpenPostSlider ? 10 : 0"
-            >
+            <ResizablePanel :default-size="15" :max-size="store.isOpenPostSlider ? 30 : 0"
+              :min-size="store.isOpenPostSlider ? 10 : 0">
               <PostSlider />
             </ResizablePanel>
             <ResizableHandle />
             <ResizablePanel class="flex">
-              <div
-                v-show="!store.isMobile || (store.isMobile && showEditor)" ref="codeMirrorWrapper"
+              <div v-show="!store.isMobile || (store.isMobile && showEditor)" ref="codeMirrorWrapper"
                 class="codeMirror-wrapper relative flex-1" :class="{
-                  'order-1 border-l': !store.isEditOnLeft,
-                  'border-r': store.isEditOnLeft,
-                }"
-              >
+      'order-1 border-l': !store.isEditOnLeft,
+      'border-r': store.isEditOnLeft,
+    }">
                 <!-- 添加 tab 控制 -->
                 <div class="flex border-b">
-                  <button
-                    class="px-4 py-2 font-medium" :class="{
-                      'border-b-2 border-blue-500 text-blue-500': activeTab === 'original',
-                      'text-gray-500': activeTab !== 'original',
-                    }" @click="activeTab = 'original'"
-                  >
+                  <button class="px-4 py-2 font-medium" :class="{
+      'border-b-2 border-blue-500 text-blue-500': activeTab === 'original',
+      'text-gray-500': activeTab !== 'original',
+    }" @click="activeTab = 'original'">
                     原始文档
                   </button>
-                  <button
-                    class="px-4 py-2 font-medium" :class="{
-                      'border-b-2 border-blue-500 text-blue-500': activeTab === 'converted',
-                      'text-gray-500': activeTab !== 'converted',
-                    }" @click="activeTab = 'converted'"
-                  >
+                  <button class="px-4 py-2 font-medium" :class="{
+      'border-b-2 border-blue-500 text-blue-500': activeTab === 'converted',
+      'text-gray-500': activeTab !== 'converted',
+    }" @click="activeTab = 'converted'">
                     转图后
                   </button>
                 </div>
@@ -820,44 +912,33 @@ onUnmounted(() => {
                   <AIFixedBtn :is-mobile="store.isMobile" :show-editor="showEditor" />
 
                   <EditorContextMenu>
-                    <textarea
-                      id="editor" ref="editorRef" type="textarea" placeholder="Your markdown text here."
-                      :value="activeTab === 'original' ? store.posts[store.currentPostIndex]?.content : convertedMarkdownV1"
-                    />
+                    <textarea id="editor" ref="editorRef" type="textarea" placeholder="Your markdown text here."
+                      :value="activeTab === 'original' ? store.posts[store.currentPostIndex]?.content : convertedMarkdownV1" />
                   </EditorContextMenu>
                 </template>
               </div>
-              <div
-                v-show="!store.isMobile || (store.isMobile && !showEditor)"
+              <div v-show="!store.isMobile || (store.isMobile && !showEditor)"
                 class="preview-wrapper relative flex-1 overflow-x-hidden transition-width flex flex-col"
-                :class="[store.isOpenRightSlider ? 'w-0' : 'w-100']"
-              >
+                :class="[store.isOpenRightSlider ? 'w-0' : 'w-100']">
                 <!-- 预览模式切换 tab -->
                 <div class="flex border-b bg-white dark:bg-gray-800 flex-shrink-0">
-                  <button
-                    class="px-4 py-2 font-medium" :class="{
-                      'border-b-2 border-blue-500 text-blue-500': !store.isPaginationMode,
-                      'text-gray-500': store.isPaginationMode,
-                    }" @click="store.setNormalMode()"
-                  >
+                  <button class="px-4 py-2 font-medium" :class="{
+      'border-b-2 border-blue-500 text-blue-500': !store.isPaginationMode,
+      'text-gray-500': store.isPaginationMode,
+    }" @click="store.setNormalMode()">
                     普通模式
                   </button>
-                  <button
-                    class="px-4 py-2 font-medium" :class="{
-                      'border-b-2 border-blue-500 text-blue-500': store.isPaginationMode,
-                      'text-gray-500': !store.isPaginationMode,
-                    }" @click="store.setPaginationMode()"
-                  >
+                  <button class="px-4 py-2 font-medium" :class="{
+      'border-b-2 border-blue-500 text-blue-500': store.isPaginationMode,
+      'text-gray-500': !store.isPaginationMode,
+    }" @click="store.setPaginationMode()">
                     分页模式
                   </button>
                   <!-- 分页控制 -->
                   <div v-if="store.isPaginationMode" class="ml-auto flex items-center gap-2 px-4">
                     <!-- 自动分页按钮 -->
-                    <button
-                      class="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
-                      title="根据内容长度和页面高度自动插入分页符"
-                      @click="handleAutoPagination"
-                    >
+                    <button class="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
+                      title="根据内容长度和页面高度自动插入分页符" @click="handleAutoPagination">
                       自动分页
                     </button>
                     <div class="w-px h-4 bg-gray-300 mx-1" />
@@ -866,21 +947,16 @@ onUnmounted(() => {
                       <!-- 第一页按钮 -->
                       <button
                         class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        :disabled="store.currentPageIndex === 0"
-                        title="第一页"
-                        @click="store.goToPage(0)"
-                      >
+                        :disabled="store.currentPageIndex === 0" title="第一页" @click="store.goToPage(0)">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
                         </svg>
                       </button>
                       <!-- 上一页按钮 -->
                       <button
                         class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        :disabled="store.currentPageIndex === 0"
-                        title="上一页"
-                        @click="store.prevPage()"
-                      >
+                        :disabled="store.currentPageIndex === 0" title="上一页" @click="store.prevPage()">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                         </svg>
@@ -892,10 +968,8 @@ onUnmounted(() => {
                       <!-- 下一页按钮 -->
                       <button
                         class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        :disabled="store.currentPageIndex === store.totalPages - 1"
-                        title="下一页"
-                        @click="store.nextPage()"
-                      >
+                        :disabled="store.currentPageIndex === store.totalPages - 1" title="下一页"
+                        @click="store.nextPage()">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                         </svg>
@@ -903,12 +977,11 @@ onUnmounted(() => {
                       <!-- 最后一页按钮 -->
                       <button
                         class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        :disabled="store.currentPageIndex === store.totalPages - 1"
-                        title="最后一页"
-                        @click="store.goToPage(store.totalPages - 1)"
-                      >
+                        :disabled="store.currentPageIndex === store.totalPages - 1" title="最后一页"
+                        @click="store.goToPage(store.totalPages - 1)">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                         </svg>
                       </button>
                     </div>
@@ -916,42 +989,35 @@ onUnmounted(() => {
                 </div>
 
                 <div id="preview" ref="previewRef" class="w-full flex-1 overflow-auto">
-                  <div id="output-wrapper" class="w-full p-5" :class="{ 'output_night': store.isDark, 'pagination-dark-bg': store.isPaginationMode }">
+                  <div id="output-wrapper" class="w-full p-5"
+                    :class="{ 'output_night': store.isDark, 'pagination-dark-bg': store.isPaginationMode }">
                     <!-- 分页模式：单页显示 -->
                     <div v-if="store.isPaginationMode" class="relative">
                       <!-- 内容截断警告 - 浮动样式 -->
                       <div v-if="store.isContentTruncated" class="truncation-warning-floating">
                         内容发生截断，请重新调整分页
                       </div>
-                      <div
-                        class="pagination-container"
-                        :style="{
-                          width: `${store.pageSettings.width * store.pageScale}px`,
-                          height: `${store.pageSettings.height * store.pageScale}px`,
-                          minWidth: `${store.pageSettings.width * store.pageScale}px`,
-                          minHeight: `${store.pageSettings.height * store.pageScale}px`,
-                        }"
-                      >
-                        <div
-                          v-for="(page, index) in store.pages"
-                          v-show="index === store.currentPageIndex"
-                          :key="index"
-                          :ref="el => { if (el) store.pageRefs[index] = el as HTMLElement }"
-                          class="pagination-page"
+                      <div class="pagination-container" :style="{
+      width: `${store.pageSettings.width * store.pageScale}px`,
+      height: `${store.pageSettings.height * store.pageScale}px`,
+      minWidth: `${store.pageSettings.width * store.pageScale}px`,
+      minHeight: `${store.pageSettings.height * store.pageScale}px`,
+    }">
+                        <div v-for="(page, index) in store.pages" v-show="index === store.currentPageIndex" :key="index"
+                          :ref="el => { if (el) store.pageRefs[index] = el as HTMLElement }" class="pagination-page"
                           :class="[
-                            store.pages.length === 1 ? 'page-cover page-end'
-                            : index === 0 ? 'page-cover'
-                              : index === store.pages.length - 1 ? 'page-end'
-                                : `page-${index + 1}`,
-                          ]"
-                          :style="{
-                            width: `${store.pageSettings.width}px`,
-                            height: `${store.pageSettings.height}px`,
-                            transform: `scale(${store.pageScale})`,
-                            transformOrigin: 'top center',
-                          }"
-                        >
-                          <section class="w-full h-full overflow-hidden" style="padding: 20px; box-sizing: border-box;" v-html="store.renderPage(page)" />
+      store.pages.length === 1 ? 'page-cover page-end'
+        : index === 0 ? 'page-cover'
+          : index === store.pages.length - 1 ? 'page-end'
+            : `page-${index + 1}`,
+    ]" :style="{
+      width: `${store.pageSettings.width}px`,
+      height: `${store.pageSettings.height}px`,
+      transform: `scale(${store.pageScale})`,
+      transformOrigin: 'top center',
+    }">
+                          <section class="w-full h-full overflow-hidden" style="padding: 20px; box-sizing: border-box;"
+                            v-html="store.renderPage(page)" />
                         </div>
                       </div>
                     </div>
@@ -983,22 +1049,17 @@ onUnmounted(() => {
           <!-- 切换编辑/预览按钮 -->
           <button
             class="bg-primary flex items-center justify-center rounded-full p-3 text-white shadow-lg transition active:scale-95 hover:scale-105 dark:bg-gray-700 dark:text-white dark:ring-2 dark:ring-white/30"
-            aria-label="切换编辑/预览" @click="toggleView"
-          >
+            aria-label="切换编辑/预览" @click="toggleView">
             <component :is="showEditor ? Eye : Pen" class="h-5 w-5" />
           </button>
         </div>
 
-        <AIPolishButton
-          v-if="store.showAIToolbox" ref="AIPolishBtnRef" :position="position"
-          @click="AIPolishPopoverRef?.show"
-        />
+        <AIPolishButton v-if="store.showAIToolbox" ref="AIPolishBtnRef" :position="position"
+          @click="AIPolishPopoverRef?.show" />
 
-        <AIPolishPopover
-          v-if="store.showAIToolbox" ref="AIPolishPopoverRef" :position="position"
+        <AIPolishPopover v-if="store.showAIToolbox" ref="AIPolishPopoverRef" :position="position"
           :selected-text="selectedText" :is-dragging="isDragging" :is-mobile="store.isMobile"
-          @close-btn="AIPolishBtnRef?.close" @recalc-pos="recalcPos" @start-drag="startDrag"
-        />
+          @close-btn="AIPolishBtnRef?.close" @recalc-pos="recalcPos" @start-drag="startDrag" />
 
         <UploadImgDialog @upload-image="uploadImage" />
 
@@ -1039,24 +1100,31 @@ onUnmounted(() => {
   min-width: 100%;
   padding: 0;
   /* Fixed header & footer layout */
-  display: grid; /* Use grid to fix header & footer */
-  grid-template-rows: auto 1fr auto; /* header | main | footer */
-  overflow: hidden; /* prevent body scroll */
+  display: grid;
+  /* Use grid to fix header & footer */
+  grid-template-rows: auto 1fr auto;
+  /* header | main | footer */
+  overflow: hidden;
+  /* prevent body scroll */
 }
 
 /* Middle area should not scroll itself, allow children to shrink */
 .content-area {
-  min-height: 0; /* allow inner flex panels to compute height */
-  overflow: hidden; /* scrolling occurs inside editor/preview content */
+  min-height: 0;
+  /* allow inner flex panels to compute height */
+  overflow: hidden;
+  /* scrolling occurs inside editor/preview content */
 }
 
 .container-main {
   overflow: hidden;
-  min-height: 0; /* ensure ResizablePanel computes height correctly */
+  min-height: 0;
+  /* ensure ResizablePanel computes height correctly */
 }
 
 .container-main-section {
-  min-height: 0; /* prevent inner overflow and allow child flex to shrink */
+  min-height: 0;
+  /* prevent inner overflow and allow child flex to shrink */
 }
 
 #output-wrapper {
@@ -1106,14 +1174,14 @@ onUnmounted(() => {
 }
 
 /* Tab控制区域固定高度，不参与flex伸缩 */
-.codeMirror-wrapper > .flex.border-b,
-.preview-wrapper > .flex.border-b {
+.codeMirror-wrapper>.flex.border-b,
+.preview-wrapper>.flex.border-b {
   flex-shrink: 0;
 }
 
 /* 编辑器内容区域占用剩余空间 */
-.codeMirror-wrapper > div:not(.flex),
-.codeMirror-wrapper > template + div {
+.codeMirror-wrapper>div:not(.flex),
+.codeMirror-wrapper>template+div {
   flex: 1;
   overflow: hidden;
 }

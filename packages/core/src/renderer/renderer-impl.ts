@@ -10,6 +10,7 @@ import mermaid from 'mermaid'
 import readingTime from 'reading-time'
 import { markedAdmon, markedAlert, markedFootnotes, markedPlantUML, markedRuby, markedSlider, markedToc, MDKatex } from '../extensions'
 import { getStyleString } from '../utils'
+import { LineTracker, addDataLineAttribute } from '../utils/lineTracker'
 
 marked.setOptions({
   breaks: true,
@@ -176,6 +177,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
   let codeIndex: number = 0
   const listOrderedStack: boolean[] = []
   const listCounters: number[] = []
+  let lineTracker: LineTracker | undefined = undefined
 
   function getOpts(): IOpts {
     return opts
@@ -199,7 +201,12 @@ export function initRenderer(opts: IOpts): RendererAPI {
   function reset(newOpts: Partial<IOpts>): void {
     footnotes.length = 0
     footnoteIndex = 0
+    lineTracker = undefined
     setOptions(newOpts)
+  }
+
+  function initLineTracker(markdownContent: string): void {
+    lineTracker = new LineTracker(markdownContent)
   }
 
   function setOptions(newOpts: Partial<IOpts>): void {
@@ -242,20 +249,37 @@ export function initRenderer(opts: IOpts): RendererAPI {
   }
 
   const renderer: RendererObject = {
-    heading({ tokens, depth }: Tokens.Heading) {
+    heading({ tokens, depth, raw }: Tokens.Heading) {
       const text = this.parser.parseInline(tokens)
       const tag = `h${depth}`
-      return styledContent(tag, text)
+      let html = styledContent(tag, text)
+      
+      // 添加 data-line 属性
+      if (lineTracker !== undefined && raw) {
+        const lineNumber = lineTracker.getLineNumber(raw)
+        html = addDataLineAttribute(html, lineNumber, 'heading')
+      }
+      
+      return html
     },
 
-    paragraph({ tokens }: Tokens.Paragraph): string {
+    paragraph({ tokens, raw }: Tokens.Paragraph): string {
       const text = this.parser.parseInline(tokens)
       const isFigureImage = text.includes(`<figure`) && text.includes(`<img`)
       const isEmpty = text.trim() === ``
       if (isFigureImage || isEmpty) {
         return text
       }
-      return styledContent(`p`, text)
+      
+      let html = styledContent(`p`, text)
+      
+      // 添加 data-line 属性
+      if (lineTracker !== undefined && raw) {
+        const lineNumber = lineTracker.getLineNumber(raw)
+        html = addDataLineAttribute(html, lineNumber, 'paragraph')
+      }
+      
+      return html
     },
 
     blockquote({ tokens }: Tokens.Blockquote): string {
@@ -362,7 +386,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
       return styledContent(`codespan`, escapedText, `code`)
     },
 
-    list({ ordered, items, start = 1 }: Tokens.List) {
+    list({ ordered, items, start = 1, raw }: Tokens.List) {
       listOrderedStack.push(ordered)
       listCounters.push(Number(start))
 
@@ -373,10 +397,18 @@ export function initRenderer(opts: IOpts): RendererAPI {
       listOrderedStack.pop()
       listCounters.pop()
 
-      return styledContent(
+      let result = styledContent(
         ordered ? `ol` : `ul`,
         html,
       )
+      
+      // 添加 data-line 属性
+       if (lineTracker !== undefined && raw) {
+         const lineNumber = lineTracker.getLineNumber(raw)
+         result = addDataLineAttribute(result, lineNumber, 'list')
+       }
+      
+      return result
     },
 
     // 2. listitem：从栈顶取 ordered + counter，计算 prefix 并自增
@@ -500,5 +532,6 @@ export function initRenderer(opts: IOpts): RendererAPI {
       return styledContent(`container`, content, `section`)
     },
     getOpts,
+    initLineTracker,
   }
 }
