@@ -81,76 +81,74 @@ let lastPreviewScrollTop = 0
 // Debounce timer for scroll events
 let scrollDebounceTimer: NodeJS.Timeout | null = null
 
-// Heading-based scroll mapping caches
-const headingLinesCache = ref<number[]>([]) // source line index for each heading
-let headingOffsetsCache: number[] = [] // preview scrollTop offsets for each heading id
 
-// Build heading line indices from editor content
-function recomputeHeadingLines() {
-  const content = editor.value?.getValue() || ``
-  const lines = content.split(`\n`)
-  const indices: number[] = []
-  for (let i = 0; i < lines.length; i++) {
-    if (/^#{1,6}\s/.test(lines[i])) {
-      indices.push(i + 1) // CodeMirror line numbers start at 1
+// 找到当前窗口中，第一个可见标题
+function getFirstVisibleHeadline(): { lineNumber: number; text: string, level: number } | null {
+  const wrapper = document.querySelector<HTMLElement>(`.codeMirror-wrapper`)
+  if (!wrapper || !editor.value)
+    return null
+
+  const cm = editor.value
+  const totalLines = cm.lineCount();
+  const viewTop = wrapper.scrollTop
+  const viewBottom = viewTop + wrapper.clientHeight
+
+  //寻找可视区的第一行与最后一行，考虑到 line wrapping 的情况
+  let firstLine = 0;
+  for (let i = 0; i < totalLines; i++) {
+    const _lineTop = cm.charCoords({ line: i, ch: 0 }, "local").top;
+    // 获取行尾的坐标（用于判断整行是否在可视区域内）
+    const lineBottom = cm.charCoords({ line: i, ch: cm.getLine(i).length }, "local").bottom;
+
+    // 当行的底部超过可视区域顶部时，说明这行是可见的首行
+    if (lineBottom > viewTop) {
+      firstLine = i;
+      break;
     }
   }
-  headingLinesCache.value = indices
-}
 
-// Measure preview heading offsets relative to preview container scrollTop
-function recomputeHeadingOffsets() {
-  const container = previewRef.value
-  if (!container)
-    return
-  // Use [data-heading] anchors inside preview to build offsets
-  const anchors = Array.from(container.querySelectorAll<HTMLElement>(`[data-heading]`))
-  const offsets: number[] = []
-  for (const el of anchors) {
-    const elRect = el.getBoundingClientRect()
-    const cRect = container.getBoundingClientRect()
-    // compute offset relative to preview scrollTop
-    offsets.push(container.scrollTop + (elRect.top - cRect.top))
-  }
-  if (!offsets.length) {
-    // Fallback: minimal offsets to avoid huge jumps
-    headingOffsetsCache = [container.scrollTop, container.scrollHeight]
-    return
-  }
-  // Append a virtual end anchor (container scrollHeight) to bound the last section
-  offsets.push(container.scrollHeight)
-  headingOffsetsCache = offsets
-}
+  // 找到可视区域底部对应的逻辑行
+  let lastLine = totalLines - 1;
+  for (let i = totalLines - 1; i >= 0; i--) {
+    const lineTop = cm.charCoords({ line: i, ch: 0 }, "local").top;
+    const _lineBottom = cm.charCoords({ line: i, ch: cm.getLine(i).length }, "local").bottom;
 
-// Helper: find nearest heading index for given line
-function findHeadingIndicesAround(line: number) {
-  const lines = headingLinesCache.value
-  if (!lines.length)
-    return { prevIdx: -1, nextIdx: -1, prevLine: -1, nextLine: -1 }
-  let prevIdx = -1
-  let nextIdx = -1
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i] <= line)
-      prevIdx = i
-    if (lines[i] > line) {
-      nextIdx = i
-      break
+    // 当行的顶部小于可视区域底部时，说明这行是可见的末行
+    if (lineTop < viewBottom) {
+      lastLine = i;
+      break;
     }
   }
-  const prevLine = prevIdx >= 0 ? lines[prevIdx] : 1
-  const nextLine = nextIdx >= 0 ? lines[nextIdx] : Number.MAX_SAFE_INTEGER
-  return { prevIdx, nextIdx, prevLine, nextLine }
+
+  const headingRegex = /<h([1-6])(\s+[^>]+)?>([\s\S]*?)<\/h\1>/gi;
+
+  let match
+
+  console.log(`visible area`, firstLine, lastLine)
+  for (let i = firstLine; i <= lastLine; i++) {
+    const lineText = editor.value!.getLine(i).trim()
+    if (lineText.startsWith(`#`)) {
+      match = lineText.match(/^#+/)
+      let level = match ? match[0].length : 0;
+      return {
+        lineNumber: i,
+        text: lineText.replace(/^#+(\s?)/, ''),
+        level: level
+      }
+    }
+
+    if ((match = headingRegex.exec(lineText)) !== null) {
+      return {
+        lineNumber: i,
+        text: match[3].trim(),
+        level: parseInt(match[1], 10)
+      }
+    }
+  }
+
+  return null
 }
 
-// Helper: get first visible editor line
-function getFirstVisibleEditorLine() {
-  const cmScroll = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)
-  if (!cmScroll || !editor.value)
-    return 1
-  const lineHeight = editor.value!.defaultTextHeight()
-  const scrollTop = cmScroll.scrollTop
-  return Math.floor(scrollTop / lineHeight) + 1
-}
 
 // Handle pagination mode scroll synchronization
 function handlePaginationModeScroll(direction: `editor` | `preview`) {
@@ -209,12 +207,67 @@ function handlePaginationModeScroll(direction: `editor` | `preview`) {
   }
 }
 
+
+function trySyncHeadline() {
+  const visibleLine = getFirstVisibleHeadline()
+
+  if (visibleLine) {
+    const { lineNumber: _, text: mdText, level: level } = visibleLine;
+
+    if (mdText.length == 0) return false
+
+    console.log(`find headline`, _, mdText)
+
+    const container = previewRef.value;
+    if (!container) return false
+
+    const headingElements = container.querySelectorAll(`h${level}`);
+    let targetElement: HTMLElement | null = null;
+
+    for (const el of headingElements) {
+      if (el.textContent?.trim().startsWith(mdText) && el.tagName == `H${level}`) {
+        targetElement = el as HTMLElement;
+        break;
+      }
+    }
+
+    if (!targetElement) return false;
+    console.log(`found targetElement`, targetElement)
+
+    const containerRect = container.getBoundingClientRect();
+    const elementRect = targetElement.getBoundingClientRect();
+    let targetScrollTop = container.scrollTop + (elementRect.top - containerRect.top);
+
+    // 确保不滚动超出范围
+    const maxScroll = container.scrollHeight - container.clientHeight;
+    targetScrollTop = Math.min(targetScrollTop, maxScroll);
+
+    // 执行滚动（预留20px顶部空间）
+    lastPreviewScrollTop = targetScrollTop;
+    container.scrollTo({
+      top: targetScrollTop - 20,
+      behavior: 'auto'
+    });
+
+    console.log(`[HeadlineSync] 同步成功:`, {
+      heading: mdText,
+      _,
+      scrollTop: targetScrollTop
+    });
+
+    return true;
+  }
+
+  return false
+}
+
 // Handle normal mode scroll synchronization
 function handleNormalModeScroll(direction: `editor` | `preview`) {
   if (direction === `editor`) {
-    // Editor -> Preview: use simple percentage-based sync to avoid complexity
+    console.log("sync editor to preview")
+    if (trySyncHeadline()) return;
+
     const container = previewRef.value!
-    // Use .codeMirror-wrapper instead of .CodeMirror-scroll for correct viewport calculation
     const cmWrapper = document.querySelector<HTMLElement>(`.codeMirror-wrapper`)!
 
     // Calculate scroll percentage from editor wrapper (actual viewport)
@@ -230,26 +283,21 @@ function handleNormalModeScroll(direction: `editor` | `preview`) {
     const pMax = Math.max(1, pScrollHeight - pClientHeight)
     const targetScrollTop = percentage * pMax
 
-    // Debug logging for scroll sync
-    console.log(`[Editor->Preview] 编辑器滚动同步:`, {
-      editorScrollTop: cmScrollTop,
-      editorScrollHeight: cmScrollHeight,
-      editorClientHeight: cmClientHeight,
-      editorScrollableHeight: cmDenom,
-      calculatedPercentage: percentage,
-      previewScrollHeight: pScrollHeight,
-      previewClientHeight: pClientHeight,
-      previewScrollableHeight: pMax,
-      targetPreviewScrollTop: targetScrollTop
-    })
-
     // Store the target position before scrolling
     lastPreviewScrollTop = targetScrollTop
 
-    // Use smooth scrolling to avoid jarring movements
+    console.debug(`[Preview->Editor] 预览区滚动同步 (百分比):`, {
+      previewScrollHeight: pScrollHeight,
+      previewClientHeight: pClientHeight,
+      calculatedPercentage: percentage,
+      editorScrollHeight: cmScrollHeight,
+      editorClientHeight: cmClientHeight,
+      targetEditorScrollTop: targetScrollTop
+    });
+
     container.scrollTo({
       top: targetScrollTop,
-      behavior: 'auto' // Use 'auto' instead of 'smooth' for immediate sync
+      behavior: 'auto'
     })
   }
   else {
@@ -343,14 +391,6 @@ function leftAndRightScroll() {
     const cmWrapper = document.querySelector<HTMLElement>(`.codeMirror-wrapper`)
     if (cmWrapper) {
       lastEditorScrollTop = cmWrapper.scrollTop
-
-      // Debug logging for received scroll event
-      console.log(`[ScrollEvent] 编辑器滚动事件:`, {
-        scrollTop: cmWrapper.scrollTop,
-        scrollHeight: cmWrapper.scrollHeight,
-        clientHeight: cmWrapper.clientHeight,
-        isSyncingFromPreview: isSyncingFromPreview
-      })
     }
 
     // Ignore editor->preview when preview-side initiated sync is in progress
@@ -391,79 +431,7 @@ function leftAndRightScroll() {
   }
 }
 
-onMounted(() => {
-  store.resetImageConversion()
 
-  setTimeout(() => {
-    leftAndRightScroll()
-  }, 300)
-
-  // 监听预览区域尺寸变化，用于分页模式缩放计算
-  let resizeObserver: ResizeObserver | null = null
-
-  const updateContainerSize = (width: number, height: number) => {
-    if (store.isPaginationMode) {
-      // 分页模式：获取pagination-container的实际可用尺寸
-      // 减去padding (20px * 2 = 40px)
-      const availableWidth = width - 40
-      const availableHeight = height - 40
-      store.updatePreviewContainerSize(availableWidth, availableHeight)
-    }
-    else {
-      // 普通模式：直接使用容器尺寸
-      store.updatePreviewContainerSize(width, height)
-    }
-  }
-
-  if (previewRef.value) {
-    resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect
-        updateContainerSize(width, height)
-      }
-    })
-    resizeObserver.observe(previewRef.value)
-
-    // 组件卸载时清理observer和事件监听器
-    onUnmounted(() => {
-      resizeObserver?.disconnect()
-    })
-  }
-
-  // 监听分页模式变化，重新计算尺寸
-  watch(() => store.isPaginationMode, () => {
-    if (previewRef.value) {
-      const rect = previewRef.value.getBoundingClientRect()
-      updateContainerSize(rect.width, rect.height)
-    }
-  })
-
-  // 监听分页切换，同步编辑区滚动
-  watch(() => store.currentPageIndex, (newPageIndex) => {
-    if (store.isPaginationMode && editor.value) {
-      const startLine = store.getPageStartLine(newPageIndex, editor.value.getValue())
-      if (startLine !== -1) {
-        const lineHeight = editor.value.defaultTextHeight()
-        const targetScrollTop = (startLine - 1) * lineHeight // 转换为0基础的像素位置
-
-        const editorElement = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
-        if (editorElement) {
-          // Use lock mechanism instead of removing/adding listeners
-          isSyncingFromPreview = true
-          editorElement.scrollTo(0, targetScrollTop)
-
-          // Release lock on next frame
-          requestAnimationFrame(() => {
-            isSyncingFromPreview = false
-          })
-        }
-      }
-    }
-  })
-})
-
-const searchTabRef
-  = useTemplateRef<InstanceType<typeof SearchTab>>(`searchTabRef`)
 
 function openSearchWithSelection(cm: Editor) {
   const selected = cm.getSelection().trim()
@@ -528,9 +496,6 @@ function handleAutoPagination() {
   }
 }
 
-onMounted(() => {
-  document.addEventListener(`keydown`, handleGlobalKeydown)
-})
 
 function beforeUpload(file: File) {
   // validate image
@@ -569,7 +534,6 @@ function uploaded(imageUrl: string) {
   toast.success(`图片上传成功`)
 }
 
-const isImgLoading = ref(false)
 
 async function uploadImage(
   file: File,
@@ -711,6 +675,51 @@ const changeTimer = ref<NodeJS.Timeout>()
 
 const editorRef = useTemplateRef<HTMLTextAreaElement>(`editorRef`)
 
+function getEditorValue(activeTab: string) {
+  if (activeTab === `original`) {
+    console.log(`获取原始内容`)
+    return store.posts[store.currentPostIndex]?.content || ``
+  } else {
+    return convertedMarkdownV1.value || ``
+  }
+}
+
+function showConvertedPrompt(el: string) {
+  // 转图后
+  if (activeTab.value === `converted`) {
+    if (el === `prompt`) {
+      if (convertedMarkdownV1.value) {// 已转图，显示转图结果
+        return { display: "none" }
+      }
+      else {// 显示『请转图』提示
+        return {
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100%",
+        }
+      }
+    }
+
+    if (el === `textarea`) {
+      if (convertedMarkdownV1.value) {// 已转图，显示转图结果
+        return { display: "block" }
+      }
+      else {// 显示『请转图』提示
+        return { display: "none" }
+      }
+    }
+  }
+
+  if (activeTab.value === `original`) {
+    // 在原始文档状态下，始终隐藏『请先转图』提示，始终显示编辑区
+    if (el === `prompt`) {
+      return { display: "none" }
+    } else {
+      return { display: "block" }
+    }
+  }
+}
 function createFormTextArea(dom: HTMLTextAreaElement) {
   const textArea = fromTextArea(dom, {
     mode: `text/x-markdown`,
@@ -781,6 +790,7 @@ onMounted(() => {
     initPolishEvent(editor.value)
     editorRefresh()
     mdLocalToRemote()
+    leftAndRightScroll()
   })
 })
 
@@ -811,20 +821,12 @@ watch(activeTab, (newTab) => {
 // 监听预览内容变化，在DOM更新后恢复滚动位置
 watch(output, () => {
   nextTick(() => {
-    // 恢复预览区滚动位置
     if (previewRef.value && lastPreviewScrollTop > 0) {
-      // 使用 requestAnimationFrame 确保DOM完全更新后再恢复滚动位置
       requestAnimationFrame(() => {
         if (previewRef.value) {
           previewRef.value.scrollTop = lastPreviewScrollTop
         }
       })
-    }
-
-    // 重新计算标题偏移量，因为内容已更新
-    if (!store.isPaginationMode) {
-      recomputeHeadingLines()
-      recomputeHeadingOffsets()
     }
   })
 })
@@ -874,7 +876,22 @@ onUnmounted(() => {
       <DocumentArea />
 
       <main class="container-main flex flex-1 flex-col" :class="{ hidden: displayStore.isShowDocumentArea }">
-        <div class="container-main-section border-radius-10 relative flex flex-1 overflow-hidden border">
+        <div class="container-main-section border-radius-10 relative flex flex-1 flex-col overflow-hidden border">
+          <!-- 添加 tab 控制 -->
+          <div class="flex border-b">
+            <button class="px-4 py-2 font-medium" :class="{
+      'border-b-2 border-blue-500 text-blue-500': activeTab === 'original',
+      'text-gray-500': activeTab !== 'original',
+    }" @click="activeTab = 'original'">
+              原始文档
+            </button>
+            <button class="px-4 py-2 font-medium" :class="{
+      'border-b-2 border-blue-500 text-blue-500': activeTab === 'converted',
+      'text-gray-500': activeTab !== 'converted',
+    }" @click="activeTab = 'converted'">
+              转图后
+            </button>
+          </div>
           <ResizablePanelGroup direction="horizontal">
             <ResizablePanel :default-size="15" :max-size="store.isOpenPostSlider ? 30 : 0"
               :min-size="store.isOpenPostSlider ? 10 : 0">
@@ -887,33 +904,17 @@ onUnmounted(() => {
       'order-1 border-l': !store.isEditOnLeft,
       'border-r': store.isEditOnLeft,
     }">
-                <!-- 添加 tab 控制 -->
-                <div class="flex border-b">
-                  <button class="px-4 py-2 font-medium" :class="{
-      'border-b-2 border-blue-500 text-blue-500': activeTab === 'original',
-      'text-gray-500': activeTab !== 'original',
-    }" @click="activeTab = 'original'">
-                    原始文档
-                  </button>
-                  <button class="px-4 py-2 font-medium" :class="{
-      'border-b-2 border-blue-500 text-blue-500': activeTab === 'converted',
-      'text-gray-500': activeTab !== 'converted',
-    }" @click="activeTab = 'converted'">
-                    转图后
-                  </button>
-                </div>
-
-                <div v-if="activeTab === 'converted' && !convertedMarkdownV1" class="p-4 text-gray-500">
+                <div class="p-4 text-gray-500" :style="showConvertedPrompt(`prompt`)">
                   请先执行转图操作
                 </div>
 
-                <template v-else>
+                <template :style="showConvertedPrompt(`textarea`)">
                   <SearchTab v-if="editor" ref="searchTabRef" :editor="editor" />
                   <AIFixedBtn :is-mobile="store.isMobile" :show-editor="showEditor" />
 
                   <EditorContextMenu>
                     <textarea id="editor" ref="editorRef" type="textarea" placeholder="Your markdown text here."
-                      :value="activeTab === 'original' ? store.posts[store.currentPostIndex]?.content : convertedMarkdownV1" />
+                      :value="getEditorValue(activeTab)" />
                   </EditorContextMenu>
                 </template>
               </div>

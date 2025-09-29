@@ -1,16 +1,16 @@
 import type { ExtendedProperties, IOpts, RendererAPI, ThemeStyles } from '@md/shared/types'
 import type { PropertiesHyphen } from 'csstype'
-import type { RendererObject, Tokens } from 'marked'
-import type { ReadTimeResults } from 'reading-time'
 import { cloneDeep, toMerged } from 'es-toolkit'
 import frontMatter from 'front-matter'
 import hljs from 'highlight.js'
+import type { RendererObject, Tokens } from 'marked'
 import { marked } from 'marked'
 import mermaid from 'mermaid'
+import type { ReadTimeResults } from 'reading-time'
 import readingTime from 'reading-time'
 import { markedAdmon, markedAlert, markedFootnotes, markedPlantUML, markedRuby, markedSlider, markedToc, MDKatex } from '../extensions'
 import { getStyleString } from '../utils'
-import { LineTracker, addDataLineAttribute } from '../utils/lineTracker'
+import { addDataLineAttribute, LineTracker } from '../utils/lineTracker'
 
 marked.setOptions({
   breaks: true,
@@ -51,9 +51,9 @@ function buildTheme({ theme: _theme, fonts, size, isUseIndent, isUseJustify }: I
 
   // Add extra styles if they exist (for pagination classes and custom CSS selectors)
   if (theme.extra) {
-    console.log(`[DEBUG] buildTheme processing theme.extra:`, theme.extra)
+    // console.debug(`[DEBUG] buildTheme processing theme.extra:`, theme.extra)
     const extraMerged = mergeStyles(theme.extra)
-    console.log(`[DEBUG] buildTheme merged extra styles:`, extraMerged)
+    // console.debug(`[DEBUG] buildTheme merged extra styles:`, extraMerged)
     Object.assign(result, extraMerged)
   }
   else {
@@ -93,18 +93,15 @@ function buildAddition(): string {
 }
 
 function getStyles(styleMapping: ThemeStyles, tokenName: string, addition: string = ``): string {
-  console.log(`[DEBUG] getStyles called with tokenName:`, tokenName)
-  console.log(`[DEBUG] Available styleMapping keys:`, Object.keys(styleMapping))
-
   const dict = styleMapping[tokenName as keyof ThemeStyles]
   if (!dict) {
-    console.log(`[DEBUG] No styles found for tokenName:`, tokenName)
+    console.debug(`No styles found for tokenName:`, tokenName)
     return ``
   }
 
-  console.log(`[DEBUG] Found styles for ${tokenName}:`, dict)
+  console.debug(`Found styles for ${tokenName}:`, dict)
   const styles = getStyleString(dict)
-  console.log(`[DEBUG] Generated CSS string for ${tokenName}:`, styles)
+  console.debug(`Generated CSS string for ${tokenName}:`, styles)
 
   return `style="${styles}${addition}"`
 }
@@ -253,13 +250,13 @@ export function initRenderer(opts: IOpts): RendererAPI {
       const text = this.parser.parseInline(tokens)
       const tag = `h${depth}`
       let html = styledContent(tag, text)
-      
+
       // 添加 data-line 属性
       if (lineTracker !== undefined && raw) {
         const lineNumber = lineTracker.getLineNumber(raw)
         html = addDataLineAttribute(html, lineNumber, 'heading')
       }
-      
+
       return html
     },
 
@@ -270,15 +267,15 @@ export function initRenderer(opts: IOpts): RendererAPI {
       if (isFigureImage || isEmpty) {
         return text
       }
-      
+
       let html = styledContent(`p`, text)
-      
+
       // 添加 data-line 属性
       if (lineTracker !== undefined && raw) {
         const lineNumber = lineTracker.getLineNumber(raw)
         html = addDataLineAttribute(html, lineNumber, 'paragraph')
       }
-      
+
       return html
     },
 
@@ -401,13 +398,13 @@ export function initRenderer(opts: IOpts): RendererAPI {
         ordered ? `ol` : `ul`,
         html,
       )
-      
+
       // 添加 data-line 属性
-       if (lineTracker !== undefined && raw) {
-         const lineNumber = lineTracker.getLineNumber(raw)
-         result = addDataLineAttribute(result, lineNumber, 'list')
-       }
-      
+      if (lineTracker !== undefined && raw) {
+        const lineNumber = lineTracker.getLineNumber(raw)
+        result = addDataLineAttribute(result, lineNumber, 'list')
+      }
+
       return result
     },
 
