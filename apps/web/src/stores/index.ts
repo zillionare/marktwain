@@ -2478,5 +2478,14 @@ export function getAllStoreStates() {
     isShowUploadImgDialog: displayStore.isShowUploadImgDialog,
     isShowInsertMpCardDialog: displayStore.isShowInsertMpCardDialog,
     aiDialogVisible: displayStore.aiDialogVisible,
+
+    // 转图设置
+    conversionConfig: store.conversionConfig,
+
+    // 分页预览设置
+    pagePresets: store.pagePresets,
+
+    // 模板配置
+    templates: store.templates,
   }
 }
