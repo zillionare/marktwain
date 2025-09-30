@@ -90,13 +90,7 @@ function open() {
 function applyPreset(preset: PagePreset) {
   // 立即应用预设
   store.updatePageSettings(preset.width, preset.height)
-  // 注意：当前store的pageSettings不支持pixelRatio属性
-
-  // Recalculate page scale and refresh - calculatePageScale需要容器尺寸参数
-  // 使用默认容器尺寸或从DOM获取
-  const containerWidth = 800 // 默认容器宽度
-  const containerHeight = 600 // 默认容器高度
-  store.calculatePageScale(containerWidth, containerHeight)
+  store.calculatePageScale()
   store.editorRefresh()
   toast.success(`已应用预设: ${preset.name}`)
 }
@@ -166,7 +160,7 @@ let applyPresetTimer: NodeJS.Timeout | null = null
 function updatePreset(presetId: string, field: keyof Omit<PagePreset, `id`>, value: any) {
   const preset = presets.value.find(p => p.id === presetId)
   if (preset) {
-    ;(preset as any)[field] = value
+    ; (preset as any)[field] = value
 
     // 如果是当前预设，使用防抖延迟应用，避免频繁更新
     if (presetId === activePresetId.value) {
@@ -223,11 +217,7 @@ defineExpose({
             <h3 class="text-lg font-medium">
               选择预设
             </h3>
-            <Button
-              variant="outline"
-              size="sm"
-              @click="showAddForm = !showAddForm"
-            >
+            <Button variant="outline" size="sm" @click="showAddForm = !showAddForm">
               <Plus class="h-4 w-4 mr-2" />
               新增预设
             </Button>
@@ -236,9 +226,7 @@ defineExpose({
           <!-- 预设预览网格 -->
           <div class="grid grid-cols-4 gap-4 mb-6">
             <div
-              v-for="preset in presets"
-              :key="preset.id"
-              class="relative group cursor-pointer"
+              v-for="preset in presets" :key="preset.id" class="relative group cursor-pointer"
               @click="activePresetId = preset.id"
             >
               <!-- 预设预览框容器 -->
@@ -259,9 +247,7 @@ defineExpose({
 
                   <!-- 删除按钮 -->
                   <Button
-                    v-if="presets.length > 1"
-                    variant="ghost"
-                    size="sm"
+                    v-if="presets.length > 1" variant="ghost" size="sm"
                     class="absolute -top-2 -right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-white shadow-sm border"
                     @click.stop="deletePreset(preset.id)"
                   >
@@ -286,40 +272,19 @@ defineExpose({
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
               <Label for="new-name">名称</Label>
-              <Input
-                id="new-name"
-                v-model="newPresetForm.name"
-                placeholder="输入预设名称"
-              />
+              <Input id="new-name" v-model="newPresetForm.name" placeholder="输入预设名称" />
             </div>
             <div class="space-y-2">
               <Label for="new-width">屏幕宽度 (px)</Label>
-              <Input
-                id="new-width"
-                v-model.number="newPresetForm.width"
-                type="number"
-                min="100"
-              />
+              <Input id="new-width" v-model.number="newPresetForm.width" type="number" min="100" />
             </div>
             <div class="space-y-2">
               <Label for="new-height">屏幕高度 (px)</Label>
-              <Input
-                id="new-height"
-                v-model.number="newPresetForm.height"
-                type="number"
-                min="100"
-              />
+              <Input id="new-height" v-model.number="newPresetForm.height" type="number" min="100" />
             </div>
             <div class="space-y-2">
               <Label for="new-ratio">像素比</Label>
-              <Input
-                id="new-ratio"
-                v-model.number="newPresetForm.pixelRatio"
-                type="number"
-                min="1"
-                max="10"
-                step="1"
-              />
+              <Input id="new-ratio" v-model.number="newPresetForm.pixelRatio" type="number" min="1" max="10" step="1" />
             </div>
           </div>
           <div class="flex justify-end gap-2 mt-4">
@@ -339,9 +304,7 @@ defineExpose({
               <div class="space-y-2">
                 <Label :for="`name-${currentPreset.id}`">预设名称</Label>
                 <Input
-                  :id="`name-${currentPreset.id}`"
-                  :model-value="currentPreset.name"
-                  placeholder="输入预设名称"
+                  :id="`name-${currentPreset.id}`" :model-value="currentPreset.name" placeholder="输入预设名称"
                   @update:model-value="updatePreset(currentPreset.id, 'name', $event)"
                 />
               </div>
@@ -349,10 +312,7 @@ defineExpose({
               <div class="space-y-2">
                 <Label :for="`width-${currentPreset.id}`">屏幕宽度 (px)</Label>
                 <Input
-                  :id="`width-${currentPreset.id}`"
-                  :model-value="currentPreset.width"
-                  type="number"
-                  min="100"
+                  :id="`width-${currentPreset.id}`" :model-value="currentPreset.width" type="number" min="100"
                   @update:model-value="updatePreset(currentPreset.id, 'width', Number($event))"
                 />
               </div>
@@ -362,10 +322,7 @@ defineExpose({
               <div class="space-y-2">
                 <Label :for="`height-${currentPreset.id}`">屏幕高度 (px)</Label>
                 <Input
-                  :id="`height-${currentPreset.id}`"
-                  :model-value="currentPreset.height"
-                  type="number"
-                  min="100"
+                  :id="`height-${currentPreset.id}`" :model-value="currentPreset.height" type="number" min="100"
                   @update:model-value="updatePreset(currentPreset.id, 'height', Number($event))"
                 />
               </div>
@@ -373,12 +330,8 @@ defineExpose({
               <div class="space-y-2">
                 <Label :for="`ratio-${currentPreset.id}`">像素比</Label>
                 <Input
-                  :id="`ratio-${currentPreset.id}`"
-                  :model-value="currentPreset.pixelRatio"
-                  type="number"
-                  min="1"
-                  max="10"
-                  step="1"
+                  :id="`ratio-${currentPreset.id}`" :model-value="currentPreset.pixelRatio" type="number" min="1"
+                  max="10" step="1"
                   @update:model-value="updatePreset(currentPreset.id, 'pixelRatio', Number($event))"
                 />
               </div>

@@ -20,6 +20,8 @@ import { createExtraKeys } from '@/utils/editor'
 import { fileUpload } from '@/utils/file'
 import { toast } from '@/utils/toast'
 
+const searchTabRef = useTemplateRef<InstanceType<typeof SearchTab>>(`searchTabRef`)
+let resizeObserver: ResizeObserver | null = null
 const store = useStore()
 const displayStore = useDisplayStore()
 
@@ -33,6 +35,7 @@ const activeTab = ref<`original` | `converted`>(`original`)
 
 const backLight = ref(false)
 const isCoping = ref(false)
+const isImgLoading = ref(false)
 
 function startCopy() {
   backLight.value = true
@@ -75,52 +78,71 @@ let previewScrollCB: (() => void) | null = null
 // Add lock flags to prevent feedback loops between editor and preview scroll
 let isSyncingFromEditor = false // when true, ignore preview->editor callbacks
 let isSyncingFromPreview = false // when true, ignore editor->preview callbacks
-// Store scroll positions to restore after content updates
-let lastEditorScrollTop = 0
+
 let lastPreviewScrollTop = 0
 // Debounce timer for scroll events
 let scrollDebounceTimer: NodeJS.Timeout | null = null
 
+// 更新分页模式的缩放
+function updatePaginationScale() {
+  if (!store.isPaginationMode)
+    return
+
+  // 确保在DOM更新后计算尺寸
+  nextTick(() => {
+    const newScale = store.calculatePageScale()
+    console.log(`[Pagination] 更新缩放比例:`, {
+      containerWidth: document.querySelector(`.pagination-container`)?.clientWidth,
+      containerHeight: document.querySelector(`.pagination-container`)?.clientHeight,
+      pageWidth: store.pageSettings.width,
+      pageHeight: store.pageSettings.height,
+      calculatedScale: newScale,
+    })
+
+    // 仅在需要时更新，避免不必要的渲染
+    if (Math.abs(store.pageScale - newScale) > 0.01) {
+      store.pageScale = newScale
+    }
+  })
+}
 
 // 找到当前窗口中，第一个可见标题
-function getFirstVisibleHeadline(): { lineNumber: number; text: string, level: number } | null {
+function getFirstVisibleHeadline(): { lineNumber: number, text: string, level: number } | null {
   const wrapper = document.querySelector<HTMLElement>(`.codeMirror-wrapper`)
   if (!wrapper || !editor.value)
     return null
 
   const cm = editor.value
-  const totalLines = cm.lineCount();
+  const totalLines = cm.lineCount()
   const viewTop = wrapper.scrollTop
   const viewBottom = viewTop + wrapper.clientHeight
 
-  //寻找可视区的第一行与最后一行，考虑到 line wrapping 的情况
-  let firstLine = 0;
+  // 寻找可视区的第一行与最后一行，考虑到 line wrapping 的情况
+  let firstLine = 0
   for (let i = 0; i < totalLines; i++) {
-    const _lineTop = cm.charCoords({ line: i, ch: 0 }, "local").top;
     // 获取行尾的坐标（用于判断整行是否在可视区域内）
-    const lineBottom = cm.charCoords({ line: i, ch: cm.getLine(i).length }, "local").bottom;
+    const lineBottom = cm.charCoords({ line: i, ch: cm.getLine(i).length }, `local`).bottom
 
     // 当行的底部超过可视区域顶部时，说明这行是可见的首行
     if (lineBottom > viewTop) {
-      firstLine = i;
-      break;
+      firstLine = i
+      break
     }
   }
 
   // 找到可视区域底部对应的逻辑行
-  let lastLine = totalLines - 1;
+  let lastLine = totalLines - 1
   for (let i = totalLines - 1; i >= 0; i--) {
-    const lineTop = cm.charCoords({ line: i, ch: 0 }, "local").top;
-    const _lineBottom = cm.charCoords({ line: i, ch: cm.getLine(i).length }, "local").bottom;
+    const lineTop = cm.charCoords({ line: i, ch: 0 }, `local`).top
 
     // 当行的顶部小于可视区域底部时，说明这行是可见的末行
     if (lineTop < viewBottom) {
-      lastLine = i;
-      break;
+      lastLine = i
+      break
     }
   }
 
-  const headingRegex = /<h([1-6])(\s+[^>]+)?>([\s\S]*?)<\/h\1>/gi;
+  const headingRegex = /<h([1-6])(?:\s[^>]+)?>([\s\S]*?)<\/h\1>/gi
 
   let match
 
@@ -129,26 +151,26 @@ function getFirstVisibleHeadline(): { lineNumber: number; text: string, level: n
     const lineText = editor.value!.getLine(i).trim()
     if (lineText.startsWith(`#`)) {
       match = lineText.match(/^#+/)
-      let level = match ? match[0].length : 0;
+      const level = match ? match[0].length : 0
       return {
         lineNumber: i,
-        text: lineText.replace(/^#+(\s?)/, ''),
-        level: level
+        text: lineText.replace(/^#+(\s?)/, ``),
+        level,
       }
     }
 
-    if ((match = headingRegex.exec(lineText)) !== null) {
+    match = headingRegex.exec(lineText)
+    if (match !== null) {
       return {
         lineNumber: i,
-        text: match[3].trim(),
-        level: parseInt(match[1], 10)
+        text: match[2].trim(),
+        level: Number.parseInt(match[1], 10),
       }
     }
   }
 
   return null
 }
-
 
 // Handle pagination mode scroll synchronization
 function handlePaginationModeScroll(direction: `editor` | `preview`) {
@@ -207,55 +229,57 @@ function handlePaginationModeScroll(direction: `editor` | `preview`) {
   }
 }
 
-
 function trySyncHeadline() {
   const visibleLine = getFirstVisibleHeadline()
 
   if (visibleLine) {
-    const { lineNumber: _, text: mdText, level: level } = visibleLine;
+    const { lineNumber: _, text: mdText, level } = visibleLine
 
-    if (mdText.length == 0) return false
+    if (mdText.length === 0)
+      return false
 
     console.log(`find headline`, _, mdText)
 
-    const container = previewRef.value;
-    if (!container) return false
+    const container = previewRef.value
+    if (!container)
+      return false
 
-    const headingElements = container.querySelectorAll(`h${level}`);
-    let targetElement: HTMLElement | null = null;
+    const headingElements = container.querySelectorAll(`h${level}`)
+    let targetElement: HTMLElement | null = null
 
     for (const el of headingElements) {
-      if (el.textContent?.trim().startsWith(mdText) && el.tagName == `H${level}`) {
-        targetElement = el as HTMLElement;
-        break;
+      if (el.textContent?.trim().startsWith(mdText) && el.tagName === `H${level}`) {
+        targetElement = el as HTMLElement
+        break
       }
     }
 
-    if (!targetElement) return false;
+    if (!targetElement)
+      return false
     console.log(`found targetElement`, targetElement)
 
-    const containerRect = container.getBoundingClientRect();
-    const elementRect = targetElement.getBoundingClientRect();
-    let targetScrollTop = container.scrollTop + (elementRect.top - containerRect.top);
+    const containerRect = container.getBoundingClientRect()
+    const elementRect = targetElement.getBoundingClientRect()
+    let targetScrollTop = container.scrollTop + (elementRect.top - containerRect.top)
 
     // 确保不滚动超出范围
-    const maxScroll = container.scrollHeight - container.clientHeight;
-    targetScrollTop = Math.min(targetScrollTop, maxScroll);
+    const maxScroll = container.scrollHeight - container.clientHeight
+    targetScrollTop = Math.min(targetScrollTop, maxScroll)
 
     // 执行滚动（预留20px顶部空间）
-    lastPreviewScrollTop = targetScrollTop;
+    lastPreviewScrollTop = targetScrollTop
     container.scrollTo({
       top: targetScrollTop - 20,
-      behavior: 'auto'
-    });
+      behavior: `auto`,
+    })
 
     console.log(`[HeadlineSync] 同步成功:`, {
       heading: mdText,
       _,
-      scrollTop: targetScrollTop
-    });
+      scrollTop: targetScrollTop,
+    })
 
-    return true;
+    return true
   }
 
   return false
@@ -264,8 +288,9 @@ function trySyncHeadline() {
 // Handle normal mode scroll synchronization
 function handleNormalModeScroll(direction: `editor` | `preview`) {
   if (direction === `editor`) {
-    console.log("sync editor to preview")
-    if (trySyncHeadline()) return;
+    console.log(`sync editor to preview`)
+    if (trySyncHeadline())
+      return
 
     const container = previewRef.value!
     const cmWrapper = document.querySelector<HTMLElement>(`.codeMirror-wrapper`)!
@@ -292,12 +317,12 @@ function handleNormalModeScroll(direction: `editor` | `preview`) {
       calculatedPercentage: percentage,
       editorScrollHeight: cmScrollHeight,
       editorClientHeight: cmClientHeight,
-      targetEditorScrollTop: targetScrollTop
-    });
+      targetEditorScrollTop: targetScrollTop,
+    })
 
     container.scrollTo({
       top: targetScrollTop,
-      behavior: 'auto'
+      behavior: `auto`,
     })
   }
   else {
@@ -326,11 +351,8 @@ function handleNormalModeScroll(direction: `editor` | `preview`) {
       editorScrollHeight: cmScrollHeight,
       editorClientHeight: cmClientHeight,
       editorScrollableHeight: cmMax,
-      targetEditorScrollTop: targetScrollTop
+      targetEditorScrollTop: targetScrollTop,
     })
-
-    // Store the target position before scrolling
-    lastEditorScrollTop = targetScrollTop
 
     // Use scrollTo for immediate positioning
     cmWrapper.scrollTo(0, targetScrollTop)
@@ -387,12 +409,6 @@ function leftAndRightScroll() {
 
   // Create callback functions
   editorScrollCB = () => {
-    // Store current scroll position
-    const cmWrapper = document.querySelector<HTMLElement>(`.codeMirror-wrapper`)
-    if (cmWrapper) {
-      lastEditorScrollTop = cmWrapper.scrollTop
-    }
-
     // Ignore editor->preview when preview-side initiated sync is in progress
     if (isSyncingFromPreview)
       return
@@ -410,7 +426,7 @@ function leftAndRightScroll() {
         scrollTop: previewRef.value.scrollTop,
         scrollHeight: previewRef.value.scrollHeight,
         clientHeight: previewRef.value.clientHeight,
-        isSyncingFromEditor: isSyncingFromEditor
+        isSyncingFromEditor,
       })
     }
 
@@ -430,8 +446,6 @@ function leftAndRightScroll() {
     cmWrapperForListener.addEventListener(`scroll`, editorScrollCB, false)
   }
 }
-
-
 
 function openSearchWithSelection(cm: Editor) {
   const selected = cm.getSelection().trim()
@@ -496,7 +510,6 @@ function handleAutoPagination() {
   }
 }
 
-
 function beforeUpload(file: File) {
   // validate image
   const checkResult = checkImage(file)
@@ -533,7 +546,6 @@ function uploaded(imageUrl: string) {
   toRaw(store.editor!).replaceSelection(`\n${markdownImage}\n`, cursor as any)
   toast.success(`图片上传成功`)
 }
-
 
 async function uploadImage(
   file: File,
@@ -679,7 +691,8 @@ function getEditorValue(activeTab: string) {
   if (activeTab === `original`) {
     console.log(`获取原始内容`)
     return store.posts[store.currentPostIndex]?.content || ``
-  } else {
+  }
+  else {
     return convertedMarkdownV1.value || ``
   }
 }
@@ -688,25 +701,22 @@ function showConvertedPrompt(el: string) {
   // 转图后
   if (activeTab.value === `converted`) {
     if (el === `prompt`) {
-      if (convertedMarkdownV1.value) {// 已转图，显示转图结果
-        return { display: "none" }
+      if (convertedMarkdownV1.value) { // 已转图，显示转图结果
+        return { display: `none` }
       }
-      else {// 显示『请转图』提示
+      else { // 显示『请转图』提示
         return {
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100%",
+          display: `block`,
         }
       }
     }
 
     if (el === `textarea`) {
-      if (convertedMarkdownV1.value) {// 已转图，显示转图结果
-        return { display: "block" }
+      if (convertedMarkdownV1.value) { // 已转图，显示转图结果
+        return { display: `block` }
       }
-      else {// 显示『请转图』提示
-        return { display: "none" }
+      else { // 显示『请转图』提示
+        return { display: `none` }
       }
     }
   }
@@ -714,9 +724,10 @@ function showConvertedPrompt(el: string) {
   if (activeTab.value === `original`) {
     // 在原始文档状态下，始终隐藏『请先转图』提示，始终显示编辑区
     if (el === `prompt`) {
-      return { display: "none" }
-    } else {
-      return { display: "block" }
+      return { display: `none` }
+    }
+    else {
+      return { display: `block` }
     }
   }
 }
@@ -781,7 +792,7 @@ onMounted(() => {
     editorDom.value = store.posts[store.currentPostIndex].content
   }
   else {
-    editorDom.value = convertedMarkdownV1.value || `请先执行转图操作`
+    editorDom.value = convertedMarkdownV1.value || ``
   }
 
   nextTick(() => {
@@ -791,6 +802,19 @@ onMounted(() => {
     editorRefresh()
     mdLocalToRemote()
     leftAndRightScroll()
+
+    // 初始化分页模式缩放
+    updatePaginationScale()
+
+    // 监听窗口大小变化，重新计算缩放
+    window.addEventListener(`resize`, updatePaginationScale)
+
+    // 监听预览容器尺寸变化
+    const container = document.querySelector(`.pagination-container`)
+    if (container) {
+      resizeObserver = new ResizeObserver(updatePaginationScale)
+      resizeObserver.observe(container)
+    }
   })
 })
 
@@ -863,6 +887,12 @@ onUnmounted(() => {
 
   // 清理全局事件监听器 - 防止全局事件触发已销毁的组件
   document.removeEventListener(`keydown`, handleGlobalKeydown)
+  window.removeEventListener(`resize`, updatePaginationScale)
+
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
 })
 </script>
 
@@ -879,67 +909,83 @@ onUnmounted(() => {
         <div class="container-main-section border-radius-10 relative flex flex-1 flex-col overflow-hidden border">
           <!-- 添加 tab 控制 -->
           <div class="flex border-b">
-            <button class="px-4 py-2 font-medium" :class="{
-      'border-b-2 border-blue-500 text-blue-500': activeTab === 'original',
-      'text-gray-500': activeTab !== 'original',
-    }" @click="activeTab = 'original'">
+            <button
+              class="px-4 py-2 font-medium" :class="{
+                'border-b-2 border-blue-500 text-blue-500': activeTab === 'original',
+                'text-gray-500': activeTab !== 'original',
+              }" @click="activeTab = 'original'"
+            >
               原始文档
             </button>
-            <button class="px-4 py-2 font-medium" :class="{
-      'border-b-2 border-blue-500 text-blue-500': activeTab === 'converted',
-      'text-gray-500': activeTab !== 'converted',
-    }" @click="activeTab = 'converted'">
+            <button
+              class="px-4 py-2 font-medium" :class="{
+                'border-b-2 border-blue-500 text-blue-500': activeTab === 'converted',
+                'text-gray-500': activeTab !== 'converted',
+              }" @click="activeTab = 'converted'"
+            >
               转图后
             </button>
           </div>
           <ResizablePanelGroup direction="horizontal">
-            <ResizablePanel :default-size="15" :max-size="store.isOpenPostSlider ? 30 : 0"
-              :min-size="store.isOpenPostSlider ? 10 : 0">
+            <ResizablePanel
+              :default-size="15" :max-size="store.isOpenPostSlider ? 30 : 0"
+              :min-size="store.isOpenPostSlider ? 10 : 0"
+            >
               <PostSlider />
             </ResizablePanel>
             <ResizableHandle />
             <ResizablePanel class="flex">
-              <div v-show="!store.isMobile || (store.isMobile && showEditor)" ref="codeMirrorWrapper"
+              <div
+                v-show="!store.isMobile || (store.isMobile && showEditor)" ref="codeMirrorWrapper"
                 class="codeMirror-wrapper relative flex-1" :class="{
-      'order-1 border-l': !store.isEditOnLeft,
-      'border-r': store.isEditOnLeft,
-    }">
-                <div class="p-4 text-gray-500" :style="showConvertedPrompt(`prompt`)">
+                  'order-1 border-l': !store.isEditOnLeft,
+                  'border-r': store.isEditOnLeft,
+                }"
+              >
+                <div class="p-4 text-gray-500 absolute" :style="showConvertedPrompt(`prompt`)">
                   请先执行转图操作
                 </div>
 
-                <template :style="showConvertedPrompt(`textarea`)">
-                  <SearchTab v-if="editor" ref="searchTabRef" :editor="editor" />
-                  <AIFixedBtn :is-mobile="store.isMobile" :show-editor="showEditor" />
+                <SearchTab v-if="editor" ref="searchTabRef" :editor="editor" />
+                <AIFixedBtn :is-mobile="store.isMobile" :show-editor="showEditor" />
 
-                  <EditorContextMenu>
-                    <textarea id="editor" ref="editorRef" type="textarea" placeholder="Your markdown text here."
-                      :value="getEditorValue(activeTab)" />
-                  </EditorContextMenu>
-                </template>
+                <EditorContextMenu :style="showConvertedPrompt(`textarea`)">
+                  <textarea
+                    id="editor" ref="editorRef" type="textarea" placeholder="Your markdown text here."
+                    :value="getEditorValue(activeTab)"
+                  />
+                </EditorContextMenu>
               </div>
-              <div v-show="!store.isMobile || (store.isMobile && !showEditor)"
+              <div
+                v-show="!store.isMobile || (store.isMobile && !showEditor)"
                 class="preview-wrapper relative flex-1 overflow-x-hidden transition-width flex flex-col"
-                :class="[store.isOpenRightSlider ? 'w-0' : 'w-100']">
+                :class="[store.isOpenRightSlider ? 'w-0' : 'w-100']"
+              >
                 <!-- 预览模式切换 tab -->
                 <div class="flex border-b bg-white dark:bg-gray-800 flex-shrink-0">
-                  <button class="px-4 py-2 font-medium" :class="{
-      'border-b-2 border-blue-500 text-blue-500': !store.isPaginationMode,
-      'text-gray-500': store.isPaginationMode,
-    }" @click="store.setNormalMode()">
+                  <button
+                    class="px-4 py-2 font-medium" :class="{
+                      'border-b-2 border-blue-500 text-blue-500': !store.isPaginationMode,
+                      'text-gray-500': store.isPaginationMode,
+                    }" @click="store.setNormalMode()"
+                  >
                     普通模式
                   </button>
-                  <button class="px-4 py-2 font-medium" :class="{
-      'border-b-2 border-blue-500 text-blue-500': store.isPaginationMode,
-      'text-gray-500': !store.isPaginationMode,
-    }" @click="store.setPaginationMode()">
+                  <button
+                    class="px-4 py-2 font-medium" :class="{
+                      'border-b-2 border-blue-500 text-blue-500': store.isPaginationMode,
+                      'text-gray-500': !store.isPaginationMode,
+                    }" @click="store.setPaginationMode()"
+                  >
                     分页模式
                   </button>
                   <!-- 分页控制 -->
                   <div v-if="store.isPaginationMode" class="ml-auto flex items-center gap-2 px-4">
                     <!-- 自动分页按钮 -->
-                    <button class="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
-                      title="根据内容长度和页面高度自动插入分页符" @click="handleAutoPagination">
+                    <button
+                      class="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
+                      title="根据内容长度和页面高度自动插入分页符" @click="handleAutoPagination"
+                    >
                       自动分页
                     </button>
                     <div class="w-px h-4 bg-gray-300 mx-1" />
@@ -948,16 +994,20 @@ onUnmounted(() => {
                       <!-- 第一页按钮 -->
                       <button
                         class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        :disabled="store.currentPageIndex === 0" title="第一页" @click="store.goToPage(0)">
+                        :disabled="store.currentPageIndex === 0" title="第一页" @click="store.goToPage(0)"
+                      >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                          <path
+                            stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
+                          />
                         </svg>
                       </button>
                       <!-- 上一页按钮 -->
                       <button
                         class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        :disabled="store.currentPageIndex === 0" title="上一页" @click="store.prevPage()">
+                        :disabled="store.currentPageIndex === 0" title="上一页" @click="store.prevPage()"
+                      >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                         </svg>
@@ -970,7 +1020,8 @@ onUnmounted(() => {
                       <button
                         class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         :disabled="store.currentPageIndex === store.totalPages - 1" title="下一页"
-                        @click="store.nextPage()">
+                        @click="store.nextPage()"
+                      >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                         </svg>
@@ -979,10 +1030,13 @@ onUnmounted(() => {
                       <button
                         class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         :disabled="store.currentPageIndex === store.totalPages - 1" title="最后一页"
-                        @click="store.goToPage(store.totalPages - 1)">
+                        @click="store.goToPage(store.totalPages - 1)"
+                      >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                          <path
+                            stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 5l7 7-7 7M5 5l7 7-7 7"
+                          />
                         </svg>
                       </button>
                     </div>
@@ -990,35 +1044,36 @@ onUnmounted(() => {
                 </div>
 
                 <div id="preview" ref="previewRef" class="w-full flex-1 overflow-auto">
-                  <div id="output-wrapper" class="w-full p-5"
-                    :class="{ 'output_night': store.isDark, 'pagination-dark-bg': store.isPaginationMode }">
+                  <div
+                    id="output-wrapper" class="w-full p-5"
+                    :class="{ 'output_night': store.isDark, 'pagination-dark-bg': store.isPaginationMode }"
+                  >
                     <!-- 分页模式：单页显示 -->
-                    <div v-if="store.isPaginationMode" class="relative">
+                    <div v-if="store.isPaginationMode" class="relative h-full w-full">
                       <!-- 内容截断警告 - 浮动样式 -->
                       <div v-if="store.isContentTruncated" class="truncation-warning-floating">
                         内容发生截断，请重新调整分页
                       </div>
-                      <div class="pagination-container" :style="{
-      width: `${store.pageSettings.width * store.pageScale}px`,
-      height: `${store.pageSettings.height * store.pageScale}px`,
-      minWidth: `${store.pageSettings.width * store.pageScale}px`,
-      minHeight: `${store.pageSettings.height * store.pageScale}px`,
-    }">
-                        <div v-for="(page, index) in store.pages" v-show="index === store.currentPageIndex" :key="index"
+                      <div class="pagination-container">
+                        <div
+                          v-for="(page, index) in store.pages" v-show="index === store.currentPageIndex" :key="index"
                           :ref="el => { if (el) store.pageRefs[index] = el as HTMLElement }" class="pagination-page"
                           :class="[
-      store.pages.length === 1 ? 'page-cover page-end'
-        : index === 0 ? 'page-cover'
-          : index === store.pages.length - 1 ? 'page-end'
-            : `page-${index + 1}`,
-    ]" :style="{
-      width: `${store.pageSettings.width}px`,
-      height: `${store.pageSettings.height}px`,
-      transform: `scale(${store.pageScale})`,
-      transformOrigin: 'top center',
-    }">
-                          <section class="w-full h-full overflow-hidden" style="padding: 20px; box-sizing: border-box;"
-                            v-html="store.renderPage(page)" />
+                            store.pages.length === 1 ? 'page-cover page-end'
+                            : index === 0 ? 'page-cover'
+                              : index === store.pages.length - 1 ? 'page-end'
+                                : `page-${index + 1}`,
+                          ]" :style="{
+                            width: `${store.pageSettings.width}px`,
+                            height: `${store.pageSettings.height}px`,
+                            transform: `scale(${store.pageScale})`,
+                            transformOrigin: 'center',
+                          }"
+                        >
+                          <section
+                            class="w-full h-full overflow-hidden" style="padding: 20px; box-sizing: border-box;"
+                            v-html="store.renderPage(page)"
+                          />
                         </div>
                       </div>
                     </div>
@@ -1050,17 +1105,22 @@ onUnmounted(() => {
           <!-- 切换编辑/预览按钮 -->
           <button
             class="bg-primary flex items-center justify-center rounded-full p-3 text-white shadow-lg transition active:scale-95 hover:scale-105 dark:bg-gray-700 dark:text-white dark:ring-2 dark:ring-white/30"
-            aria-label="切换编辑/预览" @click="toggleView">
+            aria-label="切换编辑/预览" @click="toggleView"
+          >
             <component :is="showEditor ? Eye : Pen" class="h-5 w-5" />
           </button>
         </div>
 
-        <AIPolishButton v-if="store.showAIToolbox" ref="AIPolishBtnRef" :position="position"
-          @click="AIPolishPopoverRef?.show" />
+        <AIPolishButton
+          v-if="store.showAIToolbox" ref="AIPolishBtnRef" :position="position"
+          @click="AIPolishPopoverRef?.show"
+        />
 
-        <AIPolishPopover v-if="store.showAIToolbox" ref="AIPolishPopoverRef" :position="position"
+        <AIPolishPopover
+          v-if="store.showAIToolbox" ref="AIPolishPopoverRef" :position="position"
           :selected-text="selectedText" :is-dragging="isDragging" :is-mobile="store.isMobile"
-          @close-btn="AIPolishBtnRef?.close" @recalc-pos="recalcPos" @start-drag="startDrag" />
+          @close-btn="AIPolishBtnRef?.close" @recalc-pos="recalcPos" @start-drag="startDrag"
+        />
 
         <UploadImgDialog @upload-image="uploadImage" />
 
@@ -1222,11 +1282,13 @@ onUnmounted(() => {
 .pagination-container {
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
   margin: 0 auto;
   overflow: visible;
   box-sizing: border-box;
   position: relative;
+  height: 100%;
+  width: 100%;
 }
 
 .pagination-page {
@@ -1247,7 +1309,7 @@ onUnmounted(() => {
 
 /* 分页模式深色背景 */
 .pagination-dark-bg {
-  background: #2d3748 !important;
+  background: #c0c0c0 !important;
 }
 
 /* 深色模式下的分页样式 */

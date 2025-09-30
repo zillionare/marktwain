@@ -1037,30 +1037,33 @@ export const useStore = defineStore(`store`, () => {
   }
 
   // 计算页面缩放比例
-  const calculatePageScale = (containerWidth: number, containerHeight: number) => {
-    const pageWidth = pageSettings.value.width
-    const pageHeight = pageSettings.value.height
+  const calculatePageScale = () => {
+    const container = document.querySelector<HTMLElement>(`.pagination-container`)
+    if (!container)
+      return 1.0
 
-    // 计算宽度和高度的缩放比例
-    // 考虑容器的padding和边距，预留一些空间
-    const paddingX = 40 // 左右各20px的padding
-    const paddingY = 40 // 上下各20px的padding
-    const availableWidth = Math.max(containerWidth - paddingX, 100)
-    const availableHeight = Math.max(containerHeight - paddingY, 100)
+    // 获取容器的可用尺寸（减去padding）
+    const containerStyle = getComputedStyle(container)
+    const containerWidth = container.clientWidth
+      - Number.parseFloat(containerStyle.paddingLeft)
+      - Number.parseFloat(containerStyle.paddingRight)
+    const containerHeight = container.clientHeight
+      - Number.parseFloat(containerStyle.paddingTop)
+      - Number.parseFloat(containerStyle.paddingBottom)
 
-    const scaleX = availableWidth / pageWidth
-    const scaleY = availableHeight / pageHeight
+    // 获取页面设置尺寸
+    const { width: pageWidth, height: pageHeight } = pageSettings.value
 
-    // 取较小的缩放比例，确保页面完全适配容器
-    const finalScale = Math.min(scaleX, scaleY, 1) // 最大不超过1，避免放大
+    // 计算缩放比例，确保页面能完整显示在容器内
+    const widthScale = containerWidth / pageWidth
+    const heightScale = containerHeight / pageHeight
 
-    return Math.max(finalScale, 0.1) // 最小缩放比例为0.1，避免过小
-  }
+    let scale = Math.min(widthScale, heightScale)
 
-  // 更新预览容器尺寸并重新计算缩放比例
-  const updatePreviewContainerSize = (width: number, height: number) => {
-    previewContainerSize.value = { width, height }
-    pageScale.value = calculatePageScale(width, height)
+    // 添加一些安全边界（例如90%）
+    scale = scale * 0.95
+
+    return Math.max(scale, 0.3)
   }
 
   // 更新页面设置
@@ -1069,7 +1072,7 @@ export const useStore = defineStore(`store`, () => {
     pageSettings.value.height = height
     // 重新计算缩放比例
     if (previewContainerSize.value.width > 0 && previewContainerSize.value.height > 0) {
-      pageScale.value = calculatePageScale(previewContainerSize.value.width, previewContainerSize.value.height)
+      pageScale.value = calculatePageScale()
     }
   }
 
@@ -2378,7 +2381,6 @@ export const useStore = defineStore(`store`, () => {
     pageScale,
     previewContainerSize,
     calculatePageScale,
-    updatePreviewContainerSize,
     updatePageSettings,
     isContentTruncated,
 
