@@ -172,63 +172,6 @@ function getFirstVisibleHeadline(): { lineNumber: number, text: string, level: n
   return null
 }
 
-// Handle pagination mode scroll synchronization
-function handlePaginationModeScroll(direction: `editor` | `preview`) {
-  if (direction === `editor`) {
-    // Editor scroll: check if page separator is in upper half, switch page only when in upper half
-    const editorElement = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
-    const lineHeight = editor.value!.defaultTextHeight()
-    const scrollTop = editorElement.scrollTop
-    const visibleHeight = editorElement.clientHeight
-    const halfHeight = visibleHeight / 2
-
-    // Calculate visible line range
-    const firstVisibleLine = Math.floor(scrollTop / lineHeight) + 1 // CodeMirror lines start from 1
-    const halfVisibleLine = Math.floor((scrollTop + halfHeight) / lineHeight) + 1
-
-    // Check page separator positions in content
-    const content = editor.value!.getValue()
-    const lines = content.split(`\n`)
-
-    // Find page separator in upper half
-    let targetPage = -1
-    for (let i = firstVisibleLine - 1; i < halfVisibleLine && i < lines.length; i++) {
-      if (lines[i].trim() === `---`) {
-        // Found separator in upper half, calculate corresponding page
-        const pageAfterSeparator = store.getPageByLineNumber(i + 2, content) // Page after separator
-        if (pageAfterSeparator !== -1 && pageAfterSeparator !== store.currentPageIndex) {
-          targetPage = pageAfterSeparator
-          break
-        }
-      }
-    }
-
-    // If no separator found in upper half, use page of first visible line
-    if (targetPage === -1) {
-      const currentPage = store.getPageByLineNumber(firstVisibleLine, content)
-      if (currentPage !== -1 && currentPage !== store.currentPageIndex) {
-        targetPage = currentPage
-      }
-    }
-
-    // Switch to target page
-    if (targetPage !== -1) {
-      store.goToPage(targetPage)
-    }
-  }
-  else if (direction === `preview`) {
-    // Preview page switch: scroll editor to corresponding page start line
-    const startLine = store.getPageStartLine(store.currentPageIndex, editor.value!.getValue())
-    if (startLine !== -1) {
-      const lineHeight = editor.value!.defaultTextHeight()
-      const targetScrollTop = (startLine - 1) * lineHeight // Convert to 0-based pixel position
-
-      const editorElement = document.querySelector<HTMLElement>(`.CodeMirror-scroll`)!
-      editorElement.scrollTo(0, targetScrollTop)
-    }
-  }
-}
-
 function trySyncHeadline() {
   const visibleLine = getFirstVisibleHeadline()
 
@@ -283,6 +226,61 @@ function trySyncHeadline() {
   }
 
   return false
+}
+
+// Handle pagination mode scroll synchronization
+function handlePaginationModeScroll(direction: `editor` | `preview`) {
+  const editorElement = document.querySelector<HTMLElement>(`.codeMirror-wrapper`)!
+  if (direction === `editor`) {
+    // 编辑器滚动 -> 预览区
+    const lineHeight = editor.value!.defaultTextHeight()
+    const scrollTop = editorElement.scrollTop
+    const visibleHeight = editorElement.clientHeight
+
+    const firstVisibleLine = Math.floor(scrollTop / lineHeight)
+    const lastVisibleLine = Math.floor((scrollTop + visibleHeight) / lineHeight)
+
+    const content = editor.value!.getValue()
+    const lines = content.split(`\n`)
+    const pageBreakLines = lines
+      .map((line, index) => ({ line, index }))
+      .filter(item => item.line.trim() === `---`)
+      .map(item => item.index)
+
+    const visibleBreakIndex = pageBreakLines.findIndex(
+      line => line >= firstVisibleLine && line <= lastVisibleLine,
+    )
+
+    let targetPageIndex = 0
+    if (visibleBreakIndex !== -1) {
+      targetPageIndex = visibleBreakIndex + 1
+    }
+    else {
+      targetPageIndex = pageBreakLines.filter(line => line < firstVisibleLine).length
+    }
+
+    if (targetPageIndex !== store.currentPageIndex) {
+      store.goToPage(targetPageIndex)
+    }
+  }
+  else {
+    // 预览区滚动 -> 编辑器
+    const content = editor.value!.getValue()
+    const lines = content.split(`\n`)
+    const pageBreakLines = lines
+      .map((line, index) => ({ line, index }))
+      .filter(item => item.line.trim() === `---`)
+      .map(item => item.index)
+
+    const targetLine = store.currentPageIndex === 0
+      ? 0
+      : (pageBreakLines[store.currentPageIndex - 1] + 1)
+
+    const lineHeight = editor.value!.defaultTextHeight()
+    const targetScrollTop = targetLine * lineHeight
+
+    editorElement.scrollTo(0, targetScrollTop)
+  }
 }
 
 // Handle normal mode scroll synchronization
