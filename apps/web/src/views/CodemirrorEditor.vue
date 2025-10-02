@@ -531,7 +531,7 @@ function beforeUpload(file: File) {
 }
 
 // 图片上传结束
-function uploaded(imageUrl: string) {
+function uploaded(imageUrl: any) {
   if (!imageUrl) {
     toast.error(`上传图片未知异常`)
     return

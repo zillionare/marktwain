@@ -274,7 +274,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
       // 添加 data-line 属性
       if (lineTracker !== undefined && raw) {
         const lineNumber = lineTracker.getLineNumber(raw)
-        html = addDataLineAttribute(html, lineNumber, `heading`)
+        html = addDataLineAttribute(html, lineNumber)
       }
 
       return html
@@ -293,7 +293,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
       // 添加 data-line 属性
       if (lineTracker !== undefined && raw) {
         const lineNumber = lineTracker.getLineNumber(raw)
-        html = addDataLineAttribute(html, lineNumber, `paragraph`)
+        html = addDataLineAttribute(html, lineNumber)
       }
 
       return html
@@ -393,7 +393,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
       // 添加 data-line 属性
       if (lineTracker !== undefined && raw) {
         const lineNumber = lineTracker.getLineNumber(raw)
-        result = addDataLineAttribute(result, lineNumber, `list`)
+        result = addDataLineAttribute(result, lineNumber)
       }
 
       return result

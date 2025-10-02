@@ -1,3 +1,9 @@
+import type { MarkedExtension } from 'marked'
+import katex from 'katex'
+
+const mathBlockRegex = /^\$\$([\s\S]+?)\$\$/
+const inlineMathRegex = /^\$([\s\S]+?)\$/
+
 let mathBlockId: number = 0
 
 export function resetMathBlockId() {
@@ -15,7 +21,7 @@ export function markedMath(): MarkedExtension {
       {
         name: `math`,
         level: `block`,
-        tokenizer(src) {
+        tokenizer(src: any) {
           const cap = mathBlockRegex.exec(src)
           if (cap) {
             return {

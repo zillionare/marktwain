@@ -251,6 +251,9 @@ async function uploadImage(imageId: string) {
     const base64Content = await toBase64(file)
     const uploadedUrl = await fileUpload(base64Content, file)
 
+    if (!uploadedUrl) {
+      return
+    }
     // 更新图片 URL 为上传后的链接
     imageItem.imageUrl = uploadedUrl
     imageItem.uploaded = true

@@ -19,7 +19,7 @@ export interface RendererAPI {
   buildFootnotes: () => string
   buildAddition: () => string
   createContainer: (html: string) => string
-  
+
   /* —— 行号跟踪 —— */
   initLineTracker: (markdownContent: string) => void
 }
