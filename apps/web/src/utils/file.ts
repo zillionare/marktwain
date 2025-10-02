@@ -1,6 +1,5 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { giteeConfig, githubConfig } from '@md/shared/configs'
 
 import fetch from '@md/shared/utils/fetch'
 import * as tokenTools from '@md/shared/utils/tokenTools'
@@ -12,23 +11,7 @@ import * as qiniu from 'qiniu-js'
 import OSS from 'tiny-oss'
 import { v4 as uuidv4 } from 'uuid'
 
-function getConfig(useDefault: boolean, platform: string) {
-  if (useDefault) {
-    // load default config file
-    const config = platform === `github` ? githubConfig : giteeConfig
-    const { username, repoList, branch, accessTokenList } = config
-
-    // choose random token from access_token list
-    const tokenIndex = Math.floor(Math.random() * accessTokenList.length)
-    const accessToken = accessTokenList[tokenIndex].replace(`doocsmd`, ``)
-
-    // choose random repo from repo list
-    const repoIndex = Math.floor(Math.random() * repoList.length)
-    const repo = repoList[repoIndex]
-
-    return { username, repo, branch, accessToken }
-  }
-
+function getConfig(platform: string) {
   // load configuration from localStorage
   const customConfig = JSON.parse(localStorage.getItem(`${platform}Config`)!)
 
@@ -86,7 +69,6 @@ function getPathWithVariables(customPath?: string): string {
  * @param branch 分支名
  * @param path 文件路径
  * @param urlPrefix 自定义域名前缀
- * @param useDefault 是否使用默认配置
  * @returns string
  */
 function buildGitHubImageUrl(
@@ -95,16 +77,15 @@ function buildGitHubImageUrl(
   branch: string,
   path: string,
   urlPrefix?: string,
-  useDefault: boolean = false,
 ): string {
-  // 如果配置了自定义域名前缀，使用自定义前缀
-  if (urlPrefix) {
-    return `${urlPrefix.replace(/\/$/, ``)}/${path}`
-  }
-
   // 如果是默认配置，使用 jsdelivr CDN
-  if (useDefault) {
-    return `https://fastly.jsdelivr.net/gh/${username}/${repo}@${branch}/${path}`
+  if (urlPrefix) {
+    if (urlPrefix.includes(`jsdelivr`)) {
+      return `https://fastly.jsdelivr.net/gh/${username}/${repo}@${branch}/${path}`
+    }
+    else {
+      return `${urlPrefix.replace(/\/$/, ``)}/${path}`
+    }
   }
 
   // 否则返回原始 GitHub 链接
@@ -128,13 +109,18 @@ function getDateFilename(filename: string) {
 // -----------------------------------------------------------------------
 
 async function ghFileUpload(content: string, filename: string) {
-  const useDefault = localStorage.getItem(`imgHost`) === `default`
-  const { username, repo, branch, accessToken, pathInRepo, urlPrefix } = getConfig(
-    useDefault,
-    `github`,
-  )
+  let config
+  try {
+    config = getConfig(`github`)
+  }
+  catch (e) {
+    console.error(`读取图床配置失败`, e)
+    toast.error(`Github 图床配置错误，或者未配置图床`)
+    return
+  }
 
   // 使用自定义路径或默认路径
+  const { username, repo, branch, accessToken, pathInRepo, urlPrefix } = config
   const dir = getPathWithVariables(pathInRepo)
   const dateFilename = getDateFilename(filename)
   const fullPath = `${dir}/${dateFilename}`
@@ -171,7 +157,7 @@ async function ghFileUpload(content: string, filename: string) {
     res.content = res.data?.content || res.content
 
     // 使用统一的 URL 构建逻辑
-    return buildGitHubImageUrl(username, repo, branch, fullPath, urlPrefix, useDefault)
+    return buildGitHubImageUrl(username, repo, branch, fullPath, urlPrefix)
   }
   catch (error: any) {
     // 检查是否是401或403错误
@@ -693,9 +679,6 @@ async function formCustomUpload(content: string, file: File) {
 
 export function fileUpload(content: string, file: File) {
   const imgHost = localStorage.getItem(`imgHost`)
-  if (!imgHost) {
-    localStorage.setItem(`imgHost`, `github`)
-  }
   switch (imgHost) {
     case `aliOSS`:
       return aliOSSFileUpload(file)

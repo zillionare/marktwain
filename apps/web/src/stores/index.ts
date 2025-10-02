@@ -1,4 +1,4 @@
-import { initRenderer } from '@md/core'
+import { initRenderer, resetBlockCounters } from '@md/core'
 import {
   defaultStyleConfig,
   themeMap,
@@ -545,6 +545,36 @@ export const useStore = defineStore(`store`, () => {
     return postProcessHtml(baseHtml, readingTimeResult, renderer)
   }
 
+  // 计算页面缩放比例
+  const calculatePageScale = () => {
+    const container = document.querySelector<HTMLElement>(`.pagination-container`)
+    if (!container)
+      return 1.0
+
+    // 获取容器的可用尺寸（减去padding）
+    const containerStyle = getComputedStyle(container)
+    const containerWidth = container.clientWidth
+      - Number.parseFloat(containerStyle.paddingLeft)
+      - Number.parseFloat(containerStyle.paddingRight)
+    const containerHeight = container.clientHeight
+      - Number.parseFloat(containerStyle.paddingTop)
+      - Number.parseFloat(containerStyle.paddingBottom)
+
+    // 获取页面设置尺寸
+    const { width: pageWidth, height: pageHeight } = pageSettings.value
+
+    // 计算缩放比例，确保页面能完整显示在容器内
+    const widthScale = containerWidth / pageWidth
+    const heightScale = containerHeight / pageHeight
+
+    let scale = Math.min(widthScale, heightScale)
+
+    // 添加一些安全边界（例如90%）
+    scale = scale * 0.95
+
+    return Math.max(scale, 0.3)
+  }
+
   // 更新编辑器
   const editorRefresh = () => {
     codeThemeChange()
@@ -584,14 +614,12 @@ export const useStore = defineStore(`store`, () => {
 
       // 检测内容截断：在下一个tick中检查渲染后的内容高度
       nextTick(() => {
+        pageScale.value = calculatePageScale()
         const pageElement = document.querySelector(`.pagination-page section`)
         if (pageElement) {
-          // 获取实际内容高度和可用高度
           const contentHeight = pageElement.scrollHeight
           const availableHeight = pageElement.clientHeight
 
-          // 只有当内容高度明显超过可用高度时才认为发生截断
-          // 添加5px的容差，避免由于浮点数计算或样式细微差异导致的误报
           isContentTruncated.value = contentHeight > availableHeight + 5
         }
       })
@@ -624,14 +652,9 @@ export const useStore = defineStore(`store`, () => {
     output.value = div.innerHTML
   }
 
-  const togglePaginationMode = () => {
-    isPaginationMode.value = !isPaginationMode.value
-    currentPageIndex.value = 0
-    editorRefresh()
-  }
-
   const setNormalMode = () => {
     isPaginationMode.value = false
+    resetBlockCounters()
     editorRefresh()
   }
 
@@ -1034,36 +1057,6 @@ export const useStore = defineStore(`store`, () => {
     }
 
     toast.success(`自动分页完成，共生成 ${pages.value.length} 页`)
-  }
-
-  // 计算页面缩放比例
-  const calculatePageScale = () => {
-    const container = document.querySelector<HTMLElement>(`.pagination-container`)
-    if (!container)
-      return 1.0
-
-    // 获取容器的可用尺寸（减去padding）
-    const containerStyle = getComputedStyle(container)
-    const containerWidth = container.clientWidth
-      - Number.parseFloat(containerStyle.paddingLeft)
-      - Number.parseFloat(containerStyle.paddingRight)
-    const containerHeight = container.clientHeight
-      - Number.parseFloat(containerStyle.paddingTop)
-      - Number.parseFloat(containerStyle.paddingBottom)
-
-    // 获取页面设置尺寸
-    const { width: pageWidth, height: pageHeight } = pageSettings.value
-
-    // 计算缩放比例，确保页面能完整显示在容器内
-    const widthScale = containerWidth / pageWidth
-    const heightScale = containerHeight / pageHeight
-
-    let scale = Math.min(widthScale, heightScale)
-
-    // 添加一些安全边界（例如90%）
-    scale = scale * 0.95
-
-    return Math.max(scale, 0.3)
   }
 
   // 更新页面设置
@@ -1731,6 +1724,7 @@ export const useStore = defineStore(`store`, () => {
   }
 
   const findMarkdownBlocks = (markdown: string): MarkdownBlock[] => {
+    console.log(`findMarkdownBlocks`)
     const allBlocks: MarkdownBlock[] = []
     let sequenceIndex = 0
 
@@ -1745,12 +1739,10 @@ export const useStore = defineStore(`store`, () => {
       h4: 0,
     }
 
-    // 生成唯一块ID，与渲染器中的 ID 生成逻辑保持一致
-    // 使用统一格式: mktwain-{type}-{counter}
-    // 每种类型使用独立计数器
     const generateBlockId = (type: string) => {
+      const blockId = counters[type]
       counters[type] = counters[type] + 1
-      return `mktwain-${type}-${counters[type]}`
+      return `mktwain-${type}-${blockId}`
     }
 
     // 查找 Admonition 块 (!!! 语法)
@@ -1759,31 +1751,25 @@ export const useStore = defineStore(`store`, () => {
     let match
     match = admonitionRegex.exec(markdown)
     while (match !== null) {
-      console.debug(`\n=== Admonition 匹配结果 ===`)
-      console.debug(`匹配的内容:`, JSON.stringify(match[0]))
-      console.debug(`匹配的长度:`, match[0].length)
-      console.debug(`起始位置:`, match.index)
-      console.debug(`结束位置:`, match.index + match[0].length)
-
       const startLine = getLineNumber(markdown, match.index)
-      // 修复 endLine 计算：Admonition 块以两个连续换行符结束，但这些换行符不属于块本身
-      // 我们需要找到块内容实际结束的位置（最后一个非换行字符）
-      const blockContent = match[0].replace(/\n\s*\n$/, ``) // 移除结尾的换行符
+      const blockContent = match[0].replace(/\n\s*\n$/, ``)
       const endLine = getLineNumber(markdown, match.index + blockContent.length)
 
-      console.debug(`起始行号:`, startLine)
-      console.debug(`结束行号:`, endLine)
-
-      allBlocks.push({
-        type: `admonition`,
+      const admonBlock = {
+        type: `admonition` as const,
         content: match[0],
         startIndex: match.index,
         endIndex: match.index + match[0].length,
         startLine,
         endLine,
         sequenceIndex: sequenceIndex++,
-        id: generateBlockId(`admonition`), // 新增：生成唯一ID
-      })
+        id: generateBlockId(`admonition`),
+      }
+
+      console.debug(`匹配到 Admonition:`, admonBlock)
+      allBlocks.push(admonBlock)
+
+      // 继续查找下一个
       match = admonitionRegex.exec(markdown)
     }
 
@@ -1794,15 +1780,8 @@ export const useStore = defineStore(`store`, () => {
       const startLine = getLineNumber(markdown, match.index)
       const endLine = getLineNumber(markdown, match.index + match[0].length)
 
-      console.debug(`\n=== Math 匹配结果 ===`)
-      console.debug(`匹配的内容:`, JSON.stringify(match[0]))
-      console.debug(`起始位置:`, match.index)
-      console.debug(`结束位置:`, match.index + match[0].length)
-      console.debug(`起始行号:`, startLine)
-      console.debug(`结束行号:`, endLine)
-
-      allBlocks.push({
-        type: `math`,
+      const mathBlock = {
+        type: `math` as const,
         content: match[0],
         startIndex: match.index,
         endIndex: match.index + match[0].length,
@@ -1810,7 +1789,8 @@ export const useStore = defineStore(`store`, () => {
         endLine,
         sequenceIndex: sequenceIndex++,
         id: generateBlockId(`math`), // 新增：生成唯一ID
-      })
+      }
+      allBlocks.push(mathBlock)
       match = mathRegex.exec(markdown)
     }
 
@@ -1821,18 +1801,11 @@ export const useStore = defineStore(`store`, () => {
       const startLine = getLineNumber(markdown, match.index)
       const endLine = getLineNumber(markdown, match.index + match[0].length)
 
-      console.debug(`\n=== Code 匹配结果 ===`)
-      console.debug(`匹配的内容:`, JSON.stringify(match[0]))
-      console.debug(`起始位置:`, match.index)
-      console.debug(`结束位置:`, match.index + match[0].length)
-      console.debug(`起始行号:`, startLine)
-      console.debug(`结束行号:`, endLine)
-
       // 检查是否是 PlantUML 代码块
       const isPlantUML = match[0].startsWith(`\`\`\`plantuml`)
       const blockType = isPlantUML ? `plantuml` : `code`
 
-      allBlocks.push({
+      const plantUMLBlock: MarkdownBlock = {
         type: blockType,
         content: match[0],
         startIndex: match.index,
@@ -1841,7 +1814,9 @@ export const useStore = defineStore(`store`, () => {
         endLine,
         sequenceIndex: sequenceIndex++,
         id: generateBlockId(blockType), // 新增：生成唯一ID
-      })
+      }
+
+      allBlocks.push(plantUMLBlock)
       match = codeRegex.exec(markdown)
     }
 
@@ -2154,7 +2129,7 @@ export const useStore = defineStore(`store`, () => {
       // 检查是否已有已上传的图片
       const hasUploadedImages = batchState.images.some(img => img.uploaded)
       if (hasUploadedImages) {
-        toast.error(`检测到已上传的图片，无法重新转图。请完成当前操作或刷新页面后重试。`)
+        toast.error(`图片已完成转图上传，不必重复操作。`)
         return false
       }
 
@@ -2363,7 +2338,6 @@ export const useStore = defineStore(`store`, () => {
     pageRefs,
     totalPages,
     renderPage,
-    togglePaginationMode,
     setNormalMode,
     setPaginationMode,
     goToPage,

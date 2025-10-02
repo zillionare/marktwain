@@ -109,13 +109,15 @@ async function handleConvertToImages() {
     // 检查转图时的模式切换
     if (store.isPaginationMode) {
       store.setNormalMode()
-      toast.info(`转图需要在普通模式下进行，已自动为您切换`)
-      // 等待模式切换完成后再继续
+      toast.info(`转图需要在普通模式下进行!`)
       await nextTick()
     }
 
-    await convertToImages()
-    toast.success(`转图完成`)
+    setTimeout(() => {
+      nextTick(async () => {
+        await convertToImages()
+      })
+    }, 350)
   }
   catch (error) {
     toast.error(`转图失败: ${(error as Error).message}`)
@@ -302,7 +304,10 @@ async function copy() {
         <TemplateDropdown />
 
         <!-- 模板编辑状态指示器 -->
-        <div v-if="isTemplateEditing" class="flex items-center px-2 py-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-sm text-blue-700 dark:text-blue-300">
+        <div
+          v-if="isTemplateEditing"
+          class="flex items-center px-2 py-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-sm text-blue-700 dark:text-blue-300"
+        >
           <Edit class="mr-1 h-3 w-3" />
           <span>
             {{ currentEditingTemplateId

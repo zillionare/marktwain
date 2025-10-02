@@ -1,6 +1,18 @@
 import type { MarkedExtension, Tokens } from 'marked'
 import { deflateSync } from 'fflate'
 
+let plantumlBlockId = 0
+
+export function resetPlantUmlBlockId() {
+  plantumlBlockId = 0
+}
+
+function getNextBlockId() {
+  const dataId = `mktwain-plantuml-${plantumlBlockId++}`
+  console.log(`PlantUML block renderer called, generating dataId:`, dataId)
+
+  return dataId
+}
 export interface PlantUMLOptions {
   /**
    * PlantUML 服务器地址
@@ -163,8 +175,7 @@ function renderPlantUMLDiagram(token: Tokens.Code, options: Required<PlantUMLOpt
   }
   const counters = (globalThis as any)._marktwainBlockCounters
   counters.plantuml = counters.plantuml + 1
-  const dataId = `mktwain-plantuml-${counters.plantuml}`
-  console.log(`PlantUML block renderer called, generating dataId:`, dataId)
+  const dataId = getNextBlockId()
 
   // 检查代码是否包含 PlantUML 标记
   const finalCode = (!code.trim().includes(`@start`) || !code.trim().includes(`@end`))

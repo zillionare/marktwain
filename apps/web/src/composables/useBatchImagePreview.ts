@@ -234,6 +234,12 @@ async function uploadImage(imageId: string) {
   imageItem.uploading = true
   imageItem.error = undefined // 清除之前的错误
 
+  const imgHost = localStorage.getItem(`imgHost`)
+  if (!imgHost) {
+    toast.error(`图床未配置，请先配置图床`)
+    return
+  }
+
   try {
     console.debug(`上传图片:`, imageId)
 

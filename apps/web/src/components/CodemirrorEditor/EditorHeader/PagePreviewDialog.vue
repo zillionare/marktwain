@@ -54,7 +54,7 @@ const isOpen = ref(false)
 const presets = useStorage<PagePreset[]>(addPrefix(`pagePresets`), defaultPresets)
 
 // 当前选中的预设ID
-const activePresetId = ref(presets.value[0]?.id || ``)
+const activePresetId = ref(presets.value[1]?.id || ``)
 
 // 当前预设数据
 const currentPreset = computed(() => {

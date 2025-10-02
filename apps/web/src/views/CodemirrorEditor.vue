@@ -550,6 +550,12 @@ async function uploadImage(
   cb?: { (url: any): void, (arg0: unknown): void } | undefined,
 ) {
   try {
+    const imgHost = localStorage.getItem(`imgHost`)
+    if (!imgHost) {
+      toast.error(`图床未配置，请先配置图床`)
+      return
+    }
+
     isImgLoading.value = true
 
     const base64Content = await toBase64(file)

@@ -16,19 +16,28 @@ const githubSchema = toTypedSchema(yup.object({
   branch: yup.string().optional(),
   accessToken: yup.string().required(`GitHub Token 不能为空`),
   pathInRepo: yup.string().optional(),
-  urlType: yup.string().required(`请选择图片访问链接类型`),
-  customDomain: yup.string().when(`urlType`, {
-    is: `custom`,
-    then: s => s.required(`自定义域名不能为空`),
-    otherwise: s => s.optional(),
-  }),
+  urlType: yup.string().oneOf([`raw`, `jsdelivr`, `custom`]).default(`jsdelivr`),
+  urlPrefix: yup.string().optional().default(`https://fastly.jsdelivr.net/gh/`),
 }))
 
 const githubConfig = ref(localStorage.getItem(`githubConfig`)
   ? JSON.parse(localStorage.getItem(`githubConfig`)!)
-  : { repo: ``, branch: ``, accessToken: ``, pathInRepo: ``, urlType: `jsdelivr`, customDomain: `` })
+  : { repo: ``, branch: `main`, accessToken: ``, pathInRepo: `images/{year}/{month}`, urlPrefix: `https://fastly.jsdelivr.net/gh/`, urlType: `jsdelivr` })
 
 function githubSubmit(formValues: any) {
+  if (githubConfig.value.urlType === `raw`) {
+    formValues.urlType = `raw`
+    formValues.urlPrefix = `https://raw.githubusercontent.com/`
+  }
+  else if (githubConfig.value.urlType === `jsdelivr`) {
+    formValues.urlPrefix = `https://fastly.jsdelivr.net/gh/`
+    formValues.urlType = `jsdelivr`
+  }
+  else {
+    console.log(formValues.urlPrefix)
+    formValues.urlType = `custom`
+  }
+
   localStorage.setItem(`githubConfig`, JSON.stringify(formValues))
   githubConfig.value = formValues
   toast.success(`保存成功`)
@@ -36,30 +45,20 @@ function githubSubmit(formValues: any) {
 
 // 计算示例 URL
 const githubExampleUrl = computed(() => {
-  const { repo, branch, pathInRepo, urlType, customDomain } = githubConfig.value
+  const { repo, branch, pathInRepo, urlType, urlPrefix } = githubConfig.value
   const branchName = branch || `main`
   const pathInRepoStr = pathInRepo || `images/{year}/{month}`
   const imageFileName = `example.jpg`
 
-  if (urlType === `default`) {
+  if (urlType === `raw`) {
     return `https://raw.githubusercontent.com/${repo}/${branchName}/${pathInRepoStr}/${imageFileName}`
   }
   else if (urlType === `jsdelivr`) {
     return `https://fastly.jsdelivr.net/gh/${repo}@${branchName}/${pathInRepoStr}/${imageFileName}`
   }
-  else if (urlType === `custom` && customDomain) {
-    // 处理自定义域名，支持带前缀的情况
-    let domain = customDomain.trim()
-    if (!domain.startsWith(`http://`) && !domain.startsWith(`https://`)) {
-      domain = `https://${domain}`
-    }
-    // 如果域名以 / 结尾，去掉末尾的 /
-    if (domain.endsWith(`/`)) {
-      domain = domain.slice(0, -1)
-    }
-    return `${domain}/${pathInRepoStr}/${imageFileName}`
+  else {
+    return `${urlPrefix}/${pathInRepoStr}/${imageFileName}`
   }
-  return ``
 })
 
 // 阿里云
@@ -445,7 +444,10 @@ function onDrop(e: DragEvent) {
           <TabsTrigger value="upload">
             选择上传
           </TabsTrigger>
-          <TabsTrigger v-for="item in options.filter(item => item.value !== 'default')" :key="item.value" :value="item.value">
+          <TabsTrigger
+            v-for="item in options.filter(item => item.value !== 'default')" :key="item.value"
+            :value="item.value"
+          >
             {{ item.label }}
           </TabsTrigger>
         </TabsList>
@@ -460,12 +462,7 @@ function onDrop(e: DragEvent) {
                 <SelectValue placeholder="请选择" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem
-                  v-for="item in options"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                >
+                <SelectItem v-for="item in options" :key="item.value" :label="item.label" :value="item.value">
                   {{ item.label }}
                 </SelectItem>
               </SelectContent>
@@ -475,11 +472,7 @@ function onDrop(e: DragEvent) {
             class="bg-clip-padding mt-4 h-50 flex flex-col cursor-pointer items-center justify-evenly border-2 rounded border-dashed transition-colors hover:border-gray-700 hover:bg-gray-400/50 dark:hover:border-gray-200 dark:hover:bg-gray-500/50"
             :class="{
               'border-gray-700 bg-gray-400/50 dark:border-gray-200 dark:bg-gray-500/50': dragover,
-            }"
-            @click="open()"
-            @drop.prevent="onDrop"
-            @dragover.prevent="dragover = true"
-            @dragleave.prevent="dragover = false"
+            }" @click="open()" @drop.prevent="onDrop" @dragover.prevent="dragover = true" @dragleave.prevent="dragover = false"
           >
             <UploadCloud class="size-20" />
             <p>
@@ -493,21 +486,13 @@ function onDrop(e: DragEvent) {
           <Form :validation-schema="githubSchema" :initial-values="githubConfig" @submit="githubSubmit">
             <Field v-slot="{ field, errorMessage }" name="repo">
               <FormItem label="GitHub 仓库" required :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：owner/repo"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：owner/repo" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="branch">
               <FormItem label="分支" :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="默认 main"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="默认 main" />
               </FormItem>
             </Field>
 
@@ -515,11 +500,8 @@ function onDrop(e: DragEvent) {
               <FormItem label="Token" required :error="errorMessage">
                 <div class="flex items-center w-full">
                   <Input
-                    v-bind="field"
-                    v-model="field.value"
-                    type="password"
-                    placeholder="如：cc1d0c1426d0fd0902bd2d7184b14da61b8abc46"
-                    class="flex-1"
+                    v-bind="field" v-model="field.value" type="password"
+                    placeholder="如：cc1d0c1426d0fd0902bd2d7184b14da61b8abc46" class="flex-1"
                   />
                   <Button
                     variant="link"
@@ -536,11 +518,7 @@ function onDrop(e: DragEvent) {
 
             <Field v-slot="{ field, errorMessage }" name="pathInRepo">
               <FormItem label="仓库内路径" :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="默认值: images/{year}/{month}"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="默认值: images/{year}/{month}" />
               </FormItem>
             </Field>
 
@@ -548,10 +526,7 @@ function onDrop(e: DragEvent) {
               <div class="space-y-3">
                 <div class="flex items-center space-x-2">
                   <input
-                    id="url-default"
-                    v-model="githubConfig.urlType"
-                    type="radio"
-                    value="default"
+                    id="url-default" v-model="githubConfig.urlType" type="radio" value="raw"
                     class="h-4 w-4 text-blue-600"
                   >
                   <label for="url-default" class="text-sm font-medium">
@@ -560,10 +535,7 @@ function onDrop(e: DragEvent) {
                 </div>
                 <div class="flex items-center space-x-2">
                   <input
-                    id="url-jsdelivr"
-                    v-model="githubConfig.urlType"
-                    type="radio"
-                    value="jsdelivr"
+                    id="url-jsdelivr" v-model="githubConfig.urlType" type="radio" value="jsdelivr"
                     class="h-4 w-4 text-blue-600"
                   >
                   <label for="url-jsdelivr" class="text-sm font-medium">
@@ -572,10 +544,7 @@ function onDrop(e: DragEvent) {
                 </div>
                 <div class="flex items-center space-x-2">
                   <input
-                    id="url-custom"
-                    v-model="githubConfig.urlType"
-                    type="radio"
-                    value="custom"
+                    id="url-custom" v-model="githubConfig.urlType" type="radio" value="custom"
                     class="h-4 w-4 text-blue-600"
                   >
                   <label for="url-custom" class="text-sm font-medium">
@@ -585,17 +554,9 @@ function onDrop(e: DragEvent) {
               </div>
             </FormItem>
 
-            <Field v-slot="{ field, errorMessage }" name="customDomain">
-              <FormItem
-                v-show="githubConfig.urlType === 'custom'"
-                label="自定义域名"
-                :error="errorMessage"
-              >
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：https://cdn.example.com 或 cdn.example.com"
-                />
+            <Field v-slot="{ field, errorMessage }" name="urlPrefix">
+              <FormItem v-show="githubConfig.urlType === 'custom'" label="自定义域名" :error="errorMessage">
+                <Input v-bind="field" v-model="field.value" placeholder="如：https://cdn.example.com 或 cdn.example.com" />
               </FormItem>
             </Field>
 
@@ -619,20 +580,14 @@ function onDrop(e: DragEvent) {
           <Form :validation-schema="aliOSSSchema" :initial-values="aliOSSConfig" @submit="aliOSSSubmit">
             <Field v-slot="{ field, errorMessage }" name="accessKeyId">
               <FormItem label="AccessKey ID" required :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：LTAI4GdoocsmdoxUf13ylbaNHk"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：LTAI4GdoocsmdoxUf13ylbaNHk" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="accessKeySecret">
               <FormItem label="AccessKey Secret" required :error="errorMessage">
                 <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  type="password"
+                  v-bind="field" v-model="field.value" type="password"
                   placeholder="如：cc1d0c142doocs0902bd2d7md4b14da6ylbabc46"
                 />
               </FormItem>
@@ -640,30 +595,20 @@ function onDrop(e: DragEvent) {
 
             <Field v-slot="{ field, errorMessage }" name="bucket">
               <FormItem label="Bucket" required :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：doocs"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：doocs" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="region">
               <FormItem label="Bucket 所在区域" required :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：oss-cn-shenzhen"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：oss-cn-shenzhen" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="useSSL" type="boolean">
               <FormItem label="UseSSL" required :error="errorMessage">
                 <Switch
-                  :checked="field.value"
-                  :name="field.name"
-                  @update:checked="field.onChange"
+                  :checked="field.value" :name="field.name" @update:checked="field.onChange"
                   @blur="field.onBlur"
                 />
               </FormItem>
@@ -671,30 +616,19 @@ function onDrop(e: DragEvent) {
 
             <Field v-slot="{ field, errorMessage }" name="cdnHost">
               <FormItem label="自定义 CDN 域名" :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：https://imagecdn.alidaodao.com，可不填"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：https://imagecdn.alidaodao.com，可不填" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="path">
               <FormItem label="存储路径" :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：img，可不填，默认为根目录"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：img，可不填，默认为根目录" />
               </FormItem>
             </Field>
 
             <FormItem>
               <Button
-                variant="link"
-                class="p-0"
-                as="a"
-                href="https://help.aliyun.com/document_detail/31883.html"
+                variant="link" class="p-0" as="a" href="https://help.aliyun.com/document_detail/31883.html"
                 target="_blank"
               >
                 如何使用阿里云 OSS？
@@ -713,20 +647,14 @@ function onDrop(e: DragEvent) {
           <Form :validation-schema="txCOSSchema" :initial-values="txCOSConfig" @submit="txCOSSubmit">
             <Field v-slot="{ field, errorMessage }" name="secretId">
               <FormItem label="SecretId" required :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：AKIDnQp1w3DOOCSs8F5MDp9tdoocsmdUPonW3"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：AKIDnQp1w3DOOCSs8F5MDp9tdoocsmdUPonW3" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="secretKey">
               <FormItem label="SecretKey" required :error="errorMessage">
                 <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  type="password"
+                  v-bind="field" v-model="field.value" type="password"
                   placeholder="如：ukLmdtEJ9271f3DOocsMDsCXdS3YlbW0"
                 />
               </FormItem>
@@ -734,50 +662,31 @@ function onDrop(e: DragEvent) {
 
             <Field v-slot="{ field, errorMessage }" name="bucket">
               <FormItem label="Bucket" required :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：doocs-3212520134"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：doocs-3212520134" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="region">
               <FormItem label="Bucket 所在区域" required :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：ap-guangzhou"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：ap-guangzhou" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="cdnHost">
               <FormItem label="自定义 CDN 域名" :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：https://imagecdn.alidaodao.com，可不填"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：https://imagecdn.alidaodao.com，可不填" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="path">
               <FormItem label="存储路径" :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：img，可不填，默认根目录"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：img，可不填，默认根目录" />
               </FormItem>
             </Field>
 
             <FormItem>
               <Button
-                variant="link"
-                class="p-0"
-                as="a"
-                href="https://cloud.tencent.com/document/product/436/38484"
+                variant="link" class="p-0" as="a" href="https://cloud.tencent.com/document/product/436/38484"
                 target="_blank"
               >
                 如何使用腾讯云 COS？
@@ -796,20 +705,14 @@ function onDrop(e: DragEvent) {
           <Form :validation-schema="qiniuSchema" :initial-values="qiniuConfig" @submit="qiniuSubmit">
             <Field v-slot="{ field, errorMessage }" name="accessKey">
               <FormItem label="AccessKey" required :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：6DD3VaLJ_SQgOdoocsyTV_YWaDmdnL2n8EGx7kG"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：6DD3VaLJ_SQgOdoocsyTV_YWaDmdnL2n8EGx7kG" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="secretKey">
               <FormItem label="SecretKey" required :error="errorMessage">
                 <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  type="password"
+                  v-bind="field" v-model="field.value" type="password"
                   placeholder="如：qgZa5qrvDOOcsmdKStD1oCjZ9nB7MDvJUs_34SIm"
                 />
               </FormItem>
@@ -817,52 +720,30 @@ function onDrop(e: DragEvent) {
 
             <Field v-slot="{ field, errorMessage }" name="bucket">
               <FormItem label="Bucket" required :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：md"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：md" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="domain">
               <FormItem label="Bucket 对应域名" required :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：https://images.123ylb.cn"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：https://images.123ylb.cn" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="region">
               <FormItem label="存储区域" :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：z2，可不填"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：z2，可不填" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="path">
               <FormItem label="存储路径" :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：img，可不填，默认为根目录"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：img，可不填，默认为根目录" />
               </FormItem>
             </Field>
 
             <FormItem>
-              <Button
-                variant="link"
-                class="p-0"
-                as="a"
-                href="https://developer.qiniu.com/kodo"
-                target="_blank"
-              >
+              <Button variant="link" class="p-0" as="a" href="https://developer.qiniu.com/kodo" target="_blank">
                 如何使用七牛云 Kodo？
               </Button>
             </FormItem>
@@ -879,20 +760,14 @@ function onDrop(e: DragEvent) {
           <Form :validation-schema="minioOSSSchema" :initial-values="minioOSSConfig" @submit="minioOSSSubmit">
             <Field v-slot="{ field, errorMessage }" name="endpoint">
               <FormItem label="Endpoint" required :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：play.min.io"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：play.min.io" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="port">
               <FormItem label="Port" :error="errorMessage">
                 <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  type="number"
+                  v-bind="field" v-model="field.value" type="number"
                   placeholder="如：9000，可不填，http 默认为 80，https 默认为 443"
                 />
               </FormItem>
@@ -901,9 +776,7 @@ function onDrop(e: DragEvent) {
             <Field v-slot="{ field, errorMessage }" name="useSSL" type="boolean">
               <FormItem label="UseSSL" required :error="errorMessage">
                 <Switch
-                  :checked="field.value"
-                  :name="field.name"
-                  @update:checked="field.onChange"
+                  :checked="field.value" :name="field.name" @update:checked="field.onChange"
                   @blur="field.onBlur"
                 />
               </FormItem>
@@ -911,11 +784,7 @@ function onDrop(e: DragEvent) {
 
             <Field v-slot="{ field, errorMessage }" name="bucket">
               <FormItem label="Bucket" required :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：doocs"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：doocs" />
               </FormItem>
             </Field>
 
@@ -933,11 +802,8 @@ function onDrop(e: DragEvent) {
 
             <FormItem>
               <Button
-                variant="link"
-                class="p-0"
-                as="a"
-                href="http://docs.minio.org.cn/docs/master/minio-client-complete-guide"
-                target="_blank"
+                variant="link" class="p-0" as="a"
+                href="http://docs.minio.org.cn/docs/master/minio-client-complete-guide" target="_blank"
               >
                 如何使用 MinIO？
               </Button>
@@ -954,58 +820,34 @@ function onDrop(e: DragEvent) {
         <TabsContent value="mp">
           <Form :validation-schema="mpSchema" :initial-values="mpConfig" @submit="mpSubmit">
             <!-- 只有在需要代理时才显示 proxyOrigin 字段 -->
-            <Field
-              v-if="isProxyRequired"
-              v-slot="{ field, errorMessage }"
-              name="proxyOrigin"
-            >
+            <Field v-if="isProxyRequired" v-slot="{ field, errorMessage }" name="proxyOrigin">
               <FormItem label="代理域名" required :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  :placeholder="mpPlaceholder"
-                />
+                <Input v-bind="field" v-model="field.value" :placeholder="mpPlaceholder" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="appID">
               <FormItem label="appID" required :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：wx6e1234567890efa3"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：wx6e1234567890efa3" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="appsecret">
               <FormItem label="appsecret" required :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：d9f1abcdef01234567890abcdef82397"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：d9f1abcdef01234567890abcdef82397" />
               </FormItem>
             </Field>
 
             <FormItem>
               <div class="flex flex-col items-start">
                 <Button
-                  variant="link"
-                  class="p-0"
-                  as="a"
+                  variant="link" class="p-0" as="a"
                   href="https://developers.weixin.qq.com/doc/offiaccount/Getting_Started/Getting_Started_Guide.html"
                   target="_blank"
                 >
                   如何开启公众号开发者模式并获取应用账号密钥？
                 </Button>
-                <Button
-                  variant="link"
-                  class="p-0"
-                  as="a"
-                  href="https://md-pages.doocs.org/tutorial/"
-                  target="_blank"
-                >
+                <Button variant="link" class="p-0" as="a" href="https://md-pages.doocs.org/tutorial/" target="_blank">
                   如何在浏览器插件中使用公众号图床？
                 </Button>
               </div>
@@ -1023,7 +865,10 @@ function onDrop(e: DragEvent) {
           <Form :validation-schema="r2Schema" :initial-values="r2Config" @submit="r2Submit">
             <Field v-slot="{ field, errorMessage }" name="accountId">
               <FormItem label="AccountId" required :error="errorMessage">
-                <Input v-bind="field" v-model="field.value" placeholder="如: 0030f123e55a57546f4c281c564e560" class="min-w-[350px]" />
+                <Input
+                  v-bind="field" v-model="field.value" placeholder="如: 0030f123e55a57546f4c281c564e560"
+                  class="min-w-[350px]"
+                />
               </FormItem>
             </Field>
 
@@ -1035,7 +880,10 @@ function onDrop(e: DragEvent) {
 
             <Field v-slot="{ field, errorMessage }" name="secretKey">
               <FormItem label="SecretKey" required :error="errorMessage">
-                <Input v-bind="field" v-model="field.value" type="password" placeholder="如: c1c4dbcb0b6b785ac6633422a06dff3dac055fe74fe40xj1b5c5fcf1bf128010" />
+                <Input
+                  v-bind="field" v-model="field.value" type="password"
+                  placeholder="如: c1c4dbcb0b6b785ac6633422a06dff3dac055fe74fe40xj1b5c5fcf1bf128010"
+                />
               </FormItem>
             </Field>
 
@@ -1060,19 +908,13 @@ function onDrop(e: DragEvent) {
             <FormItem>
               <div class="flex flex-col items-start">
                 <Button
-                  variant="link"
-                  class="p-0"
-                  as="a"
-                  href="https://developers.cloudflare.com/r2/api/s3/api/"
+                  variant="link" class="p-0" as="a" href="https://developers.cloudflare.com/r2/api/s3/api/"
                   target="_blank"
                 >
                   如何使用 S3 API 操作 Cloudflare R2？
                 </Button>
                 <Button
-                  variant="link"
-                  class="p-0"
-                  as="a"
-                  href="https://developers.cloudflare.com/r2/buckets/cors/"
+                  variant="link" class="p-0" as="a" href="https://developers.cloudflare.com/r2/buckets/cors/"
                   target="_blank"
                 >
                   如何设置跨域(CORS)？
@@ -1104,7 +946,10 @@ function onDrop(e: DragEvent) {
 
             <Field v-slot="{ field, errorMessage }" name="password">
               <FormItem label="操作员密码" required :error="errorMessage">
-                <Input v-bind="field" v-model="field.value" type="password" placeholder="如: c1c4dbcb0b6b785ac6633422a06dff3dac055fe74fe40xj1b5c5fcf1bf128010" />
+                <Input
+                  v-bind="field" v-model="field.value" type="password"
+                  placeholder="如: c1c4dbcb0b6b785ac6633422a06dff3dac055fe74fe40xj1b5c5fcf1bf128010"
+                />
               </FormItem>
             </Field>
 
@@ -1121,13 +966,7 @@ function onDrop(e: DragEvent) {
             </Field>
 
             <FormItem>
-              <Button
-                variant="link"
-                class="p-0"
-                as="a"
-                href="https://help.upyun.com/"
-                target="_blank"
-              >
+              <Button variant="link" class="p-0" as="a" href="https://help.upyun.com/" target="_blank">
                 如何使用 又拍云？
               </Button>
             </FormItem>
@@ -1154,11 +993,8 @@ function onDrop(e: DragEvent) {
             </Field>
             <FormItem>
               <Button
-                variant="link"
-                class="p-0"
-                as="a"
-                href="https://github.com/doocs/md/blob/main/docs/telegram-usage.md"
-                target="_blank"
+                variant="link" class="p-0" as="a"
+                href="https://github.com/doocs/md/blob/main/docs/telegram-usage.md" target="_blank"
               >
                 如何使用 Telegram？
               </Button>
@@ -1172,11 +1008,7 @@ function onDrop(e: DragEvent) {
         </TabsContent>
 
         <TabsContent value="cloudinary">
-          <Form
-            :validation-schema="cloudinarySchema"
-            :initial-values="cloudinaryConfig"
-            @submit="cloudinarySubmit"
-          >
+          <Form :validation-schema="cloudinarySchema" :initial-values="cloudinaryConfig" @submit="cloudinarySubmit">
             <Field v-slot="{ field, errorMessage }" name="cloudName">
               <FormItem label="Cloud Name" required :error="errorMessage">
                 <Input v-bind="field" v-model="field.value" placeholder="如：demo" />
@@ -1191,51 +1023,31 @@ function onDrop(e: DragEvent) {
 
             <Field v-slot="{ field, errorMessage }" name="apiSecret">
               <FormItem label="API Secret" :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  type="password"
-                  placeholder="用于签名上传，可不填"
-                />
+                <Input v-bind="field" v-model="field.value" type="password" placeholder="用于签名上传，可不填" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="uploadPreset">
               <FormItem label="Upload Preset" :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="unsigned 时必填，signed 时可不填"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="unsigned 时必填，signed 时可不填" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="folder">
               <FormItem label="Folder" :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：blog/image，可不填"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：blog/image，可不填" />
               </FormItem>
             </Field>
 
             <Field v-slot="{ field, errorMessage }" name="domain">
               <FormItem label="自定义域名 / CDN" :error="errorMessage">
-                <Input
-                  v-bind="field"
-                  v-model="field.value"
-                  placeholder="如：https://cdn.example.com，可不填"
-                />
+                <Input v-bind="field" v-model="field.value" placeholder="如：https://cdn.example.com，可不填" />
               </FormItem>
             </Field>
 
             <FormItem>
               <Button
-                variant="link"
-                class="p-0"
-                as="a"
-                href="https://cloudinary.com/documentation/upload_images"
+                variant="link" class="p-0" as="a" href="https://cloudinary.com/documentation/upload_images"
                 target="_blank"
               >
                 Cloudinary 使用文档

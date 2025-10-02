@@ -2,6 +2,18 @@ import type { AdmonOptions, AdmonVariantItem } from '@md/shared/types'
 import type { MarkedExtension } from 'marked'
 import { getStyleString, ucfirst } from '../utils'
 
+let admonBlockId: number = 0
+
+export function resetAdmonBlockId() {
+  admonBlockId = 0
+}
+
+function getNextBlockId() {
+  const dataId = `mktwain-admonition-${admonBlockId++}`
+  console.debug(`Admon block dataId:`, dataId)
+  return dataId
+}
+
 /**
  * A marked extension to support admonitions with Material Design icons.
  * Supports both !!! syntax and traditional > [!TYPE] syntax.
@@ -91,14 +103,10 @@ export function markedAdmon(options: AdmonOptions = {}): MarkedExtension {
         math: 0,
       }
     }
-    const counters = (globalThis as any)._marktwainBlockCounters
-    counters.admonition = counters.admonition + 1
-    const dataId = `mktwain-admonition-${counters.admonition}`
-    console.log(`Admonition renderAdmon called, generating dataId:`, dataId)
 
     // 使用 div 结构而不是 blockquote，以匹配 CSS 样式
-    let tmpl = `<div class="${meta.className} ${meta.variant}" style="${getStyleString(meta.wrapperStyle)}" mktwain-data-id="${dataId}">
-`
+    let tmpl = `<div class="${meta.className} ${meta.variant}" style="${getStyleString(meta.wrapperStyle)}" mktwain-data-id="${getNextBlockId()}">`
+
     tmpl += `<div class="${meta.titleClassName}" style="${getStyleString(meta.titleStyle)}">`
     tmpl += meta.title
     tmpl += `</div>\n`

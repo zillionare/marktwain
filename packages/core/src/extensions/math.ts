@@ -1,3 +1,14 @@
+let mathBlockId: number = 0
+
+export function resetMathBlockId() {
+  mathBlockId = 0
+}
+
+function getNextBlockId() {
+  const dataId = `mktwain-math-${mathBlockId++}`
+  console.debug(`Math block dataId:`, dataId)
+  return dataId
+}
 export function markedMath(): MarkedExtension {
   return {
     extensions: [
@@ -27,8 +38,7 @@ export function markedMath(): MarkedExtension {
           }
           const counters = (globalThis as any)._marktwainBlockCounters
           counters.math = counters.math + 1
-          const dataId = `mktwain-math-${counters.math}`
-          console.log(`Math block renderer called, generating dataId:`, dataId)
+          const dataId = getNextBlockId()
 
           return `<section class="block_katex" mktwain-data-id="${dataId}">$$\n${token.text}\n$$</section>`
         },

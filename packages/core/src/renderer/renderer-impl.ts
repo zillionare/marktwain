@@ -1,16 +1,36 @@
 import type { ExtendedProperties, IOpts, RendererAPI, ThemeStyles } from '@md/shared/types'
 import type { PropertiesHyphen } from 'csstype'
+import type { RendererObject, Tokens } from 'marked'
+import type { ReadTimeResults } from 'reading-time'
 import { cloneDeep, toMerged } from 'es-toolkit'
 import frontMatter from 'front-matter'
 import hljs from 'highlight.js'
-import type { RendererObject, Tokens } from 'marked'
 import { marked } from 'marked'
 import mermaid from 'mermaid'
-import type { ReadTimeResults } from 'reading-time'
 import readingTime from 'reading-time'
-import { markedAdmon, markedAlert, markedFootnotes, markedPlantUML, markedRuby, markedSlider, markedToc, MDKatex } from '../extensions'
+import { markedAdmon, markedAlert, markedFootnotes, markedPlantUML, markedRuby, markedSlider, markedToc, MDKatex, resetAdmonBlockId, resetPlantUmlBlockId } from '../extensions'
+import { resetMathBlockId } from '../extensions/math'
 import { getStyleString } from '../utils'
 import { addDataLineAttribute, LineTracker } from '../utils/lineTracker'
+
+let codeBlockId = 0 // include mermaid code block id
+
+export function resetCodeBlockId() {
+  codeBlockId = 0
+}
+
+export function resetBlockCounters() {
+  resetCodeBlockId()
+  resetAdmonBlockId()
+  resetMathBlockId()
+  resetPlantUmlBlockId()
+}
+
+function getNextBlockId() {
+  const dataId = `mktwain-code-${codeBlockId++}`
+  console.debug(`mermaid block dataId: ${dataId}`)
+  return dataId
+}
 
 marked.setOptions({
   breaks: true,
@@ -174,7 +194,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
   let codeIndex: number = 0
   const listOrderedStack: boolean[] = []
   const listCounters: number[] = []
-  let lineTracker: LineTracker | undefined = undefined
+  let lineTracker: LineTracker | undefined
 
   function getOpts(): IOpts {
     return opts
@@ -254,7 +274,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
       // 添加 data-line 属性
       if (lineTracker !== undefined && raw) {
         const lineNumber = lineTracker.getLineNumber(raw)
-        html = addDataLineAttribute(html, lineNumber, 'heading')
+        html = addDataLineAttribute(html, lineNumber, `heading`)
       }
 
       return html
@@ -273,7 +293,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
       // 添加 data-line 属性
       if (lineTracker !== undefined && raw) {
         const lineNumber = lineTracker.getLineNumber(raw)
-        html = addDataLineAttribute(html, lineNumber, 'paragraph')
+        html = addDataLineAttribute(html, lineNumber, `paragraph`)
       }
 
       return html
@@ -292,21 +312,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
           mermaid.run()
         }, 0) as any as number
 
-        // 生成唯一的 data-id 用于转图功能，与 findMarkdownBlocks 中的 ID 生成逻辑保持一致
-        // 使用统一格式: mktwain-{type}-{counter}
-        // 使用独立计数器确保同类型块的编号一致性
-        if (!(globalThis as any)._marktwainBlockCounters) {
-          (globalThis as any)._marktwainBlockCounters = {
-            admonition: 0,
-            code: 0,
-            math: 0,
-          }
-        }
-        const counters = (globalThis as any)._marktwainBlockCounters
-        counters.code = counters.code + 1
-        const dataId = `mktwain-code-${counters.code}`
-        console.log(`Mermaid block renderer called, generating dataId:`, dataId)
-
+        const dataId = getNextBlockId()
         return `<pre class="mermaid" mktwain-data-id="${dataId}">${text}</pre>`
       }
 
@@ -327,24 +333,9 @@ export function initRenderer(opts: IOpts): RendererAPI {
 
       // tab to 4 spaces
       highlighted = highlighted.replace(/\t/g, `    `)
-
-      // 生成唯一的 data-id 用于转图功能，与 findMarkdownBlocks 中的 ID 生成逻辑保持一致
-      // 使用统一格式: mktwain-{type}-{counter}
-      // 使用独立计数器确保同类型块的编号一致性
-      if (!(globalThis as any)._marktwainBlockCounters) {
-        (globalThis as any)._marktwainBlockCounters = {
-          admonition: 0,
-          code: 0,
-          math: 0,
-        }
-      }
-      const counters = (globalThis as any)._marktwainBlockCounters
-      counters.code = counters.code + 1
-      const dataId = `mktwain-code-${counters.code}`
-      console.log(`Code block renderer called, generating dataId:`, dataId)
-
+      const dataId = getNextBlockId()
       // 声明 span 在使用之前
-      const span = `<span class="mac-sign" style="padding: 10px 14px 0;">${macCodeSvg}</span>`
+      const span = `<span class= "mac-sign" style = "padding: 10px 14px 0;" > ${macCodeSvg} </span>`
 
       // 如果开启行号，创建单独的 line-numbers 元素
       if (opts.isShowLineNumbers) {
@@ -402,7 +393,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
       // 添加 data-line 属性
       if (lineTracker !== undefined && raw) {
         const lineNumber = lineTracker.getLineNumber(raw)
-        result = addDataLineAttribute(result, lineNumber, 'list')
+        result = addDataLineAttribute(result, lineNumber, `list`)
       }
 
       return result
