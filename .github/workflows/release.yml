@@ -40,7 +40,7 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: ${{ github.ref }}
           body: |
-            # 微信 Markdown 编辑器 ${{ github.ref_name }} 发布🎈
+            # Marktwain 编辑器 ${{ github.ref_name }} 发布🎈
 
             [![github](https://badgen.net/badge/>>/GitHub/cyan)](https://github.com/zillionare/marktwain/releases) [![gitee](https://badgen.net/badge/>>/Gitee/cyan)](https://gitee.com/zillionare/marktwain/releases) [![gitcode](https://badgen.net/badge/>>/GitCode/cyan)](https://gitcode.com/zillionare/marktwain/releases)
 
