@@ -75,7 +75,6 @@ watch(() => displayStore.isShowDocumentArea, (isShow) => {
   right: 0;
   bottom: 0;
   background: white;
-  z-index: 1000;
   display: flex;
   flex-direction: column;
 }
