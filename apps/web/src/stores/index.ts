@@ -127,6 +127,8 @@ export const useStore = defineStore(`store`, () => {
   const primaryColor = useStorage(`color`, defaultStyleConfig.primaryColor)
   // 代码块主题
   const codeBlockTheme = useStorage(`codeBlockTheme`, defaultStyleConfig.codeBlockTheme)
+  // 可用的 highlight.js 主题（从 public/assets/hljs-themes/themes.json 读取）
+  const availableHljsThemes = ref<any[]>([])
   // 图注格式
   const legend = useStorage(`legend`, defaultStyleConfig.legend)
 
@@ -310,6 +312,45 @@ export const useStore = defineStore(`store`, () => {
       document.head.appendChild(link)
     }
   }
+
+  // 从服务器读取可用主题并设置（如果 manifest 存在，优先使用规范化的 manifest url）
+  const selectHljsTheme = async (themeUrl: string) => {
+    try {
+      // 如果我们已经加载了 manifest，就尝试用 manifest 中的规范化 url
+      if (availableHljsThemes.value && availableHljsThemes.value.length > 0) {
+        const match = availableHljsThemes.value.find((t: any) => {
+          // match by name or file or url suffix
+          const baseName = (themeUrl || ``).split(`/`).pop() || ``
+          return t.name === baseName || t.file === baseName || (t.url && t.url.endsWith(baseName))
+        })
+        if (match && match.url) {
+          codeBlockTheme.value = match.url
+          codeThemeChange()
+          return
+        }
+      }
+    }
+    catch {
+      // ignore and fall back to raw value
+    }
+
+    // fallback: set the provided value directly
+    codeBlockTheme.value = themeUrl
+    codeThemeChange()
+  }
+
+  // 初始化加载可用主题
+  onMounted(async () => {
+    try {
+      // import helper lazily to avoid circular deps at module load
+      const utils = await import(`@/utils`)
+      const themes = await utils.listHljsThemes()
+      availableHljsThemes.value = themes
+    }
+    catch {
+      availableHljsThemes.value = []
+    }
+  })
 
   // 自义定 CSS 编辑器
   const cssEditor = ref<CodeMirror.EditorFromTextArea | null>(null)
@@ -1600,6 +1641,9 @@ export const useStore = defineStore(`store`, () => {
     updatePostParentId,
     collapseAllPosts,
     expandAllPosts,
+    // highlight.js themes
+    availableHljsThemes,
+    selectHljsTheme,
 
     editorContent2HTML,
   }

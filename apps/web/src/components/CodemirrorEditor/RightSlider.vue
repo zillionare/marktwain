@@ -18,6 +18,28 @@ const displayStore = useDisplayStore()
 
 const { isDark, primaryColor } = storeToRefs(store)
 
+// build code block theme options: prefer dynamic list from store if available
+const availableHljs = computed(() => (store.availableHljsThemes && store.availableHljsThemes.length ? store.availableHljsThemes : []))
+const codeThemeOptionsForUI = computed(() => {
+  if (availableHljs.value && availableHljs.value.length) {
+    // build baseName -> prefer min.css
+    const map = new Map()
+    for (const item of availableHljs.value) {
+      const name = item.name.replace(/\.min$/, ``)
+      const isMin = item.file.endsWith(`.min.css`)
+      const prev = map.get(name)
+      if (!prev) {
+        map.set(name, item)
+      }
+      else if (isMin) {
+        map.set(name, item)
+      }
+    }
+    return Array.from(map.values()).map(it => ({ label: it.name.replace(/\.min$/, ``), value: it.url, desc: `` }))
+  }
+  return codeBlockThemeOptions
+})
+
 function customStyle() {
   displayStore.toggleShowCssEditor()
   setTimeout(() => {
@@ -121,7 +143,7 @@ const formatOptions = ref<Format[]>([`rgb`, `hex`, `hsl`, `hsv`])
               <SelectValue placeholder="Select a code block theme" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem v-for="{ label, value } in codeBlockThemeOptions" :key="label" :value="value">
+              <SelectItem v-for="{ label, value } in codeThemeOptionsForUI" :key="label" :value="value">
                 {{ label }}
               </SelectItem>
             </SelectContent>

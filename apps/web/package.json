@@ -23,7 +23,8 @@
     "firefox:zip": "wxt zip -b firefox",
     "type-check": "vue-tsc --build --force",
     "postinstall": "wxt prepare",
-    "package:extension": "pnpm --prefix ./src/extension run package"
+    "package:extension": "pnpm --prefix ./src/extension run package",
+    "copy:hljs-themes": "node ./scripts/copy-hljs-themes.cjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.883.0",

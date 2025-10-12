@@ -118,7 +118,9 @@ export const widthOptions: IConfigOption[] = [
   },
 ]
 
-const codeBlockUrlPrefix = `https://cdn-doocs.oss-cn-shenzhen.aliyuncs.com/npm/highlightjs/11.11.1/styles/`
+// Use local same-origin theme assets (copied to apps/web/public/assets/hljs-themes)
+// Respect Vite's base URL so assets are requested under the correct base path
+const codeBlockUrlPrefix = `${import.meta.env.BASE_URL}assets/hljs-themes/`
 const codeBlockThemeList = [
   `1c-light`,
   `a11y-dark`,

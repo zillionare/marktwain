@@ -235,6 +235,71 @@ export function solveWeChatImage() {
 }
 
 async function getHljsStyles(): Promise<string> {
+  // First try to get the currently loaded #hljs stylesheet href (this will be same-origin when using local themes)
+  try {
+    const linkEl = document.querySelector<HTMLLinkElement>(`#hljs`)
+    if (linkEl && linkEl.href) {
+      try {
+        // try the href first
+        let resp = await fetch(linkEl.href, { cache: `no-cache` })
+        if (!resp.ok) {
+          // try replacing .min.css with .css
+          if (linkEl.href.endsWith(`.min.css`)) {
+            const alt = linkEl.href.replace(/\.min\.css$/, `.css`)
+            resp = await fetch(alt, { cache: `no-cache` })
+          }
+        }
+
+        // final fallback: consult themes.json for a matching base name
+        if (!resp.ok) {
+          try {
+            const base = (import.meta as any).env?.BASE_URL || `/`
+            const manifestResp = await fetch(`${base}assets/hljs-themes/themes.json`, { cache: `no-cache` })
+            if (manifestResp.ok) {
+              const manifest = await manifestResp.json()
+              const hrefBase = linkEl.href.split(`/`).pop() || ``
+              const baseName = hrefBase.replace(/\.min\.css$|\.css$/i, ``)
+              const match = manifest.find((m: any) => m.name === baseName || m.file === `${baseName}.min.css` || m.file === `${baseName}.css`)
+              if (match) {
+                const matchUrl = match.url.startsWith(`/`) ? `${base.slice(0, -1)}${match.url}` : match.url
+                resp = await fetch(matchUrl, { cache: `no-cache` })
+              }
+            }
+          }
+          catch {
+            // ignore
+          }
+        }
+
+        if (resp && resp.ok) {
+          const text = await resp.text()
+          return `<style>${text}</style>`
+        }
+      }
+      catch {
+        // fetch failed, fallback to extraction
+      }
+    }
+  }
+  catch {
+    // ignore
+  }
+
+  // Fallback: try to fetch a default local theme folder (assets/hljs-themes) if present
+  try {
+    const base = (import.meta as any).env?.BASE_URL || `/`
+    const baseWithSlash = base.endsWith(`/`) ? base : `${base}`
+    const resp = await fetch(`${baseWithSlash}assets/hljs-themes/default.css`)
+    if (resp.ok) {
+      const text = await resp.text()
+      return `<style>${text}</style>`
+    }
+  }
+  catch {
+    // ignore
+  }
+
+  // Last resort: extract from same-origin stylesheets via CSSOM (skip cross-origin)
   return extractHljsStylesFromPage()
 }
 
@@ -464,4 +529,41 @@ export async function processClipboardContent(primaryColor: string) {
     grand.innerHTML = ``
     grand.appendChild(section)
   })
+}
+
+/**
+ * 获取本地打包的 highlight.js 主题清单（由构建脚本生成到 public/assets/hljs-themes/themes.json）
+ */
+export async function listHljsThemes(): Promise<any[]> {
+  try {
+    const base = (import.meta as any).env?.BASE_URL || `/`
+    // Ensure base ends with a single slash
+    const baseWithSlash = base.endsWith(`/`) ? base : `${base}`
+    const manifestUrl = `${baseWithSlash}assets/hljs-themes/themes.json`
+    const resp = await fetch(manifestUrl, { cache: `no-cache` })
+    if (!resp.ok) {
+      return []
+    }
+    const list = await resp.json()
+    // Normalize each entry.url to be absolute and include base when needed
+    const normalized = list.map((item: any) => {
+      const url = item.url || item.file || ``
+      // If url already absolute (starts with http or base-aware), leave it
+      if (/^https?:\/\//i.test(url)) {
+        return { ...item, url }
+      }
+      // If url starts with '/', treat it as site-root and prefix with base (without duplicating slash)
+      if (url.startsWith(`/`)) {
+        const baseNoSlash = baseWithSlash.endsWith(`/`) ? baseWithSlash.slice(0, -1) : baseWithSlash
+        return { ...item, url: `${baseNoSlash}${url}` }
+      }
+      // Otherwise it's relative to assets/hljs-themes/
+      return { ...item, url: `${baseWithSlash}assets/hljs-themes/${url}` }
+    })
+    return normalized
+  }
+  catch (e) {
+    console.warn(`listHljsThemes failed to load manifest`, e)
+    return []
+  }
 }

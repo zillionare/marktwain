@@ -39,6 +39,26 @@ const {
 
 const colorPicker = ref<HTMLElement & { show: () => void } | null>(null)
 
+const availableHljs = computed(() => (store.availableHljsThemes && store.availableHljsThemes.length ? store.availableHljsThemes : []))
+const codeThemeOptionsForUI = computed(() => {
+  if (availableHljs.value && availableHljs.value.length) {
+    const map = new Map()
+    for (const item of availableHljs.value) {
+      const name = item.name.replace(/\.min$/, ``)
+      const isMin = item.file.endsWith(`.min.css`)
+      const prev = map.get(name)
+      if (!prev) {
+        map.set(name, item)
+      }
+      else if (isMin) {
+        map.set(name, item)
+      }
+    }
+    return Array.from(map.values()).map(it => ({ label: it.name.replace(/\.min$/, ``), value: it.url, desc: `` }))
+  }
+  return codeBlockThemeOptions
+})
+
 function showPicker() {
   colorPicker.value?.show()
 }
@@ -94,7 +114,7 @@ function openConversionConfig() {
       />
       <StyleOptionMenu
         title="代码块主题"
-        :options="codeBlockThemeOptions"
+        :options="codeThemeOptionsForUI"
         :current="codeBlockTheme"
         :change="codeBlockThemeChanged"
       />
