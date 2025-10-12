@@ -39,6 +39,6 @@
     "pre-commit": "npx lint-staged"
   },
   "lint-staged": {
-    "*": "eslint --fix"
+    "{apps/**/src/**/*.{js,ts,vue,jsx,tsx},packages/**/src/**/*.{js,ts,vue,jsx,tsx},src/**/*.{js,ts,vue,jsx,tsx}}": "eslint --fix --no-warn-ignored"
   }
 }

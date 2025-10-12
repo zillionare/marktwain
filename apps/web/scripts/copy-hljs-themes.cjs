@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable node/prefer-global/process */
 const fs = require(`node:fs`)
 const path = require(`node:path`)
 
