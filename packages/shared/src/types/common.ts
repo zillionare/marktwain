@@ -16,10 +16,15 @@ interface CustomCSSProperties {
 
 export type ExtendedProperties = PropertiesHyphen & CustomCSSProperties
 
+export type Extra = `pagination_page` | `pagination_cover` | `pagination_end` | `pagination_page_2` | `pagination_page_3`
+
 export interface Theme {
   base: ExtendedProperties
   block: Record<Block, ExtendedProperties>
   inline: Record<Inline, ExtendedProperties>
+  // Optional extra styles for non-token DOM classes (e.g., pagination wrapper, custom CSS classes)
+  // Support both predefined pagination classes and arbitrary CSS class selectors
+  extra?: Record<Extra | string, ExtendedProperties>
 }
 
 export interface IOpts {

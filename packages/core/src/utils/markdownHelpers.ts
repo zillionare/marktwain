@@ -14,13 +14,16 @@ export function renderMarkdown(raw: string, renderer: RendererAPI) {
   const { markdownContent, readingTime }
     = renderer.parseFrontMatterAndContent(raw)
 
+  // 初始化行号跟踪器
+  renderer.initLineTracker(markdownContent)
+
   // marked -> html
   let html = marked.parse(markdownContent) as string
 
   // XSS 处理
   html = DOMPurify.sanitize(html, {
     ADD_TAGS: [`mp-common-profile`],
-    ADD_ATTR: [`mktwain-data-id`], // 允许我们的自定义属性
+    ADD_ATTR: [`mktwain-data-id`, `data-line`], // 允许我们的自定义属性
   })
 
   return { html, readingTime }

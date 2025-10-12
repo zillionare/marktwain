@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import packageInfo from '../../../../package.json'
+
 const props = defineProps({
   visible: {
     type: Boolean,
@@ -29,10 +31,13 @@ function onRedirect(url: string) {
   <Dialog :open="props.visible" @update:open="onUpdate">
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>关于</DialogTitle>
+        <DialogTitle>关于Marktwain</DialogTitle>
       </DialogHeader>
       <div class="text-center">
         <h3>编辑一次 发遍宇宙</h3>
+        <p class="text-sm text-muted-foreground mb-2">
+          版本 {{ packageInfo.version }}
+        </p>
         <p>要联系我们，请扫码关注开发者公众号 (Quantide)!</p>
         <img
           class="mx-auto my-5"

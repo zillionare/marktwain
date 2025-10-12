@@ -135,3 +135,39 @@ blockquote_p_warning {
 /* GFM caution 段落样式 */
 blockquote_p_caution {
 }
+
+/* ===== 分页模式样式 ===== */
+/* 封面页样式 - 注意：需要使用 .pagination-page.page-cover 选择器 */
+.pagination-page.page-cover {
+  /* 示例：为封面页添加特殊背景 */
+  /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; */
+  /* color: white !important; */
+}
+
+/* 结尾页样式 */
+.pagination-page.page-end {
+  /* 示例：为结尾页添加边框效果 */
+  /* border: 3px solid #4f46e5 !important; */
+  /* border-radius: 12px !important; */
+}
+
+/* 第2页样式（第一页是封面页，所以从第2页开始编号） */
+.pagination-page.page-2 {
+  /* 示例：为第2页添加背景图 */
+  /* background-image: url('your-image-url') !important; */
+  /* background-size: cover !important; */
+  /* background-position: center !important; */
+}
+
+/* 第3页样式 */
+.pagination-page.page-3 {
+  /* 示例：为第3页添加阴影效果 */
+  /* box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important; */
+}
+
+/* 所有分页页面的通用样式覆盖 */
+.pagination-page {
+  /* 示例：为所有页面添加通用样式覆盖 */
+  /* font-family: 'Georgia', serif !important; */
+  /* line-height: 1.6 !important; */
+}

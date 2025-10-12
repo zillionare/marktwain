@@ -2,6 +2,18 @@ import type { AdmonOptions, AdmonVariantItem } from '@md/shared/types'
 import type { MarkedExtension } from 'marked'
 import { getStyleString, ucfirst } from '../utils'
 
+let admonBlockId: number = 0
+
+export function resetAdmonBlockId() {
+  admonBlockId = 0
+}
+
+function getNextBlockId() {
+  const dataId = `mktwain-admonition-${admonBlockId++}`
+  console.debug(`Admon block dataId:`, dataId)
+  return dataId
+}
+
 /**
  * A marked extension to support admonitions with Material Design icons.
  * Supports both !!! syntax and traditional > [!TYPE] syntax.
@@ -76,7 +88,7 @@ export function markedAdmon(options: AdmonOptions = {}): MarkedExtension {
     const { meta, tokens = [] } = token
 
     let text = this.parser.parse(tokens)
-    console.log(`🔍 parsed text:`, text)
+    console.debug(`🔍 parsed text:`, text)
 
     // 为所有段落添加样式，确保每个 <p> 标签都有正确的样式
     text = text.replace(/<p(?:\s[^>]*)?>/g, `<p style="${getStyleString(meta.contentStyle)}">`)
@@ -91,14 +103,10 @@ export function markedAdmon(options: AdmonOptions = {}): MarkedExtension {
         math: 0,
       }
     }
-    const counters = (globalThis as any)._marktwainBlockCounters
-    counters.admonition = counters.admonition + 1
-    const dataId = `mktwain-admonition-${counters.admonition}`
-    console.log(`Admonition renderAdmon called, generating dataId:`, dataId)
 
     // 使用 div 结构而不是 blockquote，以匹配 CSS 样式
-    let tmpl = `<div class="${meta.className} ${meta.variant}" style="${getStyleString(meta.wrapperStyle)}" mktwain-data-id="${dataId}">
-`
+    let tmpl = `<div class="${meta.className} ${meta.variant}" style="${getStyleString(meta.wrapperStyle)}" mktwain-data-id="${getNextBlockId()}">`
+
     tmpl += `<div class="${meta.titleClassName}" style="${getStyleString(meta.titleStyle)}">`
     tmpl += meta.title
     tmpl += `</div>\n`
@@ -141,7 +149,8 @@ export function markedAdmon(options: AdmonOptions = {}): MarkedExtension {
         tokenizer(src, _tokens) {
           // 匹配 !!! {tag} ['title'] 语法，单个空白行结束（符合 CommonMark 标准）
           // 支持可选的标题，标题用引号包围
-          const match = /^!!!\s+(\w+)(?:\s+['"]([^'"]*)['"])?\s*\n([\s\S]*?)\n\s*\n/.exec(src)
+          const pattern = /^!!!\s+(\w+)(?:\s+['"](.*?)['"])?\s*\n([\s\S]*?)(?:\n\s*\n|$)/
+          const match = pattern.exec(src)
 
           if (match) {
             const [raw, variant, title, content] = match

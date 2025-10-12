@@ -234,6 +234,12 @@ async function uploadImage(imageId: string) {
   imageItem.uploading = true
   imageItem.error = undefined // 清除之前的错误
 
+  const imgHost = localStorage.getItem(`imgHost`)
+  if (!imgHost) {
+    toast.error(`图床未配置，请先配置图床`)
+    return
+  }
+
   try {
     console.debug(`上传图片:`, imageId)
 
@@ -245,6 +251,9 @@ async function uploadImage(imageId: string) {
     const base64Content = await toBase64(file)
     const uploadedUrl = await fileUpload(base64Content, file)
 
+    if (!uploadedUrl) {
+      return
+    }
     // 更新图片 URL 为上传后的链接
     imageItem.imageUrl = uploadedUrl
     imageItem.uploaded = true

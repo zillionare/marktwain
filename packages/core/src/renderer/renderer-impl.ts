@@ -8,8 +8,29 @@ import hljs from 'highlight.js'
 import { marked } from 'marked'
 import mermaid from 'mermaid'
 import readingTime from 'reading-time'
-import { markedAdmon, markedAlert, markedFootnotes, markedPlantUML, markedRuby, markedSlider, markedToc, MDKatex } from '../extensions'
+import { markedAdmon, markedAlert, markedFootnotes, markedPlantUML, markedRuby, markedSlider, markedToc, MDKatex, resetAdmonBlockId, resetPlantUmlBlockId } from '../extensions'
+import { resetMathBlockId } from '../extensions/math'
 import { getStyleString } from '../utils'
+import { addDataLineAttribute, LineTracker } from '../utils/lineTracker'
+
+let codeBlockId = 0 // include mermaid code block id
+
+export function resetCodeBlockId() {
+  codeBlockId = 0
+}
+
+export function resetBlockCounters() {
+  resetCodeBlockId()
+  resetAdmonBlockId()
+  resetMathBlockId()
+  resetPlantUmlBlockId()
+}
+
+function getNextBlockId() {
+  const dataId = `mktwain-code-${codeBlockId++}`
+  console.debug(`mermaid block dataId: ${dataId}`)
+  return dataId
+}
 
 marked.setOptions({
   breaks: true,
@@ -41,10 +62,25 @@ function buildTheme({ theme: _theme, fonts, size, isUseIndent, isUseJustify }: I
     Object.fromEntries(
       Object.entries(styles).map(([ele, style]) => [ele, toMerged(base, style)]),
     )
-  return {
+
+  // Build the result with inline, block, and extra styles
+  const result = {
     ...mergeStyles(theme.inline),
     ...mergeStyles(theme.block),
   } as ThemeStyles
+
+  // Add extra styles if they exist (for pagination classes and custom CSS selectors)
+  if (theme.extra) {
+    // console.debug(`[DEBUG] buildTheme processing theme.extra:`, theme.extra)
+    const extraMerged = mergeStyles(theme.extra)
+    // console.debug(`[DEBUG] buildTheme merged extra styles:`, extraMerged)
+    Object.assign(result, extraMerged)
+  }
+  else {
+    console.log(`[DEBUG] buildTheme: no theme.extra found`)
+  }
+
+  return result
 }
 
 function escapeHtml(text: string): string {
@@ -79,9 +115,14 @@ function buildAddition(): string {
 function getStyles(styleMapping: ThemeStyles, tokenName: string, addition: string = ``): string {
   const dict = styleMapping[tokenName as keyof ThemeStyles]
   if (!dict) {
+    console.debug(`No styles found for tokenName:`, tokenName)
     return ``
   }
+
+  console.debug(`Found styles for ${tokenName}:`, dict)
   const styles = getStyleString(dict)
+  console.debug(`Generated CSS string for ${tokenName}:`, styles)
+
   return `style="${styles}${addition}"`
 }
 
@@ -153,6 +194,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
   let codeIndex: number = 0
   const listOrderedStack: boolean[] = []
   const listCounters: number[] = []
+  let lineTracker: LineTracker | undefined
 
   function getOpts(): IOpts {
     return opts
@@ -176,7 +218,12 @@ export function initRenderer(opts: IOpts): RendererAPI {
   function reset(newOpts: Partial<IOpts>): void {
     footnotes.length = 0
     footnoteIndex = 0
+    lineTracker = undefined
     setOptions(newOpts)
+  }
+
+  function initLineTracker(markdownContent: string): void {
+    lineTracker = new LineTracker(markdownContent)
   }
 
   function setOptions(newOpts: Partial<IOpts>): void {
@@ -219,20 +266,37 @@ export function initRenderer(opts: IOpts): RendererAPI {
   }
 
   const renderer: RendererObject = {
-    heading({ tokens, depth }: Tokens.Heading) {
+    heading({ tokens, depth, raw }: Tokens.Heading) {
       const text = this.parser.parseInline(tokens)
       const tag = `h${depth}`
-      return styledContent(tag, text)
+      let html = styledContent(tag, text)
+
+      // 添加 data-line 属性
+      if (lineTracker !== undefined && raw) {
+        const lineNumber = lineTracker.getLineNumber(raw)
+        html = addDataLineAttribute(html, lineNumber)
+      }
+
+      return html
     },
 
-    paragraph({ tokens }: Tokens.Paragraph): string {
+    paragraph({ tokens, raw }: Tokens.Paragraph): string {
       const text = this.parser.parseInline(tokens)
       const isFigureImage = text.includes(`<figure`) && text.includes(`<img`)
       const isEmpty = text.trim() === ``
       if (isFigureImage || isEmpty) {
         return text
       }
-      return styledContent(`p`, text)
+
+      let html = styledContent(`p`, text)
+
+      // 添加 data-line 属性
+      if (lineTracker !== undefined && raw) {
+        const lineNumber = lineTracker.getLineNumber(raw)
+        html = addDataLineAttribute(html, lineNumber)
+      }
+
+      return html
     },
 
     blockquote({ tokens }: Tokens.Blockquote): string {
@@ -248,21 +312,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
           mermaid.run()
         }, 0) as any as number
 
-        // 生成唯一的 data-id 用于转图功能，与 findMarkdownBlocks 中的 ID 生成逻辑保持一致
-        // 使用统一格式: mktwain-{type}-{counter}
-        // 使用独立计数器确保同类型块的编号一致性
-        if (!(globalThis as any)._marktwainBlockCounters) {
-          (globalThis as any)._marktwainBlockCounters = {
-            admonition: 0,
-            code: 0,
-            math: 0,
-          }
-        }
-        const counters = (globalThis as any)._marktwainBlockCounters
-        counters.code = counters.code + 1
-        const dataId = `mktwain-code-${counters.code}`
-        console.log(`Mermaid block renderer called, generating dataId:`, dataId)
-
+        const dataId = getNextBlockId()
         return `<pre class="mermaid" mktwain-data-id="${dataId}">${text}</pre>`
       }
 
@@ -283,24 +333,9 @@ export function initRenderer(opts: IOpts): RendererAPI {
 
       // tab to 4 spaces
       highlighted = highlighted.replace(/\t/g, `    `)
-
-      // 生成唯一的 data-id 用于转图功能，与 findMarkdownBlocks 中的 ID 生成逻辑保持一致
-      // 使用统一格式: mktwain-{type}-{counter}
-      // 使用独立计数器确保同类型块的编号一致性
-      if (!(globalThis as any)._marktwainBlockCounters) {
-        (globalThis as any)._marktwainBlockCounters = {
-          admonition: 0,
-          code: 0,
-          math: 0,
-        }
-      }
-      const counters = (globalThis as any)._marktwainBlockCounters
-      counters.code = counters.code + 1
-      const dataId = `mktwain-code-${counters.code}`
-      console.log(`Code block renderer called, generating dataId:`, dataId)
-
+      const dataId = getNextBlockId()
       // 声明 span 在使用之前
-      const span = `<span class="mac-sign" style="padding: 10px 14px 0;">${macCodeSvg}</span>`
+      const span = `<span class= "mac-sign" style = "padding: 10px 14px 0;" > ${macCodeSvg} </span>`
 
       // 如果开启行号，创建单独的 line-numbers 元素
       if (opts.isShowLineNumbers) {
@@ -339,7 +374,7 @@ export function initRenderer(opts: IOpts): RendererAPI {
       return styledContent(`codespan`, escapedText, `code`)
     },
 
-    list({ ordered, items, start = 1 }: Tokens.List) {
+    list({ ordered, items, start = 1, raw }: Tokens.List) {
       listOrderedStack.push(ordered)
       listCounters.push(Number(start))
 
@@ -350,10 +385,18 @@ export function initRenderer(opts: IOpts): RendererAPI {
       listOrderedStack.pop()
       listCounters.pop()
 
-      return styledContent(
+      let result = styledContent(
         ordered ? `ol` : `ul`,
         html,
       )
+
+      // 添加 data-line 属性
+      if (lineTracker !== undefined && raw) {
+        const lineNumber = lineTracker.getLineNumber(raw)
+        result = addDataLineAttribute(result, lineNumber)
+      }
+
+      return result
     },
 
     // 2. listitem：从栈顶取 ordered + counter，计算 prefix 并自增
@@ -477,5 +520,6 @@ export function initRenderer(opts: IOpts): RendererAPI {
       return styledContent(`container`, content, `section`)
     },
     getOpts,
+    initLineTracker,
   }
 }

@@ -20,6 +20,7 @@ export {
   customCssWithTemplate,
   customizeTheme,
   getStyleString,
+  injectExtraStyles,
   modifyHtmlContent,
   postProcessHtml,
   renderMarkdown,
@@ -91,7 +92,11 @@ function setStyles(element: Element) {
   }
 
   // 判断是否是包裹代码块的 pre 元素
-  function isPre(element: Element) {
+  function isPre(element: Element | null) {
+    if (!element) {
+      return false
+    }
+
     return (
       element.tagName === `PRE`
       && Array.from(element.classList).includes(`code__pre`)
@@ -111,7 +116,7 @@ function setStyles(element: Element) {
     return (
       element.tagName === `SPAN`
       && (isCode(element.parentElement)
-        || isCode((element.parentElement!).parentElement))
+        || (element.parentElement && isCode(element.parentElement.parentElement)))
     )
   }
 }
@@ -122,7 +127,12 @@ function setStyles(element: Element) {
  * @returns {string} 处理后的HTML字符串
  */
 export function processHtmlContent(primaryColor: string): string {
-  const element = document.querySelector(`#output`)!
+  const element = document.querySelector(`#output`)
+  if (!element) {
+    console.error(`无法找到#output元素`)
+    return ``
+  }
+
   setStyles(element)
 
   return element.innerHTML
@@ -184,7 +194,7 @@ export function exportPDF(primaryColor: string, title: string = `untitled`) {
             color: #666;
           }
           @bottom-left {
-            content: "微信 Markdown 编辑器";
+            content: "Marktwain | 公众号 小红书 PDF 转图";
             font-size: 10px;
             color: #999;
           }
@@ -340,7 +350,7 @@ function extractHljsStylesFromPage(): string {
     return hljsCss ? `<style>${hljsCss}</style>` : ``
   }
   catch (error) {
-    console.warn(`无法提取highlight.js样式`, error)
+    console.warn(`提取highlight.js样式时发生错误:`, error)
     return ``
   }
 }
@@ -506,6 +516,27 @@ export async function processClipboardContent(primaryColor: string) {
 
   // 处理图片大小
   solveWeChatImage()
+
+  // 过滤掉行号：移除 .line-numbers 元素，并调整代码块结构
+  const lineNumbersElements = clipboardDiv.querySelectorAll(`.line-numbers`)
+  lineNumbersElements.forEach((lineNumbersEl) => {
+    // 找到包含行号的代码容器
+    const codeContainer = lineNumbersEl.parentElement
+    if (codeContainer && codeContainer.classList.contains(`code-container`)) {
+      // 找到代码元素
+      const codeElement = codeContainer.querySelector(`code.with-line-numbers`)
+      if (codeElement) {
+        // 移除 with-line-numbers 类，恢复为普通代码块
+        codeElement.classList.remove(`with-line-numbers`)
+        // 移除行号元素
+        lineNumbersEl.remove()
+        // 如果容器现在为空，移除容器
+        if (codeContainer.children.length === 0) {
+          codeContainer.remove()
+        }
+      }
+    }
+  })
 
   // 添加空白节点用于兼容 SVG 复制
   const beforeNode = createEmptyNode()
