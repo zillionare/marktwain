@@ -368,20 +368,32 @@ function mergeCss(html: string): string {
   try {
     setCodeBlockStyles(tempDiv)
     setAdmonitionParagraphStyles(tempDiv)
-    return juice(tempDiv.innerHTML, {
-      inlinePseudoElements: true,
-      preserveImportant: true,
-      removeStyleTags: false,
-      insertPreservedExtraCss: true,
-      applyStyleTags: true,
-      webResources: {
-        relativeTo: window.location.href,
-        images: false,
-        svgs: false,
-        scripts: false,
-        links: false,
-      },
-    })
+    // Sanitize HTML/CSS before inlining to avoid parser errors
+    sanitizeHtmlForJuice(tempDiv)
+
+    // Inline styles via juice with a safe fallback
+    let resultHtml = ``
+    try {
+      resultHtml = juice(tempDiv.innerHTML, {
+        inlinePseudoElements: true,
+        preserveImportant: true,
+        removeStyleTags: false,
+        insertPreservedExtraCss: true,
+        applyStyleTags: true,
+        webResources: {
+          relativeTo: window.location.href,
+          images: false,
+          svgs: false,
+          scripts: false,
+          links: false,
+        },
+      })
+    }
+    catch (e) {
+      console.warn(`mergeCss: juice inlining failed, fallback to original HTML`, e)
+      resultHtml = tempDiv.innerHTML
+    }
+    return resultHtml
   }
   finally {
     document.body.removeChild(tempDiv)
@@ -426,15 +438,26 @@ function setCodeBlockStyles(container: Element) {
       `box-shadow`,
     ]
 
-    let newStyle = inlineStyle
+    // Start from existing inline style but ensure we do not start with a semicolon
+    let newStyle = inlineStyle.trim()
+
+    // Append a CSS declaration safely (always ends with ';' and no leading ';')
+    // This prevents invalid chunks when third-party libraries split by ';'
+    const appendDecl = (prop: string, value: string) => {
+      const styleRegex = new RegExp(`(^|;)\\s*${prop}\\s*:\\s*[^;]+\\s*(;|$)`, `i`)
+      if (!styleRegex.test(newStyle)) {
+        if (newStyle && !newStyle.trim().endsWith(`;`)) {
+          newStyle += `; `
+        }
+        newStyle += `${prop}: ${value};`
+      }
+    }
 
     styleProperties.forEach((prop) => {
       const value = computedStyle.getPropertyValue(prop)
+      // Skip common non-values to avoid polluting inline style
       if (value && value !== `initial` && value !== `inherit` && value !== `unset` && value !== `none`) {
-        const styleRegex = new RegExp(`${prop}\\s*:\\s*[^;]+`, `g`)
-        if (!styleRegex.test(newStyle)) {
-          newStyle += `${newStyle.endsWith(`;`) ? `` : `;`}${prop}:${value}`
-        }
+        appendDecl(prop, value)
       }
     })
 
@@ -462,11 +485,72 @@ function setAdmonitionParagraphStyles(container: Element) {
       const hasMargin = inlineStyle.includes(`margin`) || computedStyle.margin !== `0px`
 
       if (!hasMargin) {
-        // 如果没有margin设置，添加0.5rem的上下边距
-        const newStyle = `${inlineStyle + (inlineStyle.endsWith(`;`) ? `` : `;`)}margin:0.5rem 0;`
+        // Build style string without leading semicolon and ensure proper declaration termination
+        let newStyle = inlineStyle.trim()
+        if (newStyle && !newStyle.endsWith(`;`)) {
+          newStyle += `; `
+        }
+        newStyle += `margin: 0.5rem 0;`
         pElement.setAttribute(`style`, newStyle)
       }
     })
+  })
+}
+
+// 清洗 HTML/CSS，修正不规范的 style 与异常属性，避免第三方库解析错误
+function sanitizeHtmlForJuice(container: Element) {
+  // 1) Normalize inline style attributes on all elements
+  const styledElements = container.querySelectorAll(`[style]`)
+  styledElements.forEach((el) => {
+    const original = el.getAttribute(`style`) || ``
+    // Remove backticks and trim whitespace
+    const cleaned = original.replace(/`/g, ``).trim()
+
+    if (!cleaned)
+      return
+
+    // Split declarations and normalize key/value separators
+    const parts = cleaned.split(`;`).map(p => p.trim()).filter(Boolean)
+    const fixed: string[] = []
+
+    for (const part of parts) {
+      if (!part)
+        continue
+
+      let key = ``
+      let value: string | undefined
+
+      if (part.includes(`:`)) {
+        const idx = part.indexOf(`:`)
+        key = part.slice(0, idx).trim()
+        value = part.slice(idx + 1).trim()
+      }
+      else if (part.includes(`=`)) {
+        // Fix illegal 'width=10px' style into 'width: 10px'
+        const idx = part.indexOf(`=`)
+        key = part.slice(0, idx).trim()
+        value = part.slice(idx + 1).trim()
+      }
+
+      // Skip invalid declarations without value
+      if (!key || value == null || value.length === 0)
+        continue
+
+      fixed.push(`${key}: ${value}`)
+    }
+
+    // Recompose style with proper semicolons and spacing
+    const newStyle = fixed.join(`; `) + (fixed.length > 0 ? `;` : ``)
+    el.setAttribute(`style`, newStyle)
+  })
+
+  // 2) Normalize xmlns on SVG containers to remove stray backticks/spaces
+  const xmlnsElements = container.querySelectorAll(`[xmlns]`)
+  xmlnsElements.forEach((el) => {
+    const val = el.getAttribute(`xmlns`)
+
+    if (val)
+      el.setAttribute(`xmlns`, val.replace(/`/g, ``).trim())
   })
 }
 
