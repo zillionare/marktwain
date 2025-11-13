@@ -354,7 +354,7 @@ async function copy() {
                 公众号格式
               </DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="rich-text" :disabled="!isImageReplaced">
-                转图后富文本
+                转图后 MD
               </DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="html">
                 HTML 格式
@@ -363,7 +363,7 @@ async function copy() {
                 HTML 格式（兼容样式）
               </DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="md">
-                MD 格式
+                原始 MD
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>

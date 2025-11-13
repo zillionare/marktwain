@@ -129,9 +129,9 @@ Markdown 中的段落就是一行接一行的文本。要创建新段落，只�
 - **链接**：用方括号和圆括号创建链接 `[显示文本](链接地址)`。
 - **图片**：和链接类似，只需在前面加上 `!`，如 `![描述文本](图片链接)`。
 
-<img style="width: 64px;position: relative; float:left;margin-right: 10px" src="https://images.jieyu.ai/images/hot/logo/quantide.png">
+<img style="width: 64px;position: relative; float:left;margin-right: 10px" src="https://images.quantide.cn/images/hot/logo/quantide.png">
 
-访问[匡醍量化](https://www.jieyu.ai)
+访问[匡醍量化](https://www.quantide.cn)
 
 轻松实现富媒体内容展示！
 
@@ -178,7 +178,7 @@ Markdown 支持简单的表格，用 `|` 和 `-` 分隔单元格和表头。
 | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [量化24课](http://ke.quantide.cn:8080/academy/login?preview=true&course=l24)                     | 课程涵盖了量化交易的全流程，即如何获取数据，如何考察数据的分布、关联性，因子和模式的发现和提取，如何编写策略、进行回测和评估，最终将策略接入实盘。 |
 | [因子挖掘与机器学习策略](http://ke.quantide.cn:8080/academy/login?preview=true&course=fa)        | 本课面向决心以专业、严谨的态度研究量化策略的人。学完本课，您将具有4年以上经验的量化研究员同样的研究能力。                                          |
-| [量化人的 Numpy 和 Pandas](https://www.jieyu.ai/articles/python/numpy%26pandas/01-introduction/) | 课程文本点击链接免费阅读。可运行代码和环境请联系我们。                                                                                             |
+| [量化人的 Numpy 和 Pandas](https://www.quantide.cn/articles/python/numpy%26pandas/01-introduction/) | 课程文本点击链接免费阅读。可运行代码和环境请联系我们。                                                                                             |
 
 这样的表格让数据展示更为清爽！
 

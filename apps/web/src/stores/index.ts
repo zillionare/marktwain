@@ -223,13 +223,13 @@ export const useStore = defineStore(`store`, () => {
      <span style="margin: 0 0.5rem;">♥️</span>
      <span>自豪地使用</span>
      <span style="margin: 0 0.5rem;">
-       <img src="https://images.jieyu.ai/images/hot/logo/markarrow.png" style="height: 1rem; vertical-align: middle;">
+       <img src="https://images.quantide.cn/images/hot/logo/markarrow.png" style="height: 1rem; vertical-align: middle;">
      </span>
      <span>编辑</span>
    </div>
 
    <!-- 第二行内容 -->
-   <div style="font-style: italic;">md.jieyu.ai</div>
+   <div style="font-style: italic;">md.quantide.cn</div>
  </div>`,
       createdAt: Date.now(),
       updatedAt: Date.now(),

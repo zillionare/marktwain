@@ -57,11 +57,11 @@ jobs:
         run: |
           # 创建 .nojekyll 文件以禁用 Jekyll 处理
           touch apps/web/dist/.nojekyll
-          
+
           if [[ "${{ env.CUSTOM_DOMAIN }}" == "true" ]]; then
             # 使用自定义域名时的配置
-            echo "md.jieyu.ai" > apps/web/dist/CNAME
-            
+            echo "md.quantide.cn" > apps/web/dist/CNAME
+
             # 创建 404.html 文件用于 SPA 路由重定向（自定义域名版本）
             cat > apps/web/dist/404.html << 'EOF'
           <!DOCTYPE html>
@@ -74,7 +74,7 @@ jobs:
                 const path = window.location.pathname;
                 const search = window.location.search;
                 const hash = window.location.hash;
-                
+
                 // 重定向到 index.html，让 Vue Router 处理路由
                 window.location.replace('/index.html' + search + hash);
               </script>
@@ -84,7 +84,7 @@ jobs:
             </body>
           </html>
           EOF
-            
+
             # 创建 _redirects 文件用于 GitHub Pages SPA 支持（自定义域名版本）
             cat > apps/web/dist/_redirects << 'EOF'
           # GitHub Pages SPA redirects for custom domain
@@ -105,7 +105,7 @@ jobs:
                 const path = window.location.pathname;
                 const search = window.location.search;
                 const hash = window.location.hash;
-                
+
                 // 如果路径不是以 /marktwain/ 开头，重定向到 /marktwain/
                 if (!path.startsWith('/marktwain/')) {
                   window.location.replace('/marktwain/' + (search + hash));
@@ -120,7 +120,7 @@ jobs:
             </body>
           </html>
           EOF
-            
+
             # 创建 _redirects 文件用于 GitHub Pages SPA 支持
             cat > apps/web/dist/_redirects << 'EOF'
           # GitHub Pages SPA redirects
