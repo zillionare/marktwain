@@ -120,5 +120,5 @@ GitHub 图床支持以下配置选项：
 如果你在使用过程中遇到问题，或者有好的建议，欢迎在 [Issues](https://github.com/zillionare/marktwain/issues) 中反馈。你也可以加入我们的交流群，和我们一起讨论，若群二维码失效，请添加好友，备注 `marktwain`，我们会拉你进群。
 
 <div align="center">
-<img src="https://images.quantide.cn/images/hot/quantfans.png" width="200">
+<img src="https://cdn.jsdelivr.net/gh/zillionare/images@main/images/hot/quantfans.png" width="200">
 </div>

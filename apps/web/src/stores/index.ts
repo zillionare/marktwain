@@ -223,7 +223,7 @@ export const useStore = defineStore(`store`, () => {
      <span style="margin: 0 0.5rem;">♥️</span>
      <span>自豪地使用</span>
      <span style="margin: 0 0.5rem;">
-       <img src="https://images.quantide.cn/images/hot/logo/markarrow.png" style="height: 1rem; vertical-align: middle;">
+       <img src="https://cdn.jsdelivr.net/gh/zillionare/images@main/images/hot/logo/markarrow.png" style="height: 1rem; vertical-align: middle;">
      </span>
      <span>编辑</span>
    </div>
