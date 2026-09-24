@@ -14,6 +14,7 @@ export interface CosePublishPost {
   thumb: string
   desc: string
   wechatHtml?: string
+  blogUrl?: string
 }
 
 export interface CoseTaskAccountStatus {

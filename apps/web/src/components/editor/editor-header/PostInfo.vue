@@ -129,6 +129,7 @@ async function prePost() {
     markdown: ``,
     wechatHtml: ``,
     tags: frag.tags ? frag.tags.split(/[,，]/).map(t => t.trim()).filter(Boolean).slice(0, 5) : [],
+    blogUrl: frag.blog_url ?? ``,
     accounts: [],
   }
   const accounts = allAccounts.value.filter(a => ![`ipfs`].includes(a.type))
@@ -152,6 +153,7 @@ async function prePost() {
       markdown: editor.value?.state.doc.toString() ?? ``,
       tags: auto.tags,
       wechatHtml: auto.wechatHtml,
+      blogUrl: auto.blogUrl,
       accounts,
     }
   }
