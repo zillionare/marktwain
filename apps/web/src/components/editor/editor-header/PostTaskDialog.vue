@@ -32,6 +32,7 @@ async function startPost() {
       thumb: props.post.thumb,
       desc: props.post.desc,
       tags: props.post.tags ?? [],
+      wechatHtml: props.post.wechatHtml ?? '',
     },
     accounts: props.post.accounts.filter(a => a.checked),
   }

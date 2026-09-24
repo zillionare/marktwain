@@ -117,5 +117,6 @@ export interface Post {
   content: string
   markdown: string
   tags?: string[]
+  wechatHtml?: string
   accounts: PostAccount[]
 }

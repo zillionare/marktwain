@@ -13,6 +13,7 @@ export interface CosePublishPost {
   markdown: string
   thumb: string
   desc: string
+  wechatHtml?: string
 }
 
 export interface CoseTaskAccountStatus {

@@ -5,6 +5,8 @@ import { CheckboxIndicator, CheckboxRoot, Primitive } from 'reka-ui'
 import { useEditorStore } from '@/stores/editor'
 import { useRenderStore } from '@/stores/render'
 import { useUIStore } from '@/stores/ui'
+import { useThemeStore } from '@/stores/theme'
+import { processClipboardContent } from '@/services/export'
 
 defineOptions({
   inheritAttrs: false,
@@ -18,6 +20,7 @@ const renderStore = useRenderStore()
 const { output } = storeToRefs(renderStore)
 
 const uiStore = useUIStore()
+const themeStore = useThemeStore()
 const { isMobile } = storeToRefs(uiStore)
 
 const dialogVisible = ref(false)
@@ -115,6 +118,7 @@ async function prePost() {
       for (const [k, v] of new URLSearchParams(window.location.hash.replace(/^#/, ``))) out[k] = v
     }
     catch {}
+    try { console.log(`[marktwain] prePost frag:`, JSON.stringify(out).slice(0, 300)) } catch {}
     return out
   })()
   let auto: Post = {
@@ -123,10 +127,19 @@ async function prePost() {
     desc: frag.excerpt ?? frag.description ?? ``,
     content: ``,
     markdown: ``,
+    wechatHtml: ``,
     tags: frag.tags ? frag.tags.split(/[,，]/).map(t => t.trim()).filter(Boolean).slice(0, 5) : [],
     accounts: [],
   }
   const accounts = allAccounts.value.filter(a => ![`ipfs`].includes(a.type))
+  // quantclaw: 直接算公众号内联样式 HTML（手动复制同款，自托管 http 页剪贴板读取不可靠，扩展拿不到）
+  try {
+    const wechatClip = await processClipboardContent(themeStore.primaryColor)
+    auto.wechatHtml = wechatClip.html
+  }
+  catch (e) {
+    console.warn(`[marktwain] wechatHtml 计算失败:`, e?.message ?? e)
+  }
   try {
     auto = {
       thumb: auto.thumb || document.querySelector<HTMLImageElement>(`#output img`)?.src || ``,
@@ -138,6 +151,7 @@ async function prePost() {
       content: output.value,
       markdown: editor.value?.state.doc.toString() ?? ``,
       tags: auto.tags,
+      wechatHtml: auto.wechatHtml,
       accounts,
     }
   }
