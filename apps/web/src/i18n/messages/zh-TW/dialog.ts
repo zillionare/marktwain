@@ -190,6 +190,8 @@ export default {
     titlePlaceholder: `自動提取第一個標題`,
     descLabel: `描述`,
     descPlaceholder: `自動提取第一個段落`,
+    tagsLabel: `話題`,
+    tagsPlaceholder: `自動提取，最多 5 個（逗號分隔）`,
     platform: `平臺`,
     selectAll: `全選`,
     checking: `檢測中`,

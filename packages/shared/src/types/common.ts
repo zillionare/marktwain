@@ -116,5 +116,6 @@ export interface Post {
   thumb: string
   content: string
   markdown: string
+  tags?: string[]
   accounts: PostAccount[]
 }

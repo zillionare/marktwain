@@ -31,6 +31,7 @@ async function startPost() {
       markdown: props.post.markdown,
       thumb: props.post.thumb,
       desc: props.post.desc,
+      tags: props.post.tags ?? [],
     },
     accounts: props.post.accounts.filter(a => a.checked),
   }

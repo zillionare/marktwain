@@ -190,6 +190,8 @@ export default {
     titlePlaceholder: `Auto-extract first heading`,
     descLabel: `Summary`,
     descPlaceholder: `Auto-extract first paragraph`,
+    tagsLabel: `Tags`,
+    tagsPlaceholder: `Auto-extracted, up to 5 (comma separated)`,
     platform: `Platforms`,
     selectAll: `Select all`,
     checking: `Checking`,

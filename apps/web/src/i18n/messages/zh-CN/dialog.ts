@@ -190,6 +190,8 @@ export default {
     titlePlaceholder: `自动提取第一个标题`,
     descLabel: `描述`,
     descPlaceholder: `自动提取第一个段落`,
+    tagsLabel: `话题`,
+    tagsPlaceholder: `自动提取，最多 5 个（逗号分隔）`,
     platform: `平台`,
     selectAll: `全选`,
     checking: `检测中`,

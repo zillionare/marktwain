@@ -263,7 +263,7 @@ watch(isShowImportMdDialog, (visible) => {
   activeTab.value = `url`
   urlError.value = ``
   nextTick(() => importFromUrl())
-})
+}, { immediate: true })
 </script>
 
 <template>

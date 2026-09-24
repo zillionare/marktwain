@@ -27,12 +27,20 @@ const allAccounts = ref<PostAccount[]>([])
 const postTaskDialogVisible = ref(false)
 const isCheckingLogin = ref(false)
 
+const tagsInput = computed({
+  get: () => (form.value.tags ?? []).join(`，`),
+  set: (v: string) => {
+    form.value.tags = v.split(/[,，]/).map(t => t.trim()).filter(Boolean).slice(0, 5)
+  },
+})
+
 const form = ref<Post>({
   title: ``,
   desc: ``,
   thumb: ``,
   content: ``,
   markdown: ``,
+  tags: [],
   accounts: [] as PostAccount[],
 })
 
@@ -100,25 +108,36 @@ async function prePost() {
     startLoginDetection()
   }
 
+  // quantclaw: CF 流式预览把 frontmatter 拼在 URL fragment（#title=…&cover=…&tags=…&excerpt=…），优先于正文抓取
+  const frag = (() => {
+    const out: Record<string, string> = {}
+    try {
+      for (const [k, v] of new URLSearchParams(window.location.hash.replace(/^#/, ``))) out[k] = v
+    }
+    catch {}
+    return out
+  })()
   let auto: Post = {
-    thumb: ``,
-    title: ``,
-    desc: ``,
+    thumb: frag.cover ?? frag.image ?? frag.img ?? ``,
+    title: frag.title ?? ``,
+    desc: frag.excerpt ?? frag.description ?? ``,
     content: ``,
     markdown: ``,
+    tags: frag.tags ? frag.tags.split(/[,，]/).map(t => t.trim()).filter(Boolean).slice(0, 5) : [],
     accounts: [],
   }
   const accounts = allAccounts.value.filter(a => ![`ipfs`].includes(a.type))
   try {
     auto = {
-      thumb: document.querySelector<HTMLImageElement>(`#output img`)?.src ?? ``,
-      title: [1, 2, 3, 4, 5, 6]
+      thumb: auto.thumb || document.querySelector<HTMLImageElement>(`#output img`)?.src || ``,
+      title: auto.title || [1, 2, 3, 4, 5, 6]
         .map(h => document.querySelector(`#output h${h}`))
         .find(h => h)
-        ?.textContent ?? ``,
-      desc: document.querySelector(`#output p`)?.textContent?.trim() ?? ``,
+        ?.textContent || ``,
+      desc: auto.desc || document.querySelector(`#output p`)?.textContent?.trim() || ``,
       content: output.value,
       markdown: editor.value?.state.doc.toString() ?? ``,
+      tags: auto.tags,
       accounts,
     }
   }
@@ -361,6 +380,12 @@ onBeforeMount(() => {
                 {{ t('postInfo.descLabel') }}
               </Label>
               <Textarea id="desc" v-model="form.desc" :placeholder="t('postInfo.descPlaceholder')" class="min-w-0" />
+            </div>
+            <div class="grid grid-cols-1 items-center gap-2 sm:grid-cols-[minmax(5.5rem,auto)_1fr] sm:gap-x-4">
+              <Label for="tags" class="sm:text-end">
+                {{ t('postInfo.tagsLabel') }}
+              </Label>
+              <Input id="tags" v-model="tagsInput" :placeholder="t('postInfo.tagsPlaceholder')" class="min-w-0" />
             </div>
 
             <div class="grid grid-cols-1 items-start gap-2 sm:grid-cols-[minmax(5.5rem,auto)_1fr] sm:gap-x-4">

@@ -190,6 +190,8 @@ export default {
     titlePlaceholder: `最初の見出しを自動抽出`,
     descLabel: `概要`,
     descPlaceholder: `最初の段落を自動抽出`,
+    tagsLabel: `タグ`,
+    tagsPlaceholder: `自動抽出、最大5件（カンマ区切り）`,
     platform: `プラットフォーム`,
     selectAll: `すべて選択`,
     checking: `確認中`,
